@@ -11,17 +11,17 @@
 using namespace std;
 
 #ifdef _WIN32 
-const char* sqlite3_lib = "drwedba_sqlite3";
-const char* postgres_lib = "drwedba_postgres";
-const char* mysql_lib   = "drwedba_mysql";
-const char* oracle_lib  = "drwedba_oracle";
-const char* odbc_lib    = "drwedba_odbc";
+const char* sqlite3_lib = "edba_sqlite3";
+const char* postgres_lib = "edba_postgres";
+const char* mysql_lib   = "edba_mysql";
+const char* oracle_lib  = "edba_oracle";
+const char* odbc_lib    = "edba_odbc";
 #else 
-const char* sqlite3_lib = "libdrwedba_sqlite3.so";
-const char* postgres_lib = "libdrwedba_postgres.so";
-const char* mysql_lib   = "libdrwedba_mysql.so";
-const char* oracle_lib  = "libdrwedba_oracle.so";
-const char* odbc_lib    = "libdrwedba_odbc.so";
+const char* sqlite3_lib = "libedba_sqlite3.so";
+const char* postgres_lib = "libedba_postgres.so";
+const char* mysql_lib   = "libedba_mysql.so";
+const char* oracle_lib  = "libedba_oracle.so";
+const char* odbc_lib    = "libedba_odbc.so";
 #endif
 
 struct monitor : edba::session_monitor
@@ -105,7 +105,10 @@ void test_simple(const char* lib, const char* entry, const char* conn_str)
 
         {
             edba::transaction tr(sql);
-            sql << "create table shitty(id integer primary key)" << edba::exec;
+            sql << 
+                "~SQLite3~create temp table shitty(id integer primary key)"
+                "~~create table shitty(id integer primary key)~" 
+                << edba::exec;
             sql << "insert into shitty(id) values(?)" 
                 << 1 << edba::exec << edba::reset
                 << 2 << edba::exec << edba::reset;
@@ -238,12 +241,12 @@ void test_initdb(const char* lib, const char* entry, const char* conn_str)
 
 int main()
 {
-    //test_simple(sqlite3_lib, "sqlite3", "db=db.db");
+    test_simple(sqlite3_lib, "sqlite3", "db=db.db");
     //test_simple(postgres_lib, "postgres", "user = postgres; password = postgres;");
     //test_simple(odbc_lib, "odbc", "DSN=PostgreSQL35W; @utf=wide");
     //test_simple(mysql_lib, "mysql", "user=root; password=root; database=test");
     //test_simple(odbc_lib, "odbc", "DSN=MySQLDS");
-    test_simple(oracle_lib, "oracle", "User=system; Password=root; ConnectionString=localhost/XE");
+    //test_simple(oracle_lib, "oracle", "User=system; Password=root; ConnectionString=localhost/XE");
 
     //test_initdb(sqlite3_lib, "sqlite3", "db=dbinternal.dbs");
     //test_initdb(postgres_lib, "postgres", "user = postgres; password = postgres;");

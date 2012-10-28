@@ -1,13 +1,50 @@
 cmake_minimum_required(VERSION 2.8)
 
+option(EDBA_INSTALL "Install edba libraries and backend. In case of standalone build this would be done automatically" OFF)
+option(EDBA_ENABLE_TESTS "Add targets for test building. In case of standalone build this would be done automatically" OFF)
+
+set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
+
+function(edba_install_targets)
+  if(EDBA_STANDALONE_BUILD OR EDBA_INSTALL)
+    install(TARGETS ${ARGV} 
+      RUNTIME DESTINATION bin
+      ARCHIVE DESTINATION lib
+      LIBRARY DESTINATION lib)
+  endif()
+endfunction(edba_install_targets)
+
+# Figure out if we are included from another cmake
+if(CMAKE_PARENT_LIST_FILE STREQUAL CMAKE_CURRENT_LIST_FILE)
+	set(EDBA_STANDALONE_BUILD 1)
+endif()
+
+if(EDBA_STANDALONE_BUILD)
+	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/stage/bin)
+	set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/stage/lib)
+	set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/stage/lib)	
+endif()
+
 find_package(Boost 1.48.0)
-find_package(PostgreSQL)
 
 if (WIN32)
-    add_definitions(_CRT_SECURE_NO_WARNINGS BOOST_ALL_NO_LIB)
+    add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS -DBOOST_ALL_NO_LIB)
 endif (WIN32)
 
 include_directories(${Boost_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-add_library(edba SHARED frontend.cpp backend.cpp utils.cpp)
+add_library(edba SHARED 
+  frontend.cpp 
+  backend.cpp 
+  utils.cpp
+  edba/backend.hpp
+  edba/defs.hpp
+  edba/errors.hpp
+  edba/frontend.hpp
+  edba/utils.hpp)
+
+add_subdirectory(backends)
+add_subdirectory(tests)
+
+edba_install_targets(edba)

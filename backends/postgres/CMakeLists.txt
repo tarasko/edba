@@ -1,0 +1,1 @@
+edba_add_backend(postgres)
