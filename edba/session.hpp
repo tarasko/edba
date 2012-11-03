@@ -2,7 +2,6 @@
 #define EDBA_SESSION_HPP
 
 #include <edba/statement.hpp>
-#include <edba/backend/backend.hpp>
 
 namespace edba {
 

@@ -55,6 +55,7 @@ set(sources
   edba/utils.hpp
   edba/utils.cpp
   edba/backend/bindings.hpp
+  edba/backend/backend_fwd.hpp
   edba/backend/backend.hpp
   edba/backend/backend.cpp 
   edba/backend/session.hpp

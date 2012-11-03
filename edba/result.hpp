@@ -2,7 +2,8 @@
 #define EDBA_RESULT_HPP
 
 #include <edba/string_ref.hpp>
-#include <edba/backend/backend.hpp>
+#include <edba/types.hpp>
+#include <edba/backend/backend_fwd.hpp>
 
 namespace edba {
 
@@ -172,6 +173,9 @@ private:
     boost::intrusive_ptr<backend::statement> stat_;
     boost::intrusive_ptr<backend::connection> conn_;
 };
+
+template<>
+bool result::fetch(int col, fetch_types_variant& v);
 
 ///
 /// \brief Fetch result parameter by column name

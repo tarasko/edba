@@ -1,4 +1,5 @@
 #include <edba/session.hpp>
+#include <edba/backend/backend.hpp>
 
 namespace edba {
 

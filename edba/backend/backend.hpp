@@ -1,15 +1,15 @@
 #ifndef EDBA_BACKEND_H
 #define EDBA_BACKEND_H
 
+#include <edba/backend/backend_fwd.hpp>
+
 #include <edba/conn_info.hpp>
 #include <edba/exports.hpp>
 #include <edba/errors.hpp>
 #include <edba/session_monitor.hpp>
 #include <edba/types.hpp>
-#include <edba/utils.hpp>
 
 #include <boost/noncopyable.hpp>
-#include <boost/intrusive_ptr.hpp>
 
 #include <iosfwd>
 #include <ctime>
@@ -104,38 +104,14 @@ public:
     /// 
     /// Dispatch call to suitable implementation
     ///
-    template<typename T>
-    void bind(int col, const T& val)
-    {
-        bind_impl(col, val);
-        bindings_ << '\'' << val << "' ";
-    }
+    void bind(int col, const bind_types_variant& val);
 
     ///
     /// Bind value to column by name.
     /// 
     /// Dispatch call to suitable implementation
     ///
-    template<typename T>
-    void bind(const string_ref& name, const T& val)
-    {
-        bind_impl(name, val);
-        bindings_ << '\'' << val << "' ";
-    }
-
-    ///
-    /// Bind a BLOB value to column \a col (starting from 1).
-    /// 
-    /// Dispatch call to suitable implementation
-    ///
-    void bind(int col, std::istream* is);
-
-    ///
-    /// Bind a BLOB value by name .
-    /// 
-    /// Dispatch call to suitable implementation
-    ///
-    void bind(const string_ref& name, std::istream* val);
+    void bind(const string_ref& name, const bind_types_variant& val);
 
     ///
     /// Reset all bindings to initial state
@@ -347,12 +323,6 @@ protected:
     unsigned expand_conditionals_ : 1;
     unsigned reserved_ : 30;
 };
-
-EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE(result)
-EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE(bindings)
-EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE(statement)
-EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE(connection)
-
 
 }} // edba, backend
 

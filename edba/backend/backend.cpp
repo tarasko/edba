@@ -18,16 +18,51 @@ EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE_IMPL(connection)
 //bindings
 //////////////
 
-void bindings::bind(int col, std::istream* is)
+namespace {
+
+struct dump_to_ostream : boost::static_visitor<>
 {
-    bind_impl(col, is);
-    bindings_ << "BLOB" << ' ';
+    dump_to_ostream(std::ostream& os) : os_(os) {}
+
+    template<typename T>
+    void operator()(const T& v)
+    {
+        os_ << '\'' << v << "' ";
+    }
+
+    void operator()(null_type)
+    {
+        os_ << "(NULL)";
+    }
+
+    void operator()(const std::tm& v)
+    {
+        os_ << '\'' << format_time(v) << "' ";
+    }
+
+    void operator()(std::istream*)
+    {
+        os_ << "(BLOB)";
+    }
+
+private:
+    std::ostream& os_;
+};
+
 }
 
-void bindings::bind(const string_ref& name, std::istream* is)
+void bindings::bind(int col, const bind_types_variant& val)
 {
-    bind_impl(name, is);
-    bindings_ << "BLOB" << ' ';
+    bind_impl(col, val);
+    dump_to_ostream vis(bindings_);
+    val.apply_visitor(vis);
+}
+
+void bindings::bind(const string_ref& name, const bind_types_variant& val)
+{
+    bind_impl(name, val);
+    dump_to_ostream vis(bindings_);
+    val.apply_visitor(vis);
 }
 
 void bindings::reset()

@@ -1,4 +1,5 @@
 #include <edba/result.hpp>
+#include <edba/backend/backend.hpp>
 
 namespace edba {
 
@@ -95,6 +96,12 @@ bool result::is_null(int col)
 bool result::is_null(const string_ref& n)
 {
     return is_null(index(n));
+}
+
+template<>
+bool result::fetch(int col, fetch_types_variant& v)
+{
+    return res_->fetch(col, v);
 }
 
 }

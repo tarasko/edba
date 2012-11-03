@@ -7,6 +7,7 @@
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/smart_ptr/detail/atomic_count.hpp>
+#include <boost/intrusive_ptr.hpp>
 
 #include <string>
 #include <sstream>
@@ -17,8 +18,10 @@ namespace edba {
 
 #ifdef _WIN32 
 #  define EDBA_MEMCPY(Dst, BufSize, Src, ToCopy) memcpy_s(Dst, BufSize, Src, ToCopy)
+#  define EDBA_STRNCPY(Dest, Source, Size) strncpy_s(Dest, Source, Size)
 #else 
 #  define EDBA_MEMCPY(Dst, BufSize, Src, ToCopy) memcpy(Dst, Src, ToCopy)
+#  define EDBA_STRNCPY(Dest, Source, Size) strncpy(Dest, Source, Size)
 #endif
 
 /// \cond INTERNAL

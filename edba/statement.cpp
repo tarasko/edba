@@ -1,4 +1,5 @@
 #include <edba/statement.hpp>
+#include <edba/backend/backend.hpp>
 
 namespace edba {
 
@@ -62,6 +63,20 @@ void statement::exec()
 {
     if (stat_)
         stat_->exec();
+}
+
+template<>
+statement& statement::bind(int col, const bind_types_variant& v)
+{
+    stat_->bindings().bind(col, v);
+    return *this;
+}
+
+template<>
+statement& statement::bind(const string_ref& name, const bind_types_variant& v)
+{
+    stat_->bindings().bind(name, v);
+    return *this;
 }
 
 

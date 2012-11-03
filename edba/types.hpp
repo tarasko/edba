@@ -15,12 +15,13 @@ namespace edba {
 
 class statement;
 class result;
+
 namespace backend { class statement; }
 
 /// Null type
 struct null_type {};
-// EDBA_API null_type null;
 
+/// Types natively supported by statement::bind method
 typedef boost::mpl::vector<
     null_type
   , short
@@ -39,6 +40,7 @@ typedef boost::mpl::vector<
   , std::istream*
   > bind_types;
 
+/// Types natively supported by result::fetch method
 typedef boost::mpl::vector<
     short
   , unsigned short
@@ -62,28 +64,48 @@ typedef boost::make_variant_over<fetch_types>::type fetch_types_variant;
 template<typename T, typename Enable = void>
 struct bind_conversion
 {
-    static void bind(statement& st, const T& v);
+    template<typename ColOrName>
+    static void bind(statement& st, ColOrName col_or_name, const T& v)
+    {
+        BOOST_MPL_ASSERT_MSG(false, ADD_SPECIALIZATION_OF_BIND_CONVERSION_FOR_TYPE, ((T)));
+    }
 };
 
 template<typename T, typename Enable = void>
 struct fetch_conversion
 {
-    static void fetch(result& res, T& v);
-};
-
-template<typename T>
-struct bind_conversion<T, typename boost::enable_if< boost::mpl::contains<T, bind_types> >::type>
-{
-    static void bind(statement& st, const T& v)
+    template<typename ColOrName>
+    static void fetch(result& res, ColOrName col_or_name, T& v)
     {
+        BOOST_MPL_ASSERT_MSG(false, ADD_SPECIALIZATION_OF_FETCH_CONVERSION_FOR_TYPE, ((T)));
     }
 };
 
+/// Specialization for bind native types
+template<typename T>
+struct bind_conversion<T, typename boost::enable_if< boost::mpl::contains<T, bind_types> >::type>
+{
+    template<typename ColOrName>
+    static void bind(statement& st, ColOrName col_or_name, const T& v)
+    {
+        st.bind(col_or_name, bind_types_variant(v));
+    }
+};
+
+/// Specialization for fetch native types
 template<typename T>
 struct fetch_conversion<T, typename boost::enable_if< boost::mpl::contains<T, fetch_types> >::type>
 {
-    static bool fetch(result& r, T& v, int column)
+    static bool fetch(result& r, int col, T& v)
     {
+        if (r.is_null(col))
+            return false;
+        
+        fetch_variant_types var = T();
+        r.fetch(col_or_name, var);
+        v = var.get<T>();
+
+        return true;
     }
 };
 

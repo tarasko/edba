@@ -1,7 +1,6 @@
 #ifndef EDBA_STATEMENT_HPP
 #define EDBA_STATEMENT_HPP
 
-#include <edba/backend/backend.hpp>
 #include <edba/result.hpp>
 
 namespace edba {
@@ -40,7 +39,7 @@ public:
     template<typename T>
     statement& bind(int col, T& v)
     {
-        // TODO:
+        bind_conversion<typename boost::remove_cv<T>::type>::bind(*this, v);
         return *this;
     }
 
@@ -71,8 +70,7 @@ public:
     template<typename T>
     statement& bind(T& v)
     {
-        // TODO:
-        return *this;
+        return bind(placeholder_++, v);
     }
 
     ///
@@ -251,6 +249,12 @@ statement& operator<<(statement& st, T& v)
 {
     return st.bind(v);
 }
+
+template<>
+statement& statement::bind(int col, const bind_types_variant& v);
+
+template<>
+statement& statement::bind(const string_ref& name, const bind_types_variant& v);
 
 }
 
