@@ -1,11 +1,8 @@
-#define EDBA_SOURCE
-
 #include <edba/utils.hpp>
 #include <edba/errors.hpp>
 
 #include <boost/typeof/typeof.hpp>
 #include <boost/foreach.hpp>
-#include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/find_iterator.hpp>
 
 #include <time.h>
@@ -57,73 +54,73 @@ std::tm parse_time(char const *v)
 }
 
 template<typename T>
-void parse_number_impl(const chptr_range& r, const char* fmt, T& res)
+void parse_number_impl(const string_ref& r, const char* fmt, T& res)
 {
     char buf[std::numeric_limits<T>::digits10 + 1];
     EDBA_STRNCPY(buf, r.begin(), r.size());
     if (0 == sscanf(buf, fmt, &res))
         throw bad_value_cast();
 }
-void parse_number(const chptr_range& r, short& num)
+void parse_number(const string_ref& r, short& num)
 {
     parse_number_impl(r, "%hd", num);
 }
-void parse_number(const chptr_range& r, unsigned short& num)
+void parse_number(const string_ref& r, unsigned short& num)
 {
     parse_number_impl(r, "%hu", num);
 }
-void parse_number(const chptr_range& r, int& num)
+void parse_number(const string_ref& r, int& num)
 {
     parse_number_impl(r, "%d", num);
 }
-void parse_number(const chptr_range& r, unsigned int& num)
+void parse_number(const string_ref& r, unsigned int& num)
 {
     parse_number_impl(r, "%u", num);
 }
-void parse_number(const chptr_range& r, long& num)
+void parse_number(const string_ref& r, long& num)
 {
     parse_number_impl(r, "%ld", num);
 }
-void parse_number(const chptr_range& r, unsigned long& num)
+void parse_number(const string_ref& r, unsigned long& num)
 {
     parse_number_impl(r, "%lu", num);
 }
-void parse_number(const chptr_range& r, long long& num)
+void parse_number(const string_ref& r, long long& num)
 {
     parse_number_impl(r, "%lld", num);
 }
-void parse_number(const chptr_range& r, unsigned long long& num)
+void parse_number(const string_ref& r, unsigned long long& num)
 {
     parse_number_impl(r, "%llu", num);
 }
-void parse_number(const chptr_range& r, float& num)
+void parse_number(const string_ref& r, float& num)
 {
     parse_number_impl(r, "%f", num);
 }
-void parse_number(const chptr_range& r, double& num)
+void parse_number(const string_ref& r, double& num)
 {
     parse_number_impl(r, "%lf", num);
 }
-void parse_number(const chptr_range& r, long double& num)
+void parse_number(const string_ref& r, long double& num)
 {
     parse_number_impl(r, "%Lf", num);
 }
 
-int parse_int_no_throw(const chptr_range& r)
+int parse_int_no_throw(const string_ref& r)
 {
     char buf[std::numeric_limits<int>::digits10 + 1];
     EDBA_STRNCPY(buf, r.begin(), r.size());
     return atoi(buf);
 }
 
-chptr_range select_statement(
-    const chptr_range& _rng
+string_ref select_statement(
+    const string_ref& _rng
   , const std::string& engine
   , int ver_major
   , int ver_minor
   )
 {
-    chptr_range rng = trim(_rng);
+    string_ref rng = trim(_rng);
     if (rng.empty()) 
         throw edba_error("edba::select_statement empty sql provided");
 
@@ -139,13 +136,13 @@ chptr_range select_statement(
 
     for(; spl_iter != spl_iter_end; ++spl_iter)
     {
-        chptr_range engine_with_version = *spl_iter++;
+        string_ref engine_with_version = *spl_iter++;
 
         if (engine_with_version.empty())
             return *spl_iter;
 
         BOOST_AUTO(eng_iter, (make_split_iterator(engine_with_version, first_finder("/."))));
-        chptr_range eng_name = *eng_iter++;
+        string_ref eng_name = *eng_iter++;
 
         if (!eng_name.empty() && !boost::iequals(engine, eng_name))
             continue;
@@ -167,7 +164,7 @@ chptr_range select_statement(
 }
 
 std::string select_statements_in_batch(
-    const chptr_range& rng
+    const string_ref& rng
   , const std::string& engine
   , int ver_major
   , int ver_minor
@@ -183,7 +180,7 @@ std::string select_statements_in_batch(
 
     for(; spl_iter != spl_iter_end; ++spl_iter)
     {
-        chptr_range st = trim(*spl_iter);
+        string_ref st = trim(*spl_iter);
         if (st.empty()) 
             continue;
 
@@ -193,7 +190,7 @@ std::string select_statements_in_batch(
         else
         {
             result.append(st.begin(), mark);
-            chptr_range selected_st = select_statement(chptr_range(mark, st.end()), engine, ver_major, ver_minor);
+            string_ref selected_st = select_statement(string_ref(mark, st.end()), engine, ver_major, ver_minor);
             result.append(selected_st.begin(), selected_st.end());
         }
 

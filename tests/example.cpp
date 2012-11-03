@@ -226,7 +226,7 @@ void test_initdb(const char* lib, const char* entry, const char* conn_str)
         edba::transaction tr(sql);
 
         boost::iostreams::mapped_file mf("C:\\Users\\taras\\Documents\\Visual Studio 2010\\Projects\\sqlite\\Release\\init.sql");
-        edba::chptr_range rng(mf.const_begin(), mf.const_end());
+        edba::string_ref rng(mf.const_begin(), mf.const_end());
 
         t.restart();
         sql.exec_batch(rng);

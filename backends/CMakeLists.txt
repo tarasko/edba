@@ -14,6 +14,7 @@ function(edba_add_backend backend_name)
 	target_link_libraries(edba_${lower_backend_name}_s ${${upper_backend_name}_LIBRARIES} edba)
 
 	set_target_properties(edba_${lower_backend_name} PROPERTIES COMPILE_DEFINITIONS "edba_DRIVER_EXPORTS")
+  set_target_properties(edba_${lower_backend_name}_s PROPERTIES COMPILE_DEFINITIONS "edba_DRIVER_STATIC")
   
   edba_install_targets(edba_${lower_backend_name} edba_${lower_backend_name}_s)
 endfunction(edba_add_backend)

@@ -165,7 +165,7 @@ public:
     {
         return unsigned long long(-1);
     }
-    virtual int name_to_column(const chptr_range& n)
+    virtual int name_to_column(const string_ref& n)
     {
         if(column_names_.empty()) 
         {
@@ -205,7 +205,7 @@ private:
     sqlite3_stmt *st_;
     sqlite3 *conn_;
 
-    typedef std::map<chptr_range, int, chptr_range::iless> column_names_map;
+    typedef std::map<string_ref, int, string_ref::iless> column_names_map;
     column_names_map column_names_;
     bool column_names_prepared_;
     int cols_;
@@ -225,7 +225,7 @@ public:
             reset_=true;
         }
     }
-    virtual void bind_impl(int col,chptr_range const &v) 
+    virtual void bind_impl(int col,string_ref const &v) 
     {
         reset_stat();
         check_bind(sqlite3_bind_text(st_, col, v.begin(), int(v.size()), SQLITE_TRANSIENT));
@@ -323,7 +323,7 @@ public:
     {
         return sqlite3_changes(conn_);
     }
-    statement(const chptr_range& query,sqlite3 *conn, session_monitor* sm) : 
+    statement(const string_ref& query,sqlite3 *conn, session_monitor* sm) : 
         backend::statement(sm, query),
         st_(0),
         conn_(conn),
@@ -361,7 +361,7 @@ public:
             throw edba_error("sqlite3:database file (db propery) not specified");
         }
 
-        chptr_range mode = ci.get("mode", "create");
+        string_ref mode = ci.get("mode", "create");
 
         int flags = 0;
         if(boost::algorithm::iequals(mode, "create"))
@@ -405,15 +405,15 @@ public:
     {
         fast_exec("rollback");
     }
-    virtual boost::intrusive_ptr<backend::statement> prepare_statement(const chptr_range& q)
+    virtual boost::intrusive_ptr<backend::statement> prepare_statement(const string_ref& q)
     {
         return boost::intrusive_ptr<backend::statement>(new statement(q,conn_, sm_));
     }
-    virtual boost::intrusive_ptr<backend::statement> create_statement(const chptr_range& q)
+    virtual boost::intrusive_ptr<backend::statement> create_statement(const string_ref& q)
     {
         return prepare_statement(q);
     }
-    virtual void exec_batch_impl(const chptr_range& q)
+    virtual void exec_batch_impl(const string_ref& q)
     {
         if (expand_conditionals_) 
             fast_exec(q.begin());

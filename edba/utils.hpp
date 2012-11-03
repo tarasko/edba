@@ -1,12 +1,11 @@
 #ifndef EDBA_UTIL_H
 #define EDBA_UTIL_H
 
-#include <edba/defs.hpp>
+#include <edba/exports.hpp>
 #include <edba/errors.hpp>
+#include <edba/string_ref.hpp>
 
 #include <boost/algorithm/string/predicate.hpp>
-#include <boost/range/iterator_range.hpp>
-#include <boost/range/as_literal.hpp>
 #include <boost/smart_ptr/detail/atomic_count.hpp>
 
 #include <string>
@@ -16,32 +15,24 @@
 
 namespace edba {
 
-class chptr_range : public boost::iterator_range<const char*> 
-{
-public:
-    chptr_range() {}
-    chptr_range(const char* str) : boost::iterator_range<const char*>(boost::as_literal(str)) {} 
-    chptr_range(const std::string& str) : boost::iterator_range<const char*>(str.c_str(), str.c_str() + str.size()) {}
-    chptr_range(const boost::iterator_range<const char*>& r) : boost::iterator_range<const char*>(r) {}
-    chptr_range(const char* b, const char* e) : boost::iterator_range<const char*>(b, e) {}
-    chptr_range(const char* b, size_t sz) : boost::iterator_range<const char*>(b, b + sz) {}
+#ifdef _WIN32 
+#  define EDBA_MEMCPY(Dst, BufSize, Src, ToCopy) memcpy_s(Dst, BufSize, Src, ToCopy)
+#else 
+#  define EDBA_MEMCPY(Dst, BufSize, Src, ToCopy) memcpy(Dst, Src, ToCopy)
+#endif
 
-    struct iless
+/// \cond INTERNAL
+namespace detail {
+    /// Introduce new vocabulary type like std::pair<T1, T2> for use and into expressions
+    template<typename First, typename Second>
+    struct tag
     {
-        bool operator()(const chptr_range& r1, const chptr_range& r2) const
-        {
-            return boost::algorithm::ilexicographical_compare(r1, r2);
-        }
+        tag(First first, Second second) : first_(first), second_(second) {}
+        First first_;
+        Second second_;
     };
-
-    struct less
-    {
-        bool operator()(const chptr_range& r1, const chptr_range& r2) const
-        {
-            return boost::algorithm::lexicographical_compare(r1, r2);
-        }
-    };
-};
+} // detail
+/// \endcond
 
 ///
 /// \brief parse a string as time value.
@@ -102,8 +93,8 @@ IterRange trim(const IterRange& rng)
 ///                           value TEXT DEFAULT '' )                   -- value
 ///~    
 ///
-chptr_range select_statement(
-    const chptr_range& rng
+string_ref select_statement(
+    const string_ref& rng
     , const std::string& engine
     , int ver_major
     , int ver_minor
@@ -113,23 +104,23 @@ chptr_range select_statement(
 /// \brief select statements according to engine and version int statements batch separated with ;
 /// 
 std::string select_statements_in_batch(
-    const chptr_range& rng
+    const string_ref& rng
     , const std::string& engine
     , int ver_major
     , int ver_minor
     );
 
-EDBA_API void parse_number(const chptr_range& r, short& num);
-EDBA_API void parse_number(const chptr_range& r, unsigned short& num);
-EDBA_API void parse_number(const chptr_range& r, int& num);
-EDBA_API void parse_number(const chptr_range& r, unsigned int& num);
-EDBA_API void parse_number(const chptr_range& r, long& num);
-EDBA_API void parse_number(const chptr_range& r, unsigned long& num);
-EDBA_API void parse_number(const chptr_range& r, long long& num);
-EDBA_API void parse_number(const chptr_range& r, unsigned long long& num);
-EDBA_API void parse_number(const chptr_range& r, float& num);
-EDBA_API void parse_number(const chptr_range& r, double& num);
-EDBA_API void parse_number(const chptr_range& r, long double& num);
+EDBA_API void parse_number(const string_ref& r, short& num);
+EDBA_API void parse_number(const string_ref& r, unsigned short& num);
+EDBA_API void parse_number(const string_ref& r, int& num);
+EDBA_API void parse_number(const string_ref& r, unsigned int& num);
+EDBA_API void parse_number(const string_ref& r, long& num);
+EDBA_API void parse_number(const string_ref& r, unsigned long& num);
+EDBA_API void parse_number(const string_ref& r, long long& num);
+EDBA_API void parse_number(const string_ref& r, unsigned long long& num);
+EDBA_API void parse_number(const string_ref& r, float& num);
+EDBA_API void parse_number(const string_ref& r, double& num);
+EDBA_API void parse_number(const string_ref& r, long double& num);
 
 struct ref_cnt : boost::noncopyable
 {

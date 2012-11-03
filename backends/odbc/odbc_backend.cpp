@@ -1,5 +1,4 @@
-#define EDBA_DRIVER_SOURCE
-#include <edba/backend.hpp>
+#include <edba/backend/backend.hpp>
 #include <edba/utils.hpp>
 
 #include <boost/algorithm/string/predicate.hpp>
@@ -31,7 +30,7 @@ BOOST_STATIC_ASSERT(sizeof(unsigned) == 4);
 BOOST_STATIC_ASSERT(sizeof(unsigned short) == 2);
 BOOST_STATIC_ASSERT(sizeof(SQLWCHAR) == 2);
 
-std::string widen(const chptr_range& utf8)
+std::string widen(const string_ref& utf8)
 {
 #ifdef _WIN32    
     // determine required size
@@ -55,7 +54,7 @@ std::string widen(const chptr_range& utf8)
 }
 
 
-std::basic_string<SQLWCHAR> tosqlwide(const chptr_range& utf8)
+std::basic_string<SQLWCHAR> tosqlwide(const string_ref& utf8)
 {
 #ifdef _WIN32    
     // determine required size
@@ -286,7 +285,7 @@ public:
     {
         return rows_.size();
     }
-    virtual int name_to_column(const chptr_range& cn) 
+    virtual int name_to_column(const string_ref& cn) 
     {
         for(unsigned i=0; i<names_.size(); i++)
             if(boost::algorithm::iequals(names_[i], cn))
@@ -345,7 +344,7 @@ class statement : public backend::statement {
                 sqltype = SQL_LONGVARCHAR;
             }
             else {
-                std::string tmp = widen(chptr_range(b,e));
+                std::string tmp = widen(string_ref(b,e));
                 value.swap(tmp);
                 null=false;
                 ctype=SQL_C_WCHAR;
@@ -448,7 +447,7 @@ public:
         }
         return params_[col];
     }
-    virtual void bind_impl(int col,const chptr_range& rng)
+    virtual void bind_impl(int col,const string_ref& rng)
     {
         param_at(col).set_text(rng.begin(),rng.end(),wide_);
     }
@@ -709,7 +708,7 @@ public:
     }
     // End of API
 
-    statement(const chptr_range& q,SQLHDBC dbc,bool wide,bool prepared,session_monitor* sm) :
+    statement(const string_ref& q,SQLHDBC dbc,bool wide,bool prepared,session_monitor* sm) :
         backend::statement(sm, q),
         dbc_(dbc),
         wide_(wide),
@@ -779,7 +778,7 @@ public:
 
     connection(const conn_info& ci, session_monitor* sm) : backend::connection(ci, sm), ci_(ci)
     {
-        chptr_range utf = ci.get("@utf", "narrow");
+        string_ref utf = ci.get("@utf", "narrow");
         if(boost::iequals(utf, "narrow"))
             wide_ = false;
         else if(boost::iequals(utf, "wide"))
@@ -864,7 +863,7 @@ public:
         description_ = desc_buf;
 
         // initialize sequance_last_ and last_insert_id_
-        chptr_range seq = ci_.get("@sequence_last","");
+        string_ref seq = ci_.get("@sequence_last","");
         if(seq.empty()) 
         {
             const std::string& eng=engine();
@@ -919,7 +918,7 @@ public:
             set_autocommit(true);
         } catch(...){}
     }
-    boost::intrusive_ptr<backend::statement> real_prepare(const chptr_range& q,bool prepared)
+    boost::intrusive_ptr<backend::statement> real_prepare(const string_ref& q,bool prepared)
     {
         boost::intrusive_ptr<statement> st(new statement(q,dbc_,wide_,prepared, sm_));
         st->sequence_last_ = sequence_last_;
@@ -928,17 +927,17 @@ public:
         return st;
     }
 
-    virtual boost::intrusive_ptr<backend::statement> prepare_statement(const chptr_range& q)
+    virtual boost::intrusive_ptr<backend::statement> prepare_statement(const string_ref& q)
     {
         return real_prepare(q,true);
     }
 
-    virtual boost::intrusive_ptr<backend::statement> create_statement(const chptr_range& q)
+    virtual boost::intrusive_ptr<backend::statement> create_statement(const string_ref& q)
     {
         return real_prepare(q,false);
     }
 
-    virtual void exec_batch_impl(const chptr_range& q)
+    virtual void exec_batch_impl(const string_ref& q)
     {
         using namespace boost::algorithm;
 

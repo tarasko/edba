@@ -34,15 +34,39 @@ endif (WIN32)
 include_directories(${Boost_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-add_library(edba SHARED 
-  frontend.cpp 
-  backend.cpp 
-  utils.cpp
-  edba/backend.hpp
-  edba/defs.hpp
+set(sources
+  edba/conn_info.hpp
+  edba/conn_info.cpp
+  edba/exports.hpp
   edba/errors.hpp
   edba/frontend.hpp
-  edba/utils.hpp)
+  edba/frontend.cpp
+  edba/session_monitor.hpp
+  edba/statement.hpp
+  edba/statement.cpp
+  edba/session.hpp
+  edba/session.cpp
+  edba/string_ref.hpp
+  edba/types.hpp
+  edba/transaction.hpp
+  edba/transaction.cpp
+  edba/result.hpp
+  edba/result.cpp
+  edba/utils.hpp
+  edba/utils.cpp
+  edba/backend/bindings.hpp
+  edba/backend/backend.hpp
+  edba/backend/backend.cpp 
+  edba/backend/session.hpp
+  edba/backend/statement.hpp
+)
+
+add_library(edba SHARED ${sources})
+
+foreach(src ${sources})
+	string(REGEX REPLACE "(.*)/.*" "\\1" dir ${src})
+	source_group(${dir} FILES ${src})
+endforeach(src ${sources})
 
 add_subdirectory(backends)
 add_subdirectory(tests)

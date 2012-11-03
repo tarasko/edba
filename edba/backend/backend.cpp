@@ -1,6 +1,4 @@
-#define EDBA_SOURCE
-
-#include <edba/backend.hpp>
+#include <edba/backend/backend.hpp>
 #include <edba/utils.hpp>
 
 #include <boost/algorithm/string/predicate.hpp>
@@ -12,50 +10,46 @@
 namespace edba { namespace backend {
 
 EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE_IMPL(result)
+EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE_IMPL(bindings)
 EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE_IMPL(statement)
 EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE_IMPL(connection)
+
+//////////////
+//bindings
+//////////////
+
+void bindings::bind(int col, std::istream* is)
+{
+    bind_impl(col, is);
+    bindings_ << "BLOB" << ' ';
+}
+
+void bindings::bind(const string_ref& name, std::istream* is)
+{
+    bind_impl(name, is);
+    bindings_ << "BLOB" << ' ';
+}
+
+void bindings::reset()
+{
+    reset_impl();
+    bindings_.str("");
+}
+
+std::string bindings::to_string() const
+{
+    return bindings_.str();
+}
 
 //////////////
 //statement
 //////////////
 
 // Begin of API
-statement::statement(session_monitor* sm, const chptr_range& orig_sql) : 
+statement::statement(session_monitor* sm, const string_ref& orig_sql) : 
     sm_(sm)
   , orig_sql_(orig_sql.begin(), orig_sql.end())
 {
-}
-
-///
-/// Reset the prepared statement to initial state as before the operation. It is
-/// called by front-end each time before new query() or exec() are called.
-///
-void statement::reset()
-{
-    reset_impl();
-    if (sm_)
-        bindings_.str("");
-}
-
-void statement::bind(int col, const std::tm& val)
-{
-    bind_impl(col, val);
-    if (sm_)
-        bindings_ << '\'' << format_time(val) << "' ";
-}
-
-void statement::bind(int col,std::istream & s)
-{
-    bind_impl(col, s);
-    if (sm_)
-        bindings_ << "'BLOB' ";
-}
-
-void statement::bind_null(int col)
-{
-    bind_null_impl(col);
-    if (sm_)
-        bindings_ << "'NULL' ";
 }
 
 boost::intrusive_ptr<result> statement::query()
@@ -70,12 +64,12 @@ boost::intrusive_ptr<result> statement::query()
         }
         catch(...)
         {
-            sm_->query_executed(orig_sql_, bindings_.str(), false, t.elapsed(), 0);
+            sm_->query_executed(orig_sql_, bindings_->to_string(), false, t.elapsed(), 0);
             throw;
         }
 
         // TODO: Add way to evaluate number of rows
-        sm_->query_executed(orig_sql_, bindings_.str(), true, t.elapsed(), r->rows());
+        sm_->query_executed(orig_sql_, bindings_->to_string(), true, t.elapsed(), r->rows());
         return r;
     }
     else
@@ -93,11 +87,11 @@ void statement::exec()
         }
         catch(...)
         {
-            sm_->statement_executed(orig_sql_, bindings_.str(), false, t.elapsed(), 0);
+            sm_->statement_executed(orig_sql_, bindings_->to_string(), false, t.elapsed(), 0);
             throw;
         }
 
-        sm_->statement_executed(orig_sql_, bindings_.str(), true, t.elapsed(), affected());
+        sm_->statement_executed(orig_sql_, bindings_->to_string(), true, t.elapsed(), affected());
     }
     else
         exec_impl();
@@ -107,7 +101,7 @@ void statement::exec()
 //connection
 //////////////
 
-boost::intrusive_ptr<statement> connection::prepare(const chptr_range& q) 
+boost::intrusive_ptr<statement> connection::prepare(const string_ref& q) 
 {
     if(default_is_prepared_)
         return get_prepared_statement(q);
@@ -115,9 +109,9 @@ boost::intrusive_ptr<statement> connection::prepare(const chptr_range& q)
         return get_statement(q);
 }
 
-boost::intrusive_ptr<statement> connection::get_statement(const chptr_range& _q)
+boost::intrusive_ptr<statement> connection::get_statement(const string_ref& _q)
 {
-    chptr_range q;
+    string_ref q;
 
     if(expand_conditionals_)
     {
@@ -132,9 +126,9 @@ boost::intrusive_ptr<statement> connection::get_statement(const chptr_range& _q)
     return q.empty() ? boost::intrusive_ptr<statement>() : create_statement(q);
 }
 
-boost::intrusive_ptr<statement> connection::get_prepared_statement(const chptr_range& _q)
+boost::intrusive_ptr<statement> connection::get_prepared_statement(const string_ref& _q)
 {
-    chptr_range q;
+    string_ref q;
 
     if(expand_conditionals_)
     {
@@ -149,7 +143,7 @@ boost::intrusive_ptr<statement> connection::get_prepared_statement(const chptr_r
     return q.empty() ? boost::intrusive_ptr<statement>() : prepare_statement(q);
 }
 
-void connection::exec_batch(const chptr_range& _q)
+void connection::exec_batch(const string_ref& _q)
 {
     if(expand_conditionals_)
     {
@@ -198,7 +192,7 @@ void connection::rollback()
 
 connection::connection(conn_info const &info, session_monitor* sm) : sm_(sm)
 {
-    chptr_range def_is_prep = info.get("@use_prepared","on");
+    string_ref def_is_prep = info.get("@use_prepared","on");
     if(boost::algorithm::iequals(def_is_prep, "on"))
         default_is_prepared_ = 1;
     else if(boost::algorithm::iequals(def_is_prep, "off"))
@@ -206,7 +200,7 @@ connection::connection(conn_info const &info, session_monitor* sm) : sm_(sm)
     else
         throw edba_error("edba::backend::connection: @use_prepared should be either 'on' or 'off'");
 
-    chptr_range exp_cond = info.get("@expand_conditionals", "on");
+    string_ref exp_cond = info.get("@expand_conditionals", "on");
     if(boost::algorithm::iequals(exp_cond, "on"))
         expand_conditionals_ = 1;
     else if(boost::algorithm::iequals(exp_cond, "off"))
