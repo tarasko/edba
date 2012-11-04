@@ -244,7 +244,8 @@ void test_var()
     edba::loadable_driver drv(odbc_lib, "odbc");
     edba::session sess = drv.open("DSN=VAR_DATA");
 
-    edba::result res = sess << "SELECT ID, CURVE_ID, TIMESTAMP, VALUE, TERM FROM CURVE_QUOTE WHERE ID=? OR ID=?" << 602377 << 473930;
+    edba::result res = sess << "SELECT ID, CURVE_ID, TIMESTAMP, VALUE, TERM FROM CURVE_QUOTE WHERE ID=:id1 OR ID=:id2" 
+        << edba::use("id1", 602377) << edba::use("id2", 473930);
 
     while(res.next()) {
         long long id;

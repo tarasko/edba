@@ -145,7 +145,7 @@ private:
 /// \brief Bind statement parameter by name
 ///
 template<typename T>
-detail::tag<string_ref, T&> use(const string_ref& name, const T& v)
+detail::tag<string_ref, const T&> use(const string_ref& name, const T& v)
 {
     return detail::tag<string_ref, const T&>(name, v);
 }
@@ -154,7 +154,7 @@ detail::tag<string_ref, T&> use(const string_ref& name, const T& v)
 /// \brief Bind statement parameter by index (starting from 1)
 ///
 template<typename T>
-detail::tag<int, T&> use(int index, const T& v)
+detail::tag<int, const T&> use(int index, const T& v)
 {
     return detail::tag<int, const T&>(index, v);
 }

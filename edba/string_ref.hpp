@@ -4,6 +4,7 @@
 #include <boost/range/iterator_range.hpp>
 #include <boost/range/as_literal.hpp>
 #include <boost/algorithm/string/predicate.hpp>
+#include <boost/functional/hash.hpp>
 
 #include <string>
 
@@ -36,6 +37,11 @@ public:
         }
     };
 };
+
+inline std::size_t hash_value(string_ref const& str)
+{
+    return boost::hash_range(str.begin(), str.end());
+}
 
 }
 

@@ -463,13 +463,13 @@ public:
                 if(wide_) {
                     r = SQLPrepareW(
                         stmt_,
-                        (SQLWCHAR*)tosqlwide(orig_sql()).c_str(),
+                        (SQLWCHAR*)tosqlwide(bindings_.sql()).c_str(),
                         SQL_NTS);
                 }
                 else {
                     r = SQLPrepareA(
                         stmt_,
-                        (SQLCHAR*)orig_sql().c_str(),
+                        (SQLCHAR*)bindings_.sql().c_str(),
                         SQL_NTS);
                 }
                 check_error(r);
