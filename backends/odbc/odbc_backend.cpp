@@ -5,6 +5,8 @@
 #include <boost/algorithm/string/find_iterator.hpp>
 #include <boost/typeof/typeof.hpp>
 #include <boost/static_assert.hpp>
+#include <boost/make_shared.hpp>
+#include <boost/scoped_ptr.hpp>
 
 #include <list>
 #include <vector>
@@ -180,6 +182,39 @@ public:
     typedef std::vector<cell_type> row_type;
     typedef std::list<row_type> rows_type;
 
+    struct visitor : boost::static_visitor<>
+    {
+        visitor(const std::string& data) : data_(data) {}
+
+        // for ariphmetic types use parse_number
+        template<typename T>
+        void operator()(T& v)
+        {
+            parse_number(data_, v);
+        }
+
+        // for string type, return string
+        void operator()(std::string& v)
+        {
+            v = data_;
+        }
+
+        // for ostream type use operator <<
+        void operator()(std::ostream* v)
+        {
+            *v << data_;
+        }
+
+        // for std::tm use parse_time
+        void operator()(std::tm& v)
+        {
+            v = parse_time(data_);
+        }
+
+    private:
+        const std::string& data_;
+    };
+
     virtual next_row has_next()
     {
         rows_type::iterator p=current_;
@@ -199,78 +234,15 @@ public:
         }
         return current_!=rows_.end();
     }
-    template<typename T>
-    bool do_fetch(int col,T& v)
+    virtual bool fetch(int col, fetch_types_variant& v)
     {
-        if(at(col).first)
+        cell_type& cell = at(col);
+        if(cell.first)
             return false;
 
-        parse_number(at(col).second, v);
-        return true;
-    }
-    virtual bool fetch(int col,short &v)
-    {
-        return  do_fetch(col,v);	
-    }
-    virtual bool fetch(int col,unsigned short &v)
-    {
-        return  do_fetch(col,v);	
-    }
-    virtual bool fetch(int col,int &v)
-    {
-        return  do_fetch(col,v);	
-    }
-    virtual bool fetch(int col,unsigned &v)
-    {
-        return  do_fetch(col,v);	
-    }
-    virtual bool fetch(int col,long &v)
-    {
-        return  do_fetch(col,v);	
-    }
-    virtual bool fetch(int col,unsigned long &v)
-    {
-        return  do_fetch(col,v);	
-    }
-    virtual bool fetch(int col,long long &v)
-    {
-        return  do_fetch(col,v);	
-    }
-    virtual bool fetch(int col,unsigned long long &v)
-    {
-        return  do_fetch(col,v);	
-    }
-    virtual bool fetch(int col,float &v)
-    {
-        return  do_fetch(col,v);	
-    }
-    virtual bool fetch(int col,double &v)
-    {
-        return  do_fetch(col,v);	
-    }
-    virtual bool fetch(int col,long double &v)
-    {
-        return  do_fetch(col,v);	
-    }
-    virtual bool fetch(int col,std::string &v)
-    {
-        if(at(col).first)
-            return false;
-        v=at(col).second;
-        return true;
-    }
-    virtual bool fetch(int col,std::ostream &v) 
-    {
-        if(at(col).first)
-            return false;
-        v << at(col).second;
-        return true;
-    }
-    virtual bool fetch(int col,std::tm &v)
-    {
-        if(at(col).first)
-            return false;
-        v = parse_time(at(col).second);
+        visitor vis(cell.second);
+        v.apply_visitor(vis);
+
         return true;
     }
     virtual bool is_null(int col)
@@ -320,70 +292,28 @@ private:
     rows_type rows_;
 };
 
-class statement : public backend::statement {
-    struct parameter {
-        parameter() : 
-            null(true),
-            ctype(SQL_C_CHAR),
-            sqltype(SQL_C_NUMERIC)
-        {
-        }
-        void set_binary(char const *b,char const *e)
-        {
-            value.assign(b,e-b);
-            null=false;
-            ctype=SQL_C_BINARY;
-            sqltype = SQL_LONGVARBINARY;
-        }
-        void set_text(char const *b,char const *e,bool wide)
-        {
-            if(!wide) {
-                value.assign(b,e-b);
-                null=false;
-                ctype=SQL_C_CHAR;
-                sqltype = SQL_LONGVARCHAR;
-            }
-            else {
-                std::string tmp = widen(string_ref(b,e));
-                value.swap(tmp);
-                null=false;
-                ctype=SQL_C_WCHAR;
-                sqltype = SQL_WLONGVARCHAR;
-            }
-        }
-        void set(std::tm const &v)
-        {
-            value = format_time(v);
-            null=false;
-            sqltype = SQL_C_TIMESTAMP;
-            ctype = SQL_C_CHAR;
-        }
+class odbc_bindings : public backend::bindings 
+{
+public:
+    odbc_bindings(SQLHSTMT stmt, bool wide) : stmt_(stmt), wide_(wide) {}
 
-        template<typename T>
-        void set(T v)
-        {
-            std::ostringstream ss;
-            ss.imbue(std::locale::classic());
-            if(!std::numeric_limits<T>::is_integer)
-                ss << std::setprecision(std::numeric_limits<T>::digits10+1);
-            ss << v;
+private:
+    typedef std::pair<SQLLEN, std::string> holder;
+    typedef boost::shared_ptr<holder> holder_sp;
 
-            value=ss.str();
-            null=false;
-            ctype = SQL_C_CHAR;
-            if(std::numeric_limits<T>::is_integer) 
-                sqltype = SQL_INTEGER;
-            else
-                sqltype = SQL_DOUBLE;
-
-        }
-        void bind(int col,SQLHSTMT stmt,bool wide)
+    struct visitor : boost::static_visitor<holder_sp>
+    {
+        visitor(SQLHSTMT stmt, int col, bool wide) : stmt_(stmt), col_(col), wide_(wide) {} 
+    
+        void bind(bool null, SQLSMALLINT ctype, SQLSMALLINT sqltype, holder& value)
         {
             int r;
-            if(null) {
-                lenval = SQL_NULL_DATA;
-                r = SQLBindParameter(	stmt,
-                    col,
+
+            if(null) 
+            {
+                value.first = SQL_NULL_DATA;
+                r = SQLBindParameter(stmt_,
+                    col_,
                     SQL_PARAM_INPUT,
                     SQL_C_CHAR, 
                     SQL_NUMERIC, // for null
@@ -391,125 +321,130 @@ class statement : public backend::statement {
                     0, //  Presision
                     0, // string
                     0, // size
-                    &lenval);
+                    &value.first);
             }
-            else {
-                lenval=value.size();
-                size_t column_size = value.size();
+            else 
+            {
+                value.first = value.second.size();
+                size_t column_size = value.second.size();
                 if(ctype == SQL_C_WCHAR)
                     column_size/=2;
-                if(value.empty())
+                if(value.second.empty())
                     column_size=1;
                 r = SQLBindParameter(	
-                    stmt,
-                    col,
+                    stmt_,
+                    col_,
                     SQL_PARAM_INPUT,
                     ctype,
                     sqltype,
                     column_size, // COLUMNSIZE
                     0, //  Presision
-                    (void*)value.c_str(), // string
-                    value.size(),
-                    &lenval);
+                    (void*)value.second.c_str(), // string
+                    value.second.size(),
+                    &value.first);
             }
-            check_odbc_error(r,stmt,SQL_HANDLE_STMT,wide);
+
+            check_odbc_error(r,stmt_,SQL_HANDLE_STMT,wide_);
         }
 
-        std::string value;
-        bool null;
-        SQLSMALLINT ctype;
-        SQLSMALLINT sqltype;
-        SQLLEN lenval;
+        template<typename T>
+        holder_sp operator()(T v)
+        {
+            std::ostringstream ss;
+            ss.imbue(std::locale::classic());
+
+            if(!std::numeric_limits<T>::is_integer)
+                ss << std::setprecision(std::numeric_limits<T>::digits10 + 1);
+
+            ss << v;
+
+            SQLSMALLINT sqltype = std::numeric_limits<T>::is_integer ? SQL_INTEGER : SQL_DOUBLE;
+
+            holder_sp value = boost::make_shared<holder>(0, ss.str());
+            bind(false, SQL_C_CHAR, sqltype, *value);
+            return value;
+        }
+
+        holder_sp operator()(null_type)
+        {
+            holder_sp value = boost::make_shared<holder>();
+            bind(true, 0, 0, *value);
+            return value;
+        }
+
+        holder_sp operator()(const string_ref& v)
+        {
+            holder_sp value;
+
+            if(wide_)
+            {
+                value = boost::make_shared<holder>(0, widen(v)); 
+                bind(false, SQL_C_WCHAR, SQL_WLONGVARCHAR, *value);
+            }
+            else 
+            {
+                value = boost::make_shared<holder>();
+                value->second.assign(v.begin(), v.end());
+                bind(false, SQL_C_CHAR, SQL_LONGVARCHAR, *value);
+            }
+
+            return value;
+        }
+
+        holder_sp operator()(const std::tm& v)
+        {
+            holder_sp value = boost::make_shared<holder>(0, format_time(v));
+            bind(false, SQL_C_TIMESTAMP, SQL_C_CHAR, *value);
+            return value;
+        }
+
+        holder_sp operator()(std::istream* v)
+        {
+            std::ostringstream ss;
+            ss << v->rdbuf();
+            holder_sp value = boost::make_shared<holder>(0, ss.str());
+            bind(false, SQL_C_BINARY, SQL_LONGVARBINARY, *value);
+            return value;
+        }
+
+    private:
+        SQLHSTMT stmt_;
+        int col_;
+        bool wide_;
     };
 
-public:
-    // Begin of API
+    virtual void bind_impl(int col, bind_types_variant const& v)
+    {
+        visitor vis(stmt_, col, wide_);
+        params_.push_back(v.apply_visitor(vis));
+    }
+
+    virtual void bind_impl(string_ref name, bind_types_variant const& v)
+    {
+        // TODO:
+    }
+
     virtual void reset_impl()
     {
         SQLFreeStmt(stmt_,SQL_UNBIND);
         SQLCloseCursor(stmt_);
         params_.resize(0);
-        if(params_no_ > 0)
-            params_.resize(params_no_);
+    }
 
-    }
-    parameter &param_at(int col)
-    {
-        col --;
-        if(col < 0)
-            throw invalid_placeholder();
-        if(params_no_ < 0) {
-            if(params_.size() < size_t(col+1))
-                params_.resize(col+1);
-        }
-        else if(col >= params_no_) {
-            throw invalid_placeholder();
-        }
-        return params_[col];
-    }
-    virtual void bind_impl(int col,const string_ref& rng)
-    {
-        param_at(col).set_text(rng.begin(),rng.end(),wide_);
-    }
-    virtual void bind_impl(int col,std::tm const &s)
-    {
-        param_at(col).set(s);
-    }
-    virtual void bind_impl(int col,std::istream &in) 
-    {
-        std::ostringstream ss;
-        ss << in.rdbuf();
-        std::string s = ss.str();
-        param_at(col).set_binary(s.c_str(),s.c_str()+s.size());
-    }
-    template<typename T>
-    void do_bind_num(int col,T v)
-    {
-        param_at(col).set(v);
-    }
-    virtual void bind_impl(int col,int v) 
-    {
-        do_bind_num(col,v);
-    }
-    virtual void bind_impl(int col,unsigned v)
-    {
-        do_bind_num(col,v);
-    }
-    virtual void bind_impl(int col,long v)
-    {
-        do_bind_num(col,v);
-    }
-    virtual void bind_impl(int col,unsigned long v)
-    {
-        do_bind_num(col,v);
-    }
-    virtual void bind_impl(int col,long long v)
-    {
-        do_bind_num(col,v);
-    }
-    virtual void bind_impl(int col,unsigned long long v)
-    {
-        do_bind_num(col,v);
-    }
-    virtual void bind_impl(int col,double v)
-    {
-        do_bind_num(col,v);
-    }
-    virtual void bind_impl(int col,long double v)
-    {
-        do_bind_num(col,v);
-    }
-    virtual void bind_null_impl(int col)
-    {
-        param_at(col) = parameter();
-    }
-    void bind_all()
-    {
-        for(unsigned i=0;i<params_.size();i++) {
-            params_[i].bind(i+1,stmt_,wide_);
-        }
+private:
+    SQLHSTMT stmt_;
+    bool wide_;
+    std::vector<holder_sp> params_;
+};
 
+class statement : public backend::statement 
+{
+public:
+    virtual edba::backend::bindings& bindings()
+    {
+        return *bindings_;
     }
+
     virtual long long sequence_last(std::string const &sequence) 
     {
         // evaluate statement
@@ -519,7 +454,7 @@ public:
         else if (!sequence.empty() && !sequence_last_.empty()) 
         {
             st.reset(new statement(sequence_last_,dbc_,wide_,false, 0));
-            st->bind(1,sequence);
+            st->bindings().bind(1,sequence);
         }
         else         
         {
@@ -537,11 +472,11 @@ public:
 
         // execute query
         boost::intrusive_ptr<result> res = boost::static_pointer_cast<result>(st->query());
-        long long last_id;
-        if(!res->next() || res->cols()!=1 || !res->fetch(0,last_id))
+        fetch_types_variant last_id = (long long)0;
+        if(!res->next() || res->cols()!=1 || !res->fetch(0, last_id))
             throw edba_error("edba::odbc::sequence_last failed to fetch last value");
-
-        return last_id;
+        
+        return boost::get<long long>(last_id);
     }
     virtual unsigned long long affected() 
     {
@@ -552,7 +487,6 @@ public:
     }
     virtual boost::intrusive_ptr<backend::result> query_impl()
     {
-        bind_all();
         int r = real_exec();
         check_error(r);
         result::rows_type rows;
@@ -701,7 +635,6 @@ public:
     }
     virtual void exec_impl()
     {
-        bind_all();
         int r=real_exec();
         if(r!=SQL_NO_DATA)
             check_error(r);
@@ -712,15 +645,16 @@ public:
         backend::statement(sm, q),
         dbc_(dbc),
         wide_(wide),
-        params_no_(-1),
         prepared_(prepared)
     {
         bool stmt_created = false;
         SQLRETURN r = SQLAllocHandle(SQL_HANDLE_STMT,dbc,&stmt_);
         check_odbc_error(r,dbc,SQL_HANDLE_DBC,wide_);
         stmt_created = true;
-        if(prepared_) {
-            try {
+        if(prepared_) 
+        {
+            try 
+            {
                 if(wide_) {
                     r = SQLPrepareW(
                         stmt_,
@@ -739,14 +673,12 @@ public:
                 SQLFreeHandle(SQL_HANDLE_STMT,stmt_);
                 throw;
             }
+
             SQLSMALLINT params_no;
             r = SQLNumParams(stmt_,&params_no);
             check_error(r);
-            params_no_ = params_no;
-            params_.resize(params_no_);
-        }
-        else {
-            params_.reserve(50);
+
+            bindings_.reset(new odbc_bindings(stmt_, wide_));
         }
     }
     ~statement()
@@ -763,8 +695,7 @@ private:
     SQLHDBC dbc_;
     SQLHSTMT stmt_;
     bool wide_;
-    std::vector<parameter> params_;
-    int params_no_;
+    boost::scoped_ptr<odbc_bindings> bindings_;
 
     friend class connection;
     std::string sequence_last_;

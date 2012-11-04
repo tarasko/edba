@@ -96,7 +96,7 @@ public:
 ///
 /// Represent statement bindings
 ///
-class EDBA_API bindings : public ref_cnt
+class EDBA_API bindings 
 {
 public:
     ///
@@ -134,7 +134,7 @@ protected:
     ///
     virtual void bind_impl(int col, bind_types_variant const& v) = 0;
 
-    
+   
     virtual void bind_impl(string_ref name, bind_types_variant const& v) = 0; 
     ///
     /// Reset all bindings
@@ -167,14 +167,6 @@ public:
         return orig_sql_;
     }
 
-    /// 
-    /// Return statement bindings
-    ///
-    bindings& bindings()
-    {
-        return *bindings_;
-    }
-
     ///
     /// Return SQL Query result, MAY throw edba_error if the statement is not a query
     ///
@@ -184,6 +176,11 @@ public:
     /// Execute a statement, MAY throw edba_error if the statement returns results.
     ///
     void exec();
+
+    /// 
+    /// Return statement bindings
+    ///
+    virtual bindings& bindings() = 0;
 
     ///
     /// Fetch the last sequence generated for last inserted row. May use sequence as parameter
@@ -204,11 +201,6 @@ public:
     virtual unsigned long long affected() = 0;
 
 protected:
-    /// 
-    /// Create bindings object
-    ///
-    virtual boost::intrusive_ptr<::edba::backend::bindings> create_bindings_impl() = 0;
-
     ///
     /// Return SQL Query result, MAY throw edba_error if the statement is not a query
     ///
@@ -223,7 +215,6 @@ protected:
 private:
     session_monitor* sm_;                       //!< Callback for library user to track certain library events. Can be 0.
     std::string orig_sql_;                      //!< Original sql that was passed to constructor.
-    boost::intrusive_ptr<::edba::backend::bindings> bindings_;   //!< Statement bindings
 };
 
 ///

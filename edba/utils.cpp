@@ -11,11 +11,6 @@
 #include <sstream>
 #include <locale>
 
-#ifdef WIN32
-#define EDBA_STRNCPY(Dest, Source, Size) strncpy_s(Dest, Source, Size)
-#else
-#define EDBA_STRNCPY(Dest, Source, Size) strncpy(Dest, Source, Size)
-#endif
 
 namespace edba {
 
@@ -56,7 +51,7 @@ std::tm parse_time(char const *v)
 template<typename T>
 void parse_number_impl(const string_ref& r, const char* fmt, T& res)
 {
-    char buf[std::numeric_limits<T>::digits10 + 1];
+    char buf[32];
     EDBA_STRNCPY(buf, r.begin(), r.size());
     if (0 == sscanf(buf, fmt, &res))
         throw bad_value_cast();

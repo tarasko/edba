@@ -5,6 +5,7 @@
 #include <edba/result.hpp>
 #include <edba/statement.hpp>
 #include <edba/session.hpp>
+#include <edba/transaction.hpp>
 #include <edba/errors.hpp>
 #include <edba/utils.hpp>
 #include <edba/backend/backend.hpp>

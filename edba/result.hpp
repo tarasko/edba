@@ -89,8 +89,7 @@ public:
     template<typename T>
     bool fetch(int col, T& v)
     {
-        // TODO: 
-        return false;
+        return fetch_conversion<T>::fetch(*this, col, v);
     }
 
     ///
@@ -123,7 +122,7 @@ public:
     template<typename T>
     bool fetch(T& v)
     {
-        fetch(current_col_++, v);
+        return fetch(current_col_++, v);
     }
 
     ///
@@ -175,7 +174,7 @@ private:
 };
 
 template<>
-bool result::fetch(int col, fetch_types_variant& v);
+EDBA_API bool result::fetch(int col, fetch_types_variant& v);
 
 ///
 /// \brief Fetch result parameter by column name
@@ -215,7 +214,7 @@ result& operator>>(result& r, detail::tag<T1, T2> tag)
 template<typename T>
 result& operator>>(result& r, T& v)
 {
-    if(!fetch(v))
+    if(!r.fetch(v))
         throw null_value_fetch();
 
     return r;

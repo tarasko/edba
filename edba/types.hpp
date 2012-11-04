@@ -6,6 +6,7 @@
 #include <boost/mpl/vector.hpp>
 #include <boost/mpl/contains.hpp>
 #include <boost/variant/variant.hpp>
+#include <boost/variant/get.hpp>
 
 #include <string>
 #include <ctime>
@@ -83,7 +84,7 @@ struct fetch_conversion
 
 /// Specialization for bind native types
 template<typename T>
-struct bind_conversion<T, typename boost::enable_if< boost::mpl::contains<T, bind_types> >::type>
+struct bind_conversion<T, typename boost::enable_if< boost::mpl::contains<bind_types, T> >::type>
 {
     template<typename ColOrName>
     static void bind(statement& st, ColOrName col_or_name, const T& v)
@@ -94,17 +95,15 @@ struct bind_conversion<T, typename boost::enable_if< boost::mpl::contains<T, bin
 
 /// Specialization for fetch native types
 template<typename T>
-struct fetch_conversion<T, typename boost::enable_if< boost::mpl::contains<T, fetch_types> >::type>
+struct fetch_conversion<T, typename boost::enable_if< boost::mpl::contains<fetch_types, T> >::type>
 {
     static bool fetch(result& r, int col, T& v)
     {
-        if (r.is_null(col))
+        fetch_types_variant var = T();
+        if (!r.fetch(col, var))
             return false;
-        
-        fetch_variant_types var = T();
-        r.fetch(col_or_name, var);
-        v = var.get<T>();
 
+        v = boost::get<T>(var);
         return true;
     }
 };

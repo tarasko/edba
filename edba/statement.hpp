@@ -37,9 +37,9 @@ public:
     /// If placeholder was not binded the behavior is undefined and may vary between different backends.
     ///
     template<typename T>
-    statement& bind(int col, T& v)
+    statement& bind(int col, const T& v)
     {
-        bind_conversion<typename boost::remove_cv<T>::type>::bind(*this, v);
+        bind_conversion<T>::template bind(*this, col, v);
         return *this;
     }
 
@@ -52,9 +52,9 @@ public:
     /// If placeholder was not binded the behavior is undefined and may vary between different backends.
     ///
     template<typename T>
-    statement& bind(const string_ref& name, T& v)
+    statement& bind(const string_ref& name, const T& v)
     {
-        // TODO: 
+        bind_conversion<T>::template bind(*this, name, v);
         return *this;
     }
 
@@ -68,7 +68,7 @@ public:
     /// If placeholder was not binded the behavior is undefined and may vary between different backends.
     ///
     template<typename T>
-    statement& bind(T& v)
+    statement& bind(const T& v)
     {
         return bind(placeholder_++, v);
     }
@@ -145,18 +145,18 @@ private:
 /// \brief Bind statement parameter by name
 ///
 template<typename T>
-detail::tag<string_ref, T&> use(const string_ref& name, T& v)
+detail::tag<string_ref, T&> use(const string_ref& name, const T& v)
 {
-    return detail::tag<string_ref, T&>(name, v);
+    return detail::tag<string_ref, const T&>(name, v);
 }
 
 ///
 /// \brief Bind statement parameter by index (starting from 1)
 ///
 template<typename T>
-detail::tag<int, T&> use(int index, T& v)
+detail::tag<int, T&> use(int index, const T& v)
 {
-    return detail::tag<int, T&>(index, v);
+    return detail::tag<int, const T&>(index, v);
 }
 
 ///
@@ -245,16 +245,16 @@ statement &operator<<(statement& st, const detail::tag<T1, T2>& val)
 /// \endcode
 ///
 template<typename T>
-statement& operator<<(statement& st, T& v)
+statement& operator<<(statement& st, const T& v)
 {
     return st.bind(v);
 }
 
 template<>
-statement& statement::bind(int col, const bind_types_variant& v);
+EDBA_API statement& statement::bind(int col, const bind_types_variant& v);
 
 template<>
-statement& statement::bind(const string_ref& name, const bind_types_variant& v);
+EDBA_API statement& statement::bind(const string_ref& name, const bind_types_variant& v);
 
 }
 

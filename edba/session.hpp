@@ -128,7 +128,7 @@ private:
 ///
 inline statement operator<<(session& s, string_ref query)
 {
-    s.prepare(query);
+    return s.prepare(query);
 }
 
 }

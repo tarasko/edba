@@ -10,7 +10,6 @@
 namespace edba { namespace backend {
 
 EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE_IMPL(result)
-EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE_IMPL(bindings)
 EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE_IMPL(statement)
 EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE_IMPL(connection)
 
@@ -99,12 +98,12 @@ boost::intrusive_ptr<result> statement::query()
         }
         catch(...)
         {
-            sm_->query_executed(orig_sql_, bindings_->to_string(), false, t.elapsed(), 0);
+            sm_->query_executed(orig_sql_, bindings().to_string(), false, t.elapsed(), 0);
             throw;
         }
 
         // TODO: Add way to evaluate number of rows
-        sm_->query_executed(orig_sql_, bindings_->to_string(), true, t.elapsed(), r->rows());
+        sm_->query_executed(orig_sql_, bindings().to_string(), true, t.elapsed(), r->rows());
         return r;
     }
     else
@@ -122,11 +121,11 @@ void statement::exec()
         }
         catch(...)
         {
-            sm_->statement_executed(orig_sql_, bindings_->to_string(), false, t.elapsed(), 0);
+            sm_->statement_executed(orig_sql_, bindings().to_string(), false, t.elapsed(), 0);
             throw;
         }
 
-        sm_->statement_executed(orig_sql_, bindings_->to_string(), true, t.elapsed(), affected());
+        sm_->statement_executed(orig_sql_, bindings().to_string(), true, t.elapsed(), affected());
     }
     else
         exec_impl();
