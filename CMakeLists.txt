@@ -54,19 +54,18 @@ set(sources
   edba/result.cpp
   edba/utils.hpp
   edba/utils.cpp
-  edba/backend/bindings.hpp
   edba/backend/backend_fwd.hpp
   edba/backend/backend.hpp
   edba/backend/backend.cpp 
-  edba/backend/session.hpp
-  edba/backend/statement.hpp
+  edba/backend/bind_by_name_helper.hpp
 )
 
 add_library(edba SHARED ${sources})
 
 foreach(src ${sources})
 	string(REGEX REPLACE "(.*)/.*" "\\1" dir ${src})
-	source_group(${dir} FILES ${src})
+  string(REPLACE "/" "\\" msvc_folder ${dir})
+	source_group(${msvc_folder} FILES ${src})
 endforeach(src ${sources})
 
 add_subdirectory(backends)

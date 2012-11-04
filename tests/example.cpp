@@ -273,6 +273,5 @@ int main()
     //test_initdb(sqlite3_lib, "sqlite3", "db=dbinternal.dbs");
     //test_initdb(postgres_lib, "postgres", "user = postgres; password = postgres;");
     //test_initdb(odbc_lib, "odbc", "DSN=PostgreSQL35W; @utf=wide");
-    Sleep(60000);
     return 0;
 }

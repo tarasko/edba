@@ -1,4 +1,5 @@
 #include <edba/backend/backend.hpp>
+#include <edba/backend/bind_by_name_helper.hpp>
 #include <edba/utils.hpp>
 
 #include <boost/algorithm/string/predicate.hpp>
@@ -292,10 +293,19 @@ private:
     rows_type rows_;
 };
 
-class odbc_bindings : public backend::bindings 
+class odbc_bindings : public backend::bind_by_name_helper
 {
 public:
-    odbc_bindings(SQLHSTMT stmt, bool wide) : stmt_(stmt), wide_(wide) {}
+    odbc_bindings(const string_ref& sql, bool wide) 
+        : backend::bind_by_name_helper(sql, backend::question_marker())
+        , stmt_(0)
+        , wide_(wide) 
+    {}
+
+    void set_stmt(SQLHSTMT stmt)
+    {
+        stmt_ = stmt;
+    }
 
 private:
     typedef std::pair<SQLLEN, std::string> holder;
@@ -419,11 +429,6 @@ private:
         params_.push_back(v.apply_visitor(vis));
     }
 
-    virtual void bind_impl(string_ref name, bind_types_variant const& v)
-    {
-        // TODO:
-    }
-
     virtual void reset_impl()
     {
         SQLFreeStmt(stmt_,SQL_UNBIND);
@@ -440,9 +445,55 @@ private:
 class statement : public backend::statement 
 {
 public:
+    statement(const string_ref& q, SQLHDBC dbc, bool wide, bool prepared, session_monitor* sm) 
+        : backend::statement(sm, q)
+        , bindings_(q, wide)
+        , dbc_(dbc)
+        , wide_(wide)
+        , prepared_(prepared)
+    {
+        bool stmt_created = false;
+        SQLRETURN r = SQLAllocHandle(SQL_HANDLE_STMT,dbc,&stmt_);
+        check_odbc_error(r,dbc,SQL_HANDLE_DBC,wide_);
+        stmt_created = true;
+        if(prepared_) 
+        {
+            try 
+            {
+                if(wide_) {
+                    r = SQLPrepareW(
+                        stmt_,
+                        (SQLWCHAR*)tosqlwide(orig_sql()).c_str(),
+                        SQL_NTS);
+                }
+                else {
+                    r = SQLPrepareA(
+                        stmt_,
+                        (SQLCHAR*)orig_sql().c_str(),
+                        SQL_NTS);
+                }
+                check_error(r);
+            }
+            catch(...) {
+                SQLFreeHandle(SQL_HANDLE_STMT,stmt_);
+                throw;
+            }
+
+            SQLSMALLINT params_no;
+            r = SQLNumParams(stmt_,&params_no);
+            check_error(r);
+
+            bindings_.set_stmt(stmt_);
+        }
+    }
+    ~statement()
+    {
+        SQLFreeHandle(SQL_HANDLE_STMT,stmt_);
+    }
+
     virtual edba::backend::bindings& bindings()
     {
-        return *bindings_;
+        return bindings_;
     }
 
     virtual long long sequence_last(std::string const &sequence) 
@@ -641,63 +692,20 @@ public:
     }
     // End of API
 
-    statement(const string_ref& q,SQLHDBC dbc,bool wide,bool prepared,session_monitor* sm) :
-        backend::statement(sm, q),
-        dbc_(dbc),
-        wide_(wide),
-        prepared_(prepared)
-    {
-        bool stmt_created = false;
-        SQLRETURN r = SQLAllocHandle(SQL_HANDLE_STMT,dbc,&stmt_);
-        check_odbc_error(r,dbc,SQL_HANDLE_DBC,wide_);
-        stmt_created = true;
-        if(prepared_) 
-        {
-            try 
-            {
-                if(wide_) {
-                    r = SQLPrepareW(
-                        stmt_,
-                        (SQLWCHAR*)tosqlwide(orig_sql()).c_str(),
-                        SQL_NTS);
-                }
-                else {
-                    r = SQLPrepareA(
-                        stmt_,
-                        (SQLCHAR*)orig_sql().c_str(),
-                        SQL_NTS);
-                }
-                check_error(r);
-            }
-            catch(...) {
-                SQLFreeHandle(SQL_HANDLE_STMT,stmt_);
-                throw;
-            }
-
-            SQLSMALLINT params_no;
-            r = SQLNumParams(stmt_,&params_no);
-            check_error(r);
-
-            bindings_.reset(new odbc_bindings(stmt_, wide_));
-        }
-    }
-    ~statement()
-    {
-        SQLFreeHandle(SQL_HANDLE_STMT,stmt_);
-    }
 private:
     void check_error(int code)
     {
         check_odbc_error(code,stmt_,SQL_HANDLE_STMT,wide_);
     }
 
+private:
+    friend class connection;
 
+    odbc_bindings bindings_;
     SQLHDBC dbc_;
     SQLHSTMT stmt_;
     bool wide_;
-    boost::scoped_ptr<odbc_bindings> bindings_;
 
-    friend class connection;
     std::string sequence_last_;
     std::string last_insert_id_;
     bool prepared_;
