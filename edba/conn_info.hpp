@@ -1,7 +1,7 @@
 #ifndef EDBA_CONN_INFO_HPP
 #define EDBA_CONN_INFO_HPP
 
-#include <edba/exports.hpp>
+#include <edba/detail/exports.hpp>
 #include <edba/string_ref.hpp>
 
 #include <boost/shared_ptr.hpp>
@@ -30,7 +30,7 @@ public:
     ///
     /// Split connection string to key-value pairs
     ///
-    conn_info(const char* cs);
+    conn_info(const string_ref& conn_string);
 
     ///
     /// Return true if conn_info has specified key

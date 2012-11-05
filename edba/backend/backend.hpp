@@ -2,9 +2,9 @@
 #define EDBA_BACKEND_H
 
 #include <edba/backend/backend_fwd.hpp>
+#include <edba/detail/exports.hpp>
 
 #include <edba/conn_info.hpp>
-#include <edba/exports.hpp>
 #include <edba/errors.hpp>
 #include <edba/session_monitor.hpp>
 #include <edba/types.hpp>

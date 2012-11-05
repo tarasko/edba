@@ -44,6 +44,17 @@ public:
     }
 
     ///
+    /// Bind a value \a v to the placeholder by index (starting from the 1).
+    ///
+    /// Placeholders are marked as ':placeholdername' in the query.
+    /// If placeholder index is higher then the number placeholders is the statement it
+    /// may throw invalid_placeholder exception.
+    ///
+    /// If placeholder was not binded the behavior is undefined and may vary between different backends.
+    ///
+    statement& bind(int col, const bind_types_variant& v);
+
+    ///
     /// Bind a value \a v to the placeholder by name.
     ///
     /// Placeholders are marked as ':placeholdername' in the query.
@@ -57,6 +68,16 @@ public:
         bind_conversion<T>::template bind(*this, name, v);
         return *this;
     }
+
+    ///
+    /// Bind a value \a v to the placeholder by name.
+    ///
+    /// Placeholders are marked as ':placeholdername' in the query.
+    /// If placeholder name is invalid then it may throw invalid_placeholder exception
+    ///
+    /// If placeholder was not binded the behavior is undefined and may vary between different backends.
+    ///
+    statement& bind(const string_ref& name, const bind_types_variant& v);
 
     ///
     /// Bind a value \a v to the placeholder.
@@ -129,16 +150,12 @@ public:
     void exec();
 
 private:
-    statement(
-        const boost::intrusive_ptr<backend::statement>& stat
-      , const boost::intrusive_ptr<backend::connection>& conn
-      );
+    statement(const boost::intrusive_ptr<backend::statement>& stat);
 
     friend class session;
 
     int placeholder_;
     boost::intrusive_ptr<backend::statement> stat_;
-    boost::intrusive_ptr<backend::connection> conn_;
 };
 
 ///
@@ -249,12 +266,6 @@ statement& operator<<(statement& st, const T& v)
 {
     return st.bind(v);
 }
-
-template<>
-EDBA_API statement& statement::bind(int col, const bind_types_variant& v);
-
-template<>
-EDBA_API statement& statement::bind(const string_ref& name, const bind_types_variant& v);
 
 }
 

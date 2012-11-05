@@ -6,9 +6,6 @@ namespace edba {
 session::session()
 {
 }
-session::session(const boost::intrusive_ptr<backend::connection>& conn) : conn_(conn) 
-{
-}
 
 void session::close()
 {
@@ -23,21 +20,21 @@ bool session::is_open()
 statement session::prepare(const string_ref& query)
 {
     boost::intrusive_ptr<backend::statement> stat_ptr(conn_->prepare(query));
-    statement stat(stat_ptr,conn_);
+    statement stat(stat_ptr);
     return stat;
 }
 
 statement session::create_statement(const string_ref& query)
 {
     boost::intrusive_ptr<backend::statement> stat_ptr(conn_->get_statement(query));
-    statement stat(stat_ptr,conn_);
+    statement stat(stat_ptr);
     return stat;
 }
 
 statement session::create_prepared_statement(const string_ref& query)
 {
     boost::intrusive_ptr<backend::statement> stat_ptr(conn_->get_prepared_statement(query));
-    statement stat(stat_ptr,conn_);
+    statement stat(stat_ptr);
     return stat;
 }
 

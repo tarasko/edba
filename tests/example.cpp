@@ -1,4 +1,4 @@
-#include <edba/frontend.hpp>
+#include <edba/edba.hpp>
 
 #include <boost/iostreams/device/mapped_file.hpp>
 #include <boost/timer.hpp>
@@ -241,8 +241,9 @@ struct monitor : edba::session_monitor
 
 void test_var()
 {
-    edba::loadable_driver drv(odbc_lib, "odbc");
-    edba::session sess = drv.open("DSN=VAR_DATA");
+    monitor m;
+    edba::session sess1(edba::driver::odbc_s(), "DSN=VAR_DATA", &m);
+    edba::session sess(edba::driver::odbc(), "DSN=VAR_DATA", &m);
 
     edba::result res = sess << "SELECT ID, CURVE_ID, TIMESTAMP, VALUE, TERM FROM CURVE_QUOTE WHERE ID=:id1 OR ID=:id2" 
         << edba::use("id1", 602377) << edba::use("id2", 473930);

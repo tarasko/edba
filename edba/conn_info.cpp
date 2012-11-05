@@ -1,9 +1,9 @@
 #include <edba/conn_info.hpp>
-#include <edba/utils.hpp>
+
+#include <edba/detail/utils.hpp>
 
 #include <boost/foreach.hpp>
 #include <boost/typeof/typeof.hpp>
-
 #include <boost/algorithm/string/find_iterator.hpp>
 
 #include <map>
@@ -27,13 +27,12 @@ struct conn_info::data
     std::string clean_conn_string_;
 };
 
-conn_info::conn_info(const char* cs) : data_(new data)
+conn_info::conn_info(const string_ref& conn_string) : data_(new data)
 {
     using namespace boost;
     using namespace boost::algorithm;
 
-    string_ref rng = as_literal(cs);
-    BOOST_AUTO(si, (make_split_iterator(rng, first_finder(";"))));
+    BOOST_AUTO(si, (make_split_iterator(conn_string, first_finder(";"))));
     BOOST_TYPEOF(si) end_si;
 
     // iterate over pairs

@@ -93,6 +93,15 @@ public:
     }
 
     ///
+    /// Fetch a value from column \a col (starting from 0) into \a v. Returns false
+    /// if the value in NULL and \a v is not updated, otherwise returns true.
+    ///
+    /// If the data type is not same it tries to cast the data, if casting fails or the
+    /// data is out of the type range, throws bad_value_cast().
+    ///
+    bool result::fetch(int col, fetch_types_variant& v);
+
+    ///
     /// Fetch a value from column named \a n into \a v. Returns false
     /// if the value in NULL and \a v is not updated, otherwise returns true.
     ///
@@ -155,11 +164,7 @@ public:
     }
 
 private:
-    result(	
-        const boost::intrusive_ptr<backend::result>& res,
-        const boost::intrusive_ptr<backend::statement>& stat,
-        const boost::intrusive_ptr<backend::connection>& conn
-        );
+    result(const boost::intrusive_ptr<backend::result>& res);
 
     void check();
 
@@ -169,12 +174,7 @@ private:
     bool fetched_;
     int current_col_;
     boost::intrusive_ptr<backend::result> res_;
-    boost::intrusive_ptr<backend::statement> stat_;
-    boost::intrusive_ptr<backend::connection> conn_;
 };
-
-template<>
-EDBA_API bool result::fetch(int col, fetch_types_variant& v);
 
 ///
 /// \brief Fetch result parameter by column name

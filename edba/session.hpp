@@ -22,7 +22,11 @@ public:
     ///
     /// Create a session using a pointer to backend::connection.
     ///
-    session(const boost::intrusive_ptr<backend::connection>& conn);
+    template<typename Driver>
+    session(Driver driver, const string_ref& conn_string, session_monitor* sm = 0) 
+        : conn_(driver.open_connection(conn_string, sm))
+    {
+    }
 
     ///
     /// Close current connection.

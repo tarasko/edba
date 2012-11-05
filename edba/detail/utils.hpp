@@ -1,7 +1,7 @@
 #ifndef EDBA_UTIL_H
 #define EDBA_UTIL_H
 
-#include <edba/exports.hpp>
+#include <edba/detail/exports.hpp>
 #include <edba/errors.hpp>
 #include <edba/string_ref.hpp>
 

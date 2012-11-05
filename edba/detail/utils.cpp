@@ -1,4 +1,4 @@
-#include <edba/utils.hpp>
+#include <edba/detail/utils.hpp>
 #include <edba/errors.hpp>
 
 #include <boost/typeof/typeof.hpp>

@@ -1,6 +1,6 @@
 #include <edba/backend/backend.hpp>
 #include <edba/backend/bind_by_name_helper.hpp>
-#include <edba/utils.hpp>
+#include <edba/detail/utils.hpp>
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/find_iterator.hpp>

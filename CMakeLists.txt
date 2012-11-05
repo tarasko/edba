@@ -35,12 +35,13 @@ include_directories(${Boost_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 set(sources
+  edba/detail/exports.hpp
+  edba/detail/utils.hpp
+  edba/detail/utils.cpp
   edba/conn_info.hpp
   edba/conn_info.cpp
-  edba/exports.hpp
+  edba/edba.hpp
   edba/errors.hpp
-  edba/frontend.hpp
-  edba/frontend.cpp
   edba/session_monitor.hpp
   edba/statement.hpp
   edba/statement.cpp
@@ -52,12 +53,12 @@ set(sources
   edba/transaction.cpp
   edba/result.hpp
   edba/result.cpp
-  edba/utils.hpp
-  edba/utils.cpp
   edba/backend/backend_fwd.hpp
   edba/backend/backend.hpp
   edba/backend/backend.cpp 
   edba/backend/bind_by_name_helper.hpp
+  edba/driver/odbc.hpp
+  edba/driver/all.hpp
 )
 
 add_library(edba SHARED ${sources})

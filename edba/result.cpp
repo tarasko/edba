@@ -10,17 +10,11 @@ result::result() :
 {
 }
 
-result::result(	
-    const boost::intrusive_ptr<backend::result>& res,
-    const boost::intrusive_ptr<backend::statement>& stat,
-    const boost::intrusive_ptr<backend::connection>& conn
-    )
-    : eof_(false),
-    fetched_(false),
-    current_col_(0),
-    res_(res),
-    stat_(stat),
-    conn_(conn)
+result::result(const boost::intrusive_ptr<backend::result>& res)
+    : eof_(false)
+    , fetched_(false)
+    , current_col_(0)
+    , res_(res)
 {
 }
 
@@ -79,8 +73,6 @@ void result::clear()
     eof_ = true;
     fetched_ = true;
     res_.reset();
-    stat_.reset();
-    conn_.reset();
 }
 
 void result::check()
@@ -98,7 +90,6 @@ bool result::is_null(const string_ref& n)
     return is_null(index(n));
 }
 
-template<>
 bool result::fetch(int col, fetch_types_variant& v)
 {
     return res_->fetch(col, v);

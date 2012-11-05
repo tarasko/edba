@@ -1,5 +1,5 @@
 #include <edba/backend/backend.hpp>
-#include <edba/utils.hpp>
+#include <edba/detail/utils.hpp>
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/timer.hpp>
@@ -7,11 +7,61 @@
 #include <map>
 #include <list>
 
+
+#if defined(_WIN32)
+#  include <windows.h>
+#  define RTLD_LAZY 0
+
+namespace {
+
+void *dlopen(char const *name,int /*unused*/)
+{
+    return LoadLibrary(name);
+}
+void dlclose(void *h)
+{
+    HMODULE m=(HMODULE)(h);
+    FreeLibrary(m);
+}
+void *dlsym(void *h,char const *sym)
+{
+    HMODULE m=(HMODULE)(h);
+    return (void *)GetProcAddress(m,sym);
+}
+
+}
+
+#else
+#	include <dlfcn.h>
+#endif
+
 namespace edba { namespace backend {
 
 EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE_IMPL(result)
 EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE_IMPL(statement)
 EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE_IMPL(connection)
+
+connect_function_type get_connect_function(const char* path, const char* entry_func_name)
+{
+    assert("Path not null" && path);
+
+    void* module = dlopen(path, RTLD_LAZY);
+
+    if (!module)
+        throw edba_error("edba::loadable_driver::failed to load " + std::string(path));
+
+    connect_function_type f = reinterpret_cast<connect_function_type>(
+        dlsym(module, entry_func_name)
+      );
+
+    if (!f)
+    {
+        dlclose(module);
+        throw edba_error("edba::loadable_driver::failed to get " + std::string(entry_func_name) + " address in " + std::string(path));
+    }
+
+    return f;
+}
 
 //////////////
 //bindings
