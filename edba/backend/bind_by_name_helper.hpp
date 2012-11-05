@@ -7,8 +7,14 @@
 #include <boost/unordered_map.hpp>
 #include <boost/range/algorithm/find.hpp>
 #include <boost/range/algorithm/find_if.hpp>
+#include <boost/range/algorithm/sort.hpp>
+#include <boost/range/algorithm/equal_range.hpp>
+#include <boost/range/algorithm/lexicographical_compare.hpp>
 #include <boost/typeof/typeof.hpp>
 #include <boost/foreach.hpp>
+
+#include <boost/container/vector.hpp>
+#include <boost/container/string.hpp>
 
 namespace edba { namespace backend {
 
@@ -22,7 +28,10 @@ namespace edba { namespace backend {
 class bind_by_name_helper : public bindings
 {
     struct is_non_name_char;
-    typedef boost::unordered_multimap<std::string, int> name_map_type;
+    struct name_map_less;
+
+    // Map from parameter name to parameter index
+    typedef boost::container::vector< std::pair<boost::container::string, int> > name_map_type;
 
     using bindings::bind_impl;
 
@@ -39,13 +48,24 @@ public:
 
         while (!rest.empty())
         {
-            string_ref name = boost::find_if<boost::return_begin_found>(rest, is_non_name_char());
-            name_map_.emplace(std::string(name.begin(), name.end()), idx);
+            // Extract parameter name
+            BOOST_AUTO(name, (boost::find_if<boost::return_begin_found>(rest, is_non_name_char())));
 
+            // Push back new parameter into name map
+            name_map_.resize(name_map_.size() + 1);
+            name_map_.back().first.assign(name.begin(), name.end());
+            name_map_.back().second = idx;
+
+            // Append parameter into patched sql
             print_func(patched_sql, idx++);
 
+            // Evaluate rest of query
             rest = skip_until_semicolon(boost::make_iterator_range(name.end(), sql.end()), patched_sql);
         }
+
+        // Sort entries in name map by name
+        // We do this because we want to apply equal_range algorithm further
+        boost::sort(name_map_, name_map_less());
 
         sql_ = patched_sql.str();
     }
@@ -69,9 +89,31 @@ private:
         }
     };
 
-    virtual void bind_impl(string_ref name, const bind_types_variant& v)
+    struct name_map_less
     {
-        BOOST_AUTO(iter_pair, (name_map_.equal_range(std::string(name.begin(), name.end()))));
+        template<typename T1, typename T2>
+        const T1& get_str_range(const std::pair<T1, T2>& p) const
+        {
+            return p.first;
+        }
+
+        template<typename T>
+        const T& get_str_range(const T& v) const
+        {
+            return v;
+        }
+
+        template<typename Range1, typename Range2>
+        bool operator()(const Range1& r1, const Range2& r2) const
+        {
+            return boost::algorithm::lexicographical_compare(get_str_range(r1), get_str_range(r2));
+        }
+    };
+
+    virtual void bind_impl(const string_ref& name, const bind_types_variant& v)
+    {
+        BOOST_AUTO(iter_pair, boost::equal_range(name_map_, name, name_map_less()));
+
         if (boost::empty(iter_pair))
             throw invalid_placeholder();
 

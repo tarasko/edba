@@ -189,15 +189,15 @@ public:
 
         // for ariphmetic types use parse_number
         template<typename T>
-        void operator()(T& v)
+        void operator()(T* v)
         {
-            parse_number(data_, v);
+            parse_number(data_, *v);
         }
 
         // for string type, return string
-        void operator()(std::string& v)
+        void operator()(std::string* v)
         {
-            v = data_;
+            v->assign(data_);
         }
 
         // for ostream type use operator <<
@@ -207,9 +207,9 @@ public:
         }
 
         // for std::tm use parse_time
-        void operator()(std::tm& v)
+        void operator()(std::tm* v)
         {
-            v = parse_time(data_);
+            *v = parse_time(data_);
         }
 
     private:
@@ -235,7 +235,7 @@ public:
         }
         return current_!=rows_.end();
     }
-    virtual bool fetch(int col, fetch_types_variant& v)
+    virtual bool fetch(int col, const fetch_types_variant& v)
     {
         cell_type& cell = at(col);
         if(cell.first)
@@ -523,11 +523,11 @@ public:
 
         // execute query
         boost::intrusive_ptr<result> res = boost::static_pointer_cast<result>(st->query());
-        fetch_types_variant last_id = (long long)0;
-        if(!res->next() || res->cols()!=1 || !res->fetch(0, last_id))
+        long long last_id;
+        if(!res->next() || res->cols()!=1 || !res->fetch(0, fetch_types_variant(&last_id)))
             throw edba_error("edba::odbc::sequence_last failed to fetch last value");
         
-        return boost::get<long long>(last_id);
+        return last_id;
     }
     virtual unsigned long long affected() 
     {

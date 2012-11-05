@@ -61,10 +61,9 @@ public:
     /// Returns true if ok, returns false if the column value is NULL and the referenced object should remain unchanged
     ///
     /// Should throw invalid_column() \a col value is invalid, should throw bad_value_cast() if the underlying data
-    /// can't be converted to type currently stored in variant. If variant currently has null_type than change 
-    /// variant to hold appropriate type.
+    /// can't be converted to type currently stored in variant.
     ///
-    virtual bool fetch(int col, fetch_types_variant& v) = 0;
+    virtual bool fetch(int col, const fetch_types_variant& v) = 0;
 
     /// 
     /// Return true if value is null at specified column
@@ -135,7 +134,7 @@ protected:
     virtual void bind_impl(int col, bind_types_variant const& v) = 0;
 
    
-    virtual void bind_impl(string_ref name, bind_types_variant const& v) = 0; 
+    virtual void bind_impl(const string_ref& name, bind_types_variant const& v) = 0; 
     ///
     /// Reset all bindings
     ///

@@ -74,6 +74,18 @@ IterRange trim(const IterRange& rng)
     return rng_copy;
 }
 
+template<typename T>
+T* make_pointer(T& value)
+{
+    return &value;
+};
+
+template<typename T>
+T* make_pointer(T* value)
+{
+    return value;
+};
+
 ///
 /// \brief select statement according to engine and version from statements list
 ///

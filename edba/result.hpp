@@ -5,6 +5,8 @@
 #include <edba/types.hpp>
 #include <edba/backend/backend_fwd.hpp>
 
+#include <boost/move/move.hpp>
+
 namespace edba {
 
 ///
@@ -86,11 +88,7 @@ public:
     /// If the data type is not same it tries to cast the data, if casting fails or the
     /// data is out of the type range, throws bad_value_cast().
     ///
-    template<typename T>
-    bool fetch(int col, T& v)
-    {
-        return fetch_conversion<T>::fetch(*this, col, v);
-    }
+    bool result::fetch(int col, const fetch_types_variant& v);
 
     ///
     /// Fetch a value from column \a col (starting from 0) into \a v. Returns false
@@ -99,7 +97,11 @@ public:
     /// If the data type is not same it tries to cast the data, if casting fails or the
     /// data is out of the type range, throws bad_value_cast().
     ///
-    bool result::fetch(int col, fetch_types_variant& v);
+    template<typename T>
+    bool fetch(int col, T& v)
+    {
+        return fetch_conversion<T>::fetch(*this, col, v);
+    }
 
     ///
     /// Fetch a value from column named \a n into \a v. Returns false

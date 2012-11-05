@@ -90,7 +90,7 @@ bool result::is_null(const string_ref& n)
     return is_null(index(n));
 }
 
-bool result::fetch(int col, fetch_types_variant& v)
+bool result::fetch(int col, const fetch_types_variant& v)
 {
     return res_->fetch(col, v);
 }

@@ -5,6 +5,7 @@
 
 #include <boost/mpl/vector.hpp>
 #include <boost/mpl/contains.hpp>
+#include <boost/mpl/or.hpp>
 #include <boost/variant/variant.hpp>
 #include <boost/variant/get.hpp>
 
@@ -41,21 +42,21 @@ typedef boost::mpl::vector<
   , std::istream*
   > bind_types;
 
-/// Types natively supported by result::fetch method
+/// Types natively supported by backend::result::fetch method
 typedef boost::mpl::vector<
-    short
-  , unsigned short
-  , int
-  , unsigned int
-  , long
-  , unsigned long
-  , long long
-  , unsigned long long
-  , float
-  , double
-  , long double
-  , std::string
-  , std::tm
+    short*
+  , unsigned short*
+  , int*
+  , unsigned int*
+  , long*
+  , unsigned long*
+  , long long*
+  , unsigned long long*
+  , float*
+  , double*
+  , long double*
+  , std::string*
+  , std::tm*
   , std::ostream*
   > fetch_types;
 
@@ -68,7 +69,7 @@ struct bind_conversion
     template<typename ColOrName>
     static void bind(statement& st, ColOrName col_or_name, const T& v)
     {
-        BOOST_MPL_ASSERT_MSG(false, ADD_SPECIALIZATION_OF_BIND_CONVERSION_FOR_TYPE, ((T)));
+        BOOST_MPL_ASSERT_MSG(false, ADD_SPECIALIZATION_OF_BIND_CONVERSION_FOR_TYPE, (T));
     }
 };
 
@@ -76,13 +77,13 @@ template<typename T, typename Enable = void>
 struct fetch_conversion
 {
     template<typename ColOrName>
-    static void fetch(result& res, ColOrName col_or_name, T& v)
+    static bool fetch(result& res, ColOrName col_or_name, T& v)
     {
-        BOOST_MPL_ASSERT_MSG(false, ADD_SPECIALIZATION_OF_FETCH_CONVERSION_FOR_TYPE, ((T)));
+        BOOST_MPL_ASSERT_MSG(false, ADD_SPECIALIZATION_OF_FETCH_CONVERSION_FOR_TYPE, (T));
     }
 };
 
-/// Specialization for bind native types
+// Specialization for native types
 template<typename T>
 struct bind_conversion<T, typename boost::enable_if< boost::mpl::contains<bind_types, T> >::type>
 {
@@ -93,18 +94,13 @@ struct bind_conversion<T, typename boost::enable_if< boost::mpl::contains<bind_t
     }
 };
 
-/// Specialization for fetch native types
+// Specialization for native types. 
 template<typename T>
-struct fetch_conversion<T, typename boost::enable_if< boost::mpl::contains<fetch_types, T> >::type>
+struct fetch_conversion<T, typename boost::enable_if< boost::mpl::contains<fetch_types, T*> >::type >
 {
     static bool fetch(result& r, int col, T& v)
     {
-        fetch_types_variant var = T();
-        if (!r.fetch(col, var))
-            return false;
-
-        v = boost::get<T>(var);
-        return true;
+        return r.fetch(col, fetch_types_variant(&v));
     }
 };
 
