@@ -76,7 +76,7 @@ struct dump_to_ostream : boost::static_visitor<>
     template<typename T>
     void operator()(const T& v)
     {
-        os_ << '\'' << v << "' ";
+        os_ << '\'' << v << '\'';
     }
 
     void operator()(null_type)
@@ -86,7 +86,7 @@ struct dump_to_ostream : boost::static_visitor<>
 
     void operator()(const std::tm& v)
     {
-        os_ << '\'' << format_time(v) << "' ";
+        os_ << '\'' << format_time(v) << '\'';
     }
 
     void operator()(std::istream*)
@@ -100,29 +100,54 @@ private:
 
 }
 
+bindings::bindings() : enable_recording_(false)
+{
+}
+
 void bindings::bind(int col, const bind_types_variant& val)
 {
     bind_impl(col, val);
-    dump_to_ostream vis(bindings_);
-    val.apply_visitor(vis);
+    if (enable_recording_)
+    {
+        bindings_ << '[' << col << ", ";
+        dump_to_ostream vis(bindings_);
+        val.apply_visitor(vis);
+        bindings_ << ']';
+    }
 }
 
 void bindings::bind(const string_ref& name, const bind_types_variant& val)
 {
     bind_impl(name, val);
-    dump_to_ostream vis(bindings_);
-    val.apply_visitor(vis);
+    if (enable_recording_)
+    {
+        bindings_ << "['" << name << "', ";
+        dump_to_ostream vis(bindings_);
+        val.apply_visitor(vis);
+        bindings_ << ']';
+    }
 }
 
 void bindings::reset()
 {
     reset_impl();
+    if (enable_recording_)
     bindings_.str("");
 }
 
 std::string bindings::to_string() const
 {
     return bindings_.str();
+}
+
+void bindings::enable_recording(bool enable)
+{
+    enable_recording_ = enable;
+}
+
+bool bindings::enable_recording() const
+{
+    return enable_recording_;
 }
 
 //////////////
@@ -132,7 +157,6 @@ std::string bindings::to_string() const
 // Begin of API
 statement::statement(session_monitor* sm, const string_ref& orig_sql) : 
     sm_(sm)
-  , orig_sql_(orig_sql.begin(), orig_sql.end())
 {
 }
 
@@ -148,12 +172,12 @@ boost::intrusive_ptr<result> statement::query()
         }
         catch(...)
         {
-            sm_->query_executed(orig_sql_, bindings().to_string(), false, t.elapsed(), 0);
+            sm_->query_executed(orig_sql(), bindings().to_string(), false, t.elapsed(), 0);
             throw;
         }
 
         // TODO: Add way to evaluate number of rows
-        sm_->query_executed(orig_sql_, bindings().to_string(), true, t.elapsed(), r->rows());
+        sm_->query_executed(orig_sql(), bindings().to_string(), true, t.elapsed(), r->rows());
         return r;
     }
     else
@@ -171,11 +195,11 @@ void statement::exec()
         }
         catch(...)
         {
-            sm_->statement_executed(orig_sql_, bindings().to_string(), false, t.elapsed(), 0);
+            sm_->statement_executed(orig_sql(), bindings().to_string(), false, t.elapsed(), 0);
             throw;
         }
 
-        sm_->statement_executed(orig_sql_, bindings().to_string(), true, t.elapsed(), affected());
+        sm_->statement_executed(orig_sql(), bindings().to_string(), true, t.elapsed(), affected());
     }
     else
         exec_impl();
@@ -185,46 +209,41 @@ void statement::exec()
 //connection
 //////////////
 
+string_ref connection::select_statement(const string_ref& _q)
+{
+    string_ref q;
+
+    if(expand_conditionals_)
+    {
+        int major;
+        int minor;
+        version(major, minor);
+        q = ::edba::select_statement(_q, engine(), major, minor);
+    }
+    else
+        q = _q;
+
+    return q;
+}
+
 boost::intrusive_ptr<statement> connection::prepare(const string_ref& q) 
 {
-    if(default_is_prepared_)
-        return get_prepared_statement(q);
-    else
-        return get_statement(q);
+    boost::intrusive_ptr<statement> st = 
+        default_is_prepared_ ? get_prepared_statement(q) : get_statement(q);
+    st->bindings().enable_recording(!!st);
+    return st;
 }
 
 boost::intrusive_ptr<statement> connection::get_statement(const string_ref& _q)
 {
-    string_ref q;
-
-    if(expand_conditionals_)
-    {
-        int major;
-        int minor;
-        version(major, minor);
-        q = select_statement(q, engine(), major, minor);
-    }
-    else
-        q = _q;
-
-    return q.empty() ? boost::intrusive_ptr<statement>() : create_statement(q);
+    string_ref q = select_statement(_q);
+    return q.empty() ? boost::intrusive_ptr<statement>() : create_statement_impl(q);
 }
 
 boost::intrusive_ptr<statement> connection::get_prepared_statement(const string_ref& _q)
 {
-    string_ref q;
-
-    if(expand_conditionals_)
-    {
-        int major;
-        int minor;
-        version(major, minor);
-        q = select_statement(_q, engine(), major, minor);
-    }
-    else
-        q = _q;
-
-    return q.empty() ? boost::intrusive_ptr<statement>() : prepare_statement(q);
+    string_ref q = select_statement(_q);
+    return q.empty() ? boost::intrusive_ptr<statement>() : prepare_statement_impl(q);
 }
 
 void connection::exec_batch(const string_ref& _q)

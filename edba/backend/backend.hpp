@@ -98,6 +98,8 @@ public:
 class EDBA_API bindings 
 {
 public:
+    bindings();
+
     ///
     /// Bind value to column \a col (starting from 1).
     /// 
@@ -116,10 +118,21 @@ public:
     /// Reset all bindings to initial state
     ///
     void reset();
+    
     /// 
-    /// Return serialized bindings string
+    /// Return recorded serialized bindings string
     ///
     std::string to_string() const;
+
+    ///
+    /// Enable bindings recording
+    /// 
+    void enable_recording(bool enable);
+
+    ///
+    /// Return enable recording flag
+    ///
+    bool enable_recording() const;
 
 protected:
     ///
@@ -144,6 +157,9 @@ private:
     /// Accumulator for string representation of bounded parameters
     /// Used in session_monitor calls
     std::ostringstream bindings_;
+
+    /// Enable bindings object to serialize and record bindings
+    bool enable_recording_;
 };
 
 ///
@@ -159,12 +175,9 @@ public:
     virtual ~statement() = 0 {} 
 
     ///
-    /// Return query that was passed on construction
+    /// Return query that is scheduled for execution by backend after all possible transformations
     /// 
-    const std::string& orig_sql() const
-    {
-        return orig_sql_;
-    }
+    virtual const char* orig_sql() const = 0;
 
     ///
     /// Return SQL Query result, MAY throw edba_error if the statement is not a query
@@ -212,8 +225,7 @@ protected:
 
 
 private:
-    session_monitor* sm_;                       //!< Callback for library user to track certain library events. Can be 0.
-    std::string orig_sql_;                      //!< Original sql that was passed to constructor.
+    session_monitor* sm_; //!< Callback for library user to track certain library events. Can be 0.
 };
 
 ///
@@ -248,17 +260,6 @@ public:
     void rollback();
 
     ///
-    /// Create a prepared statement \a q. May throw if preparation had failed.
-    /// Should never return null value.
-    ///
-    virtual boost::intrusive_ptr<statement> prepare_statement(const string_ref& q) = 0;
-    ///
-    /// Create a (unprepared) statement \a q. May throw if preparation had failed.
-    /// Should never return null value.
-    ///
-    virtual boost::intrusive_ptr<statement> create_statement(const string_ref& q) = 0;
-
-    ///
     /// Escape a string for inclusion in SQL query. May throw not_supported_by_backend() if not supported by backend.
     ///
     virtual std::string escape(std::string const &) = 0;
@@ -289,6 +290,17 @@ public:
 
 protected:
     ///
+    /// Create a prepared statement \a q. May throw if preparation had failed.
+    /// Should never return null value.
+    ///
+    virtual boost::intrusive_ptr<statement> prepare_statement_impl(const string_ref& q) = 0;
+    ///
+    /// Create a (unprepared) statement \a q. May throw if preparation had failed.
+    /// Should never return null value.
+    ///
+    virtual boost::intrusive_ptr<statement> create_statement_impl(const string_ref& q) = 0;
+
+    ///
     /// Start new isolated transaction. Would not be called
     /// withing other transaction on current connection.
     ///
@@ -312,6 +324,13 @@ protected:
     unsigned default_is_prepared_ : 1;
     unsigned expand_conditionals_ : 1;
     unsigned reserved_ : 30;
+
+private: 
+    ///
+    /// Select appropriate current backend statement for different versions of statements provided in 
+    /// sql string.
+    ///
+    string_ref select_statement(const string_ref& q);
 };
 
 }} // edba, backend

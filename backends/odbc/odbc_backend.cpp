@@ -491,6 +491,11 @@ public:
         SQLFreeHandle(SQL_HANDLE_STMT,stmt_);
     }
 
+    virtual const char* orig_sql() const
+    {
+        return bindings_.sql().c_str();
+    }
+
     virtual edba::backend::bindings& bindings()
     {
         return bindings_;
@@ -678,9 +683,9 @@ public:
         }
         else {
             if(wide_)
-                r=SQLExecDirectW(stmt_,(SQLWCHAR*)tosqlwide(orig_sql()).c_str(),SQL_NTS);
+                r=SQLExecDirectW(stmt_,(SQLWCHAR*)tosqlwide(bindings_.sql()).c_str(),SQL_NTS);
             else
-                r=SQLExecDirectA(stmt_,(SQLCHAR*)orig_sql().c_str(),SQL_NTS);
+                r=SQLExecDirectA(stmt_,(SQLCHAR*)orig_sql(),SQL_NTS);
         }
         return r;
     }
@@ -866,12 +871,12 @@ public:
         return st;
     }
 
-    virtual boost::intrusive_ptr<backend::statement> prepare_statement(const string_ref& q)
+    virtual boost::intrusive_ptr<backend::statement> prepare_statement_impl(const string_ref& q)
     {
         return real_prepare(q,true);
     }
 
-    virtual boost::intrusive_ptr<backend::statement> create_statement(const string_ref& q)
+    virtual boost::intrusive_ptr<backend::statement> create_statement_impl(const string_ref& q)
     {
         return real_prepare(q,false);
     }
@@ -888,7 +893,7 @@ public:
             if (spl_iter->empty()) 
                 continue;
 
-            create_statement(*spl_iter)->exec();    
+            create_statement_impl(*spl_iter)->exec();    
         }
     }
 

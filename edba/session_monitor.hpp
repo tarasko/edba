@@ -21,7 +21,7 @@ public:
     /// \param rows_affected - rows affected during execution. 0 on errors
     ///
     virtual void statement_executed(
-        const std::string& // sql
+        const char*        // sql
       , const std::string& // bindings
       , bool               // ok
       , double             // execution_time
@@ -37,7 +37,7 @@ public:
     /// \param rows_read - rows read. 0 on errors
     ///
     virtual void query_executed(
-        const std::string&   // sql
+        const char*          // sql
       , const std::string&   // bindings
       , bool                 // ok
       , double               // execution_time
