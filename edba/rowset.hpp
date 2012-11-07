@@ -13,29 +13,6 @@ namespace edba {
 class row;
 template<typename Row> class rowset_iterator;
 template<typename Row> class rowset;
- 
-namespace detail {
-
-template<typename T>
-struct ptr_holder
-{
-    ptr_holder(T* ptr = 0) : ptr_(ptr) {}
-
-    T& dereference() const
-    {
-        return *ptr_;
-    }
-
-    T* ptr_;
-};
-
-template<>
-struct ptr_holder<row>
-{
-    ptr_holder(row* ptr = 0) {}
-};
-
-}
 
 ///
 /// Represent single row in result set.
@@ -279,6 +256,9 @@ template<typename T = row>
 class rowset : private boost::mpl::if_<boost::is_same<T, row>, null_type, T>::type
 {
     template<typename T> friend class rowset_iterator;
+    template<typename T1> friend class rowset;
+
+    BOOST_MOVABLE_BUT_NOT_COPYABLE(rowset)
 
 public:
     typedef rowset_iterator<T> iterator;
@@ -288,6 +268,25 @@ public:
     /// Construct rowset from backend result
     ///
     rowset(const boost::intrusive_ptr<backend::result>& res) : row_(res), opened_(false) {}
+    
+    ///
+    /// Construct from statement. 
+    /// We have to make constructor instead of using conversion operator due to bug in MSVC 10
+    ///
+    rowset(const statement& st) : row_(st.query().row_.res_), opened_(false) {}
+
+    ///
+    /// Move constructor for rowset
+    ///
+    template<typename T1>
+    rowset(BOOST_RV_REF(rowset<T1>) x) : row_(boost::move(x.row_)), opened_(false) {}
+
+    ///
+    /// Move assign for rowset
+    ///
+    template<typename T1>
+    rowset& operator=(BOOST_RV_REF(rowset<T1>) x) { row_ = boost::move(x.row_); opened_ = x.opened_; }
+
     ///
     /// Open rowset for traversion and return begin iterator
     ///
@@ -306,15 +305,6 @@ public:
     rowset_iterator<T> end()
     {
         return rowset_iterator<T>();
-    }
-
-    ///
-    /// Provide conversion between rowset`s of different types.
-    ///
-    template<typename T1>
-    operator rowset<T1>() const
-    {
-        return rowset<T1>(row_.res_);
     }
 
     unsigned long long rows()

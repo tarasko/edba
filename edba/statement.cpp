@@ -48,7 +48,7 @@ row statement::first_row()
     return *rs.begin();
 }
 
-rowset<> statement::query()
+rowset<> statement::query() const
 {
     if (!stat_)
         throw empty_string_query();
