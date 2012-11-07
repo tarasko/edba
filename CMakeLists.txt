@@ -51,8 +51,8 @@ set(sources
   edba/types.hpp
   edba/transaction.hpp
   edba/transaction.cpp
-  edba/result.hpp
-  edba/result.cpp
+  edba/rowset.hpp
+  edba/rowset.cpp
   edba/backend/backend_fwd.hpp
   edba/backend/backend.hpp
   edba/backend/backend.cpp 

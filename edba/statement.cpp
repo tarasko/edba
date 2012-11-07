@@ -1,6 +1,8 @@
 #include <edba/statement.hpp>
 #include <edba/backend/backend.hpp>
 
+#include <boost/typeof/typeof.hpp>
+
 namespace edba {
 
 statement::statement() : placeholder_(1) {}
@@ -31,29 +33,29 @@ unsigned long long statement::affected()
     return stat_->affected();
 }
 
-result statement::row()
+row statement::first_row()
 {
-    result res(stat_->query());
+    rowset<> rs(stat_->query());
 
-    if(res.next()) 
-    {
-        if(res.res_->has_next() == backend::result::next_row_exists)
-            throw multiple_rows_query();
-    }
-    return res;
+    rowset_iterator<row> ri = rs.begin();
+
+    if (rs.end() == ri)
+        throw empty_row_access();
+
+    if (ri.has_next())
+        throw multiple_rows_query();
+
+    return *rs.begin();
 }
 
-result statement::query()
+rowset<> statement::query()
 {
     if (!stat_)
         throw empty_string_query();
 
-    return result(stat_->query());
+    return rowset<>(stat_->query());
 }
-statement::operator result()
-{
-    return query();
-}
+
 void statement::exec() 
 {
     if (stat_)

@@ -103,6 +103,16 @@ public:
     }
 };
 
+///
+/// \brief Attempt to create row iterator for a second time
+///
+class multiple_rowset_traverse : public edba_error {
+public:
+    multiple_rowset_traverse(std::string const &e) : edba_error(e)
+    {
+    }
+};
+
 }
 
 #endif

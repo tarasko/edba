@@ -1,7 +1,7 @@
 #ifndef EDBA_STATEMENT_HPP
 #define EDBA_STATEMENT_HPP
 
-#include <edba/result.hpp>
+#include <edba/rowset.hpp>
 
 namespace edba {
 
@@ -129,19 +129,26 @@ public:
     /// If the result set consists of more then one row it throws multiple_rows_query exception, however some backends
     /// may ignore this.
     ///
+    /// Would throw empty_row_access exception if the result is empty.
+    ///
+    ///
     /// If the statement is not query statement (like SELECT) it would likely
     /// throw an exception, however the behavior may vary between backends that may ignore this error.
     ///
-    result row();
+    row first_row();
     ///
     /// Fetch a result of the query, if the statement is not query statement (like SELECT) it would likely
     /// throw an exception, however the behavior may vary between backends that may ignore this error.
     ///
-    result query();
+    rowset<> query();
     ///
     /// Same as query() - syntactic sugar
     ///
-    operator result();
+    template<typename T>
+    operator rowset<T>()
+    {
+        return query();
+    }
 
     ///
     /// Execute a statement, of the statement is actually SELECT like operator, it throws edba_error exception,
@@ -204,10 +211,8 @@ inline void reset(statement &st)
 /// \brief Manipulator that fetches a single row. Used as:
 ///
 /// \code
-///  edba::result r = sql << "SELECT name where uid=?" << id << edba::row;
-/// if(!r.empty()) {
+///  edba::row r = sql << "SELECT name where uid=?" << id << edba::first_row;
 ///  ...
-/// }
 /// \endcode
 ///
 /// Or:
@@ -216,11 +221,24 @@ inline void reset(statement &st)
 ///  sql << "SELECT name where uid=?" << id << edba::row >> name;
 /// \endcode
 ///
-/// Which would throw empty_row_access exception on attempt to fetch name if the result is empty.
+/// Would throw empty_row_access exception if the result is empty.
 ///
-inline result row(statement &st)
+inline row first_row(statement &st)
 {
-    return st.row();
+    return st.first_row();
+}
+
+///
+/// \brief Manipulator that fetches a rowset. Used as:
+///
+/// \code
+///  edba::rowset<> r = sql << "SELECT name where uid=?" << id << edba::query;
+///  ...
+/// \endcode
+///
+inline rowset<> query(statement &st)
+{
+    return st.query();
 }
 
 ///
@@ -235,7 +253,15 @@ inline statement& operator<<(statement& st, void (*manipulator)(statement &st))
 ///
 /// Apply manipulator on the statement, same as manipulator(*this).
 ///
-inline result operator<<(statement& st, result (*manipulator)(statement &st))
+inline row operator<<(statement& st, row (*manipulator)(statement &st))
+{
+    return manipulator(st);
+}
+
+///
+/// Apply manipulator on the statement, same as manipulator(*this).
+///
+inline rowset<> operator<<(statement& st, rowset<> (*manipulator)(statement &st))
 {
     return manipulator(st);
 }

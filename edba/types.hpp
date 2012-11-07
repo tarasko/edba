@@ -16,7 +16,7 @@
 namespace edba {
 
 class statement;
-class result;
+class row;
 
 namespace backend { class statement; }
 
@@ -77,7 +77,7 @@ template<typename T, typename Enable = void>
 struct fetch_conversion
 {
     template<typename ColOrName>
-    static bool fetch(result& res, ColOrName col_or_name, T& v)
+    static bool fetch(row& res, ColOrName col_or_name, T& v)
     {
         BOOST_MPL_ASSERT_MSG(false, ADD_SPECIALIZATION_OF_FETCH_CONVERSION_FOR_TYPE, (T));
     }
@@ -98,7 +98,7 @@ struct bind_conversion<T, typename boost::enable_if< boost::mpl::contains<bind_t
 template<typename T>
 struct fetch_conversion<T, typename boost::enable_if< boost::mpl::contains<fetch_types, T*> >::type >
 {
-    static bool fetch(result& r, int col, T& v)
+    static bool fetch(row& r, int col, T& v)
     {
         return r.fetch(col, fetch_types_variant(&v));
     }

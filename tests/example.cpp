@@ -1,6 +1,7 @@
 #include <edba/edba.hpp>
 
 #include <boost/iostreams/device/mapped_file.hpp>
+#include <boost/foreach.hpp>
 #include <boost/timer.hpp>
 
 #include <iostream>
@@ -245,20 +246,20 @@ void test_var()
     edba::session sess1(edba::driver::odbc_s(), "DSN=VAR_DATA", &m);
     edba::session sess(edba::driver::odbc(), "DSN=VAR_DATA", &m);
 
-    edba::result res = sess << "SELECT ID, CURVE_ID, TIMESTAMP, VALUE, TERM FROM CURVE_QUOTE WHERE ID=:id1 OR ID=:id2" 
+    edba::rowset<> rs = sess << "SELECT ID, CURVE_ID, TIMESTAMP, VALUE, TERM FROM CURVE_QUOTE WHERE ID=:id1 OR ID=:id2" 
         << edba::use("id1", 602377) << edba::use("id2", 473930);
 
-    while(res.next()) {
+    BOOST_FOREACH(edba::row& r, rs)
+    {
         long long id;
         long long curve_id;
         std::tm timestamp;
         double value;
         std::string term;
 
-        res >> id >> curve_id >> timestamp >> value >> term;
+        r >> id >> curve_id >> timestamp >> value >> term;
         std::cout << id << ' ' << curve_id << ' ' << value << ' ' << asctime(&timestamp) << ' ' << term << std::endl;
     }
-
 }
 
 int main()
