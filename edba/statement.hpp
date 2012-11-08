@@ -140,7 +140,15 @@ public:
     /// Fetch a result of the query, if the statement is not query statement (like SELECT) it would likely
     /// throw an exception, however the behavior may vary between backends that may ignore this error.
     ///
-    rowset<> query() const;
+    rowset<> query();
+    ///
+    /// Same as query() - syntactic sugar
+    ///
+    template<typename T>
+    operator rowset<T>()
+    {
+        return query();
+    }
 
     ///
     /// Execute a statement, of the statement is actually SELECT like operator, it throws edba_error exception,

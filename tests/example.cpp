@@ -240,19 +240,15 @@ struct monitor : edba::session_monitor
 //    std::cout << "initdb for " << entry << " took " << t.elapsed() << std::endl;
 //}
 
-struct A
-{
-    int i;
-};
-
 void test_var()
 {
     monitor m;
     edba::session sess1(edba::driver::odbc_s(), "DSN=VAR_DATA", &m);
     edba::session sess(edba::driver::odbc(), "DSN=VAR_DATA", &m);
 
-    edba::rowset<> rs = sess << "SELECT ID, CURVE_ID, TIMESTAMP, VALUE, TERM FROM CURVE_QUOTE";
-        
+    edba::rowset<> rs = sess << "SELECT ID, CURVE_ID, TIMESTAMP, VALUE, TERM FROM CURVE_QUOTE WHERE ID=:id1 OR ID=:id2" 
+        << edba::use("id1", 602377) << edba::use("id2", 473930);
+
     BOOST_FOREACH(edba::row& r, rs)
     {
         long long id;
