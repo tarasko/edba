@@ -287,7 +287,10 @@ public:
     /// 
     /// Construct rowset from backend result
     ///
-    rowset(const boost::intrusive_ptr<backend::result>& res) : row_(res), opened_(false) {}
+    rowset(const boost::intrusive_ptr<backend::result>& res, const boost::intrusive_ptr<backend::statement>& stat) 
+        : row_(res)
+        , stat_(stat)
+        , opened_(false) {}
     ///
     /// Open rowset for traversion and return begin iterator
     ///
@@ -354,7 +357,12 @@ public:
 
 private:
     row row_;
-    bool opened_; //!< User have already called begin method
+
+    boost::intrusive_ptr<backend::statement> stat_; //!< Rowset doesn`t use anything from statement, however
+                                                    //!< we want to ensures that statement backend stay alive until
+                                                    //!< alive we are.
+
+    bool opened_;                                   //!< User have already called begin method
 };
 
 // row_iterator::dereference specialization for row. We should not call fetch, instead we just return stored row object;

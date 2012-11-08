@@ -35,7 +35,7 @@ unsigned long long statement::affected()
 
 row statement::first_row()
 {
-    rowset<> rs(stat_->query());
+    rowset<> rs(stat_->query(), stat_);
 
     rowset_iterator<row> ri = rs.begin();
 
@@ -53,7 +53,7 @@ rowset<> statement::query()
     if (!stat_)
         throw empty_string_query();
 
-    return rowset<>(stat_->query());
+    return rowset<>(stat_->query(), stat_);
 }
 
 void statement::exec() 

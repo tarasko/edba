@@ -246,8 +246,9 @@ void test_var()
     edba::session sess1(edba::driver::odbc_s(), "DSN=VAR_DATA", &m);
     edba::session sess(edba::driver::odbc(), "DSN=VAR_DATA", &m);
 
-    edba::rowset<> rs = sess << "SELECT ID, CURVE_ID, TIMESTAMP, VALUE, TERM FROM CURVE_QUOTE WHERE ID=:id1 OR ID=:id2" 
-        << edba::use("id1", 602377) << edba::use("id2", 473930);
+    boost::timer t;
+
+    edba::rowset<> rs = sess << "SELECT TOP 200000 ID, CURVE_ID, TIMESTAMP, VALUE, TERM FROM CURVE_QUOTE";
 
     BOOST_FOREACH(edba::row& r, rs)
     {
@@ -258,8 +259,10 @@ void test_var()
         std::string term;
 
         r >> id >> curve_id >> timestamp >> value >> term;
-        std::cout << id << ' ' << curve_id << ' ' << value << ' ' << asctime(&timestamp) << ' ' << term << std::endl;
+        // std::cout << id << ' ' << curve_id << ' ' << value << ' ' << asctime(&timestamp) << ' ' << term << std::endl;
     }
+
+    cout << "Elapsed: " << t.elapsed() << endl;
 }
 
 int main()

@@ -4,10 +4,15 @@
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/find_iterator.hpp>
+#include <boost/container/flat_map.hpp>
 #include <boost/typeof/typeof.hpp>
 #include <boost/static_assert.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/scoped_ptr.hpp>
+#include <boost/mpl/map.hpp>
+#include <boost/mpl/int.hpp>
+#include <boost/mpl/at.hpp>
+#include <boost/type_traits/is_arithmetic.hpp>
 
 #include <list>
 #include <vector>
@@ -21,6 +26,8 @@
 #include <windows.h>
 #endif
 #include <sqlext.h>
+
+namespace mpl = boost::mpl;
 
 namespace edba { namespace odbc_backend {
 
@@ -177,124 +184,266 @@ void check_odbc_error(SQLRETURN error,SQLHANDLE h,SQLSMALLINT type,bool wide)
         check_odbc_errorA(error,h,type);
 }
 
-class result : public backend::result {
-public:
-    typedef std::pair<bool,std::string> cell_type;
-    typedef std::vector<cell_type> row_type;
-    typedef std::list<row_type> rows_type;
-
-    struct visitor : boost::static_visitor<>
+class result : public backend::result, public boost::static_visitor<bool>
+{
+    struct column_info
     {
-        visitor(const std::string& data) : data_(data) {}
-
-        // for ariphmetic types use parse_number
-        template<typename T>
-        void operator()(T* v)
-        {
-            parse_number(data_, *v);
-        }
-
-        // for string type, return string
-        void operator()(std::string* v)
-        {
-            v->assign(data_);
-        }
-
-        // for ostream type use operator <<
-        void operator()(std::ostream* v)
-        {
-            *v << data_;
-        }
-
-        // for std::tm use parse_time
-        void operator()(std::tm* v)
-        {
-            *v = parse_time(data_);
-        }
-
-    private:
-        const std::string& data_;
+        std::string name_;  // name
+        int index_;         // index
+        SQLSMALLINT type_;  // type
     };
 
-    virtual next_row has_next()
+    template<typename T>
+    struct name_access
     {
-        rows_type::iterator p=current_;
-        if(p == rows_.end() || ++p==rows_.end())
-            return last_row_reached;
-        else
-            return next_row_exists;
-    }
-    virtual bool next() 
-    {
-        if(started_ == false) {
-            current_ = rows_.begin();
-            started_ = true;
+        static const T& get(const T& v)
+        {
+            return v;
         }
-        else if(current_!=rows_.end()) {
-            ++current_;
-        }
-        return current_!=rows_.end();
-    }
-    virtual bool fetch(int col, const fetch_types_variant& v)
+    };
+
+    template<>
+    struct name_access< column_info >
     {
-        cell_type& cell = at(col);
-        if(cell.first)
+        static const std::string& get(const column_info& v)
+        {
+            return v.name_;
+        }
+    };
+
+    typedef std::vector<column_info> columns_set;
+    struct columns_set_less 
+    {
+        template<typename Range1, typename Range2>
+        bool operator()(const Range1& r1, const Range2& r2) const
+        {
+            return boost::algorithm::lexicographical_compare(
+                name_access<Range1>::get(r1)
+              , name_access<Range2>::get(r2)
+              );            
+        }
+    };
+
+public:
+    result(SQLHSTMT stmt, bool wide) : stmt_(stmt), wide_(wide) 
+    {
+        // Read number of columns
+        SQLSMALLINT columns_count;
+        SQLRETURN r = SQLNumResultCols(stmt_, &columns_count);
+        check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
+        columns_.reserve(columns_count);
+
+        // This variable will hold maximum column size over all parameters
+        SQLULEN max_column_size = 0;
+
+        // For each column get name, and push back into columns_
+        for(SQLSMALLINT col = 0; col < columns_count; col++) 
+        {
+            column_info ci;
+            SQLSMALLINT name_length = 0;
+            SQLULEN column_size = 0;
+
+            if(wide_) 
+            {
+                SQLWCHAR name[257] = {0};
+                r = SQLDescribeColW(stmt_, col + 1, name, 256, &name_length, &ci.type_, &column_size, 0, 0);
+                check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
+                ci.name_ = narrower(name);
+            }
+            else 
+            {
+                SQLCHAR name[257] = {0};
+                r=SQLDescribeColA(stmt_, col + 1, name, 256, &name_length, &ci.type_, &column_size, 0, 0);
+                check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
+                ci.name_ = (char*)name;
+            }
+
+            if (column_size > max_column_size)
+                max_column_size = column_size;
+
+            ci.index_ = col;
+            columns_.push_back(ci);
+        }
+
+        // Prepare columns_ for equal_range algorithm
+        boost::sort(columns_, columns_set_less());
+
+        column_char_buf_.resize(max_column_size + 1);
+    }
+
+    template<typename T>
+    bool operator()(T* data, typename boost::enable_if< boost::is_arithmetic<T> >::type* = 0 )
+    {
+        typedef mpl::map<
+            mpl::pair< char,                mpl::pair< mpl::int_<SQL_C_STINYINT>,   char> >
+          , mpl::pair< unsigned char,       mpl::pair< mpl::int_<SQL_C_UTINYINT>,   unsigned char> >
+          , mpl::pair< short,               mpl::pair< mpl::int_<SQL_C_SSHORT>,     short> >
+          , mpl::pair< unsigned short,      mpl::pair< mpl::int_<SQL_C_USHORT>,     unsigned short> >
+          , mpl::pair< int,                 mpl::pair< mpl::int_<SQL_C_SLONG>,      long> >
+          , mpl::pair< unsigned int,        mpl::pair< mpl::int_<SQL_C_ULONG>,      unsigned long> >
+          , mpl::pair< long,                mpl::pair< mpl::int_<SQL_C_SLONG>,      long> >
+          , mpl::pair< unsigned long,       mpl::pair< mpl::int_<SQL_C_ULONG>,      unsigned long> >
+          , mpl::pair< long long,           mpl::pair< mpl::int_<SQL_C_SBIGINT>,    long long> >
+          , mpl::pair< unsigned long long,  mpl::pair< mpl::int_<SQL_C_UBIGINT>,    unsigned long long> >
+          , mpl::pair< float,               mpl::pair< mpl::int_<SQL_C_FLOAT>,      float> >
+          , mpl::pair< double,              mpl::pair< mpl::int_<SQL_C_DOUBLE>,     double> >
+          , mpl::pair< long double,         mpl::pair< mpl::int_<SQL_C_DOUBLE>,     double> >
+          > type_ids_map;
+
+        typedef typename mpl::at<type_ids_map, T>::type data_pair;
+        typedef data_pair::first c_type_id;
+        typedef data_pair::second c_type;
+
+        c_type tmp;
+        SQLINTEGER indicator;
+        
+        SQLRETURN r = SQLGetData(stmt_, fetch_col_, c_type_id::value, &tmp, sizeof(tmp), &indicator);
+        if (r == SQL_SUCCESS || r == SQL_SUCCESS_WITH_INFO)
+        {
+            if (SQL_NULL_DATA == indicator)
+                return false;
+
+            *data = static_cast<T>(tmp);
+
+            return true;
+        }
+
+        check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
+
+        return false;
+    }
+
+    bool operator()(std::tm* data)
+    {
+        TIMESTAMP_STRUCT tmp;
+        SQLINTEGER indicator;
+
+        SQLRETURN r = SQLGetData(stmt_, fetch_col_, SQL_C_TYPE_TIMESTAMP, &tmp, sizeof(tmp), &indicator);
+        if (r == SQL_SUCCESS || r == SQL_SUCCESS_WITH_INFO)
+        {
+            if (SQL_NULL_DATA == indicator)
+                return false;
+
+            data->tm_isdst = -1;
+            data->tm_year = tmp.year - 1900;
+            data->tm_mon = tmp.month - 1;
+            data->tm_mday = tmp.day;
+            data->tm_hour = tmp.hour;
+            data->tm_min = tmp.minute;
+            data->tm_sec = tmp.second;
+
+            // normalize and compute the remaining fields
+            std::mktime(data);
+
+            return true;
+        }
+
+        check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
+        return false;
+    }
+
+    bool operator()(std::string* data)
+    {
+        SQLINTEGER indicator;
+        SQLRETURN r = SQLGetData(stmt_, fetch_col_, SQL_C_CHAR, &column_char_buf_[0], column_char_buf_.size(), &indicator);
+        if (r == SQL_SUCCESS || r == SQL_SUCCESS_WITH_INFO)
+        {
+            if (SQL_NULL_DATA == indicator)
+                return false;
+
+            data->assign(column_char_buf_.begin(), column_char_buf_.begin() + indicator);
+            return true;
+        }
+
+        check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
+        return false;
+    }
+
+    bool operator()(...)
+    {
+        return false;
+    }
+
+    virtual next_row has_next() 
+    {
+        // not supported by odbc
+        return next_row_unknown;
+    }
+
+    virtual bool next()
+    {
+        SQLRETURN r = SQLFetch(stmt_);
+
+        if (r == SQL_SUCCESS || r == SQL_SUCCESS_WITH_INFO) 
+            return true;
+
+        if(r == SQL_NO_DATA)
             return false;
 
-        visitor vis(cell.second);
-        v.apply_visitor(vis);
+        check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
 
-        return true;
+        return false;
     }
+    
+    virtual bool fetch(int col, const fetch_types_variant& v)
+    {
+        fetch_col_ = col + 1;
+        return v.apply_visitor(*this);
+    }
+
     virtual bool is_null(int col)
     {
-        return at(col).first;
+        char buf[4];
+        SQLLEN indicator;
+        SQLRETURN r = SQLGetData(stmt_, col + 1, SQL_C_DEFAULT, buf, sizeof(buf), &indicator);
+
+        if (r != SQL_SUCCESS && r != SQL_SUCCESS_WITH_INFO)
+            check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
+
+        return indicator != SQL_NULL_DATA;
     }
+
     virtual int cols()
     {
-        return cols_;
-    }
-    virtual unsigned long long rows() 
-    {
-        return rows_.size();
-    }
-    virtual int name_to_column(const string_ref& cn) 
-    {
-        for(unsigned i=0; i<names_.size(); i++)
-            if(boost::algorithm::iequals(names_[i], cn))
-                return i;
-        return -1;
-    }
-    virtual std::string column_to_name(int c) 
-    {
-        if(c < 0 || c >= int(names_.size()))
-            throw invalid_column();
-        return names_[c];
+        return (int)columns_.size();
     }
 
-    result(rows_type &rows,std::vector<std::string> &names,int cols) : cols_(cols)
+    virtual unsigned long long rows()
     {
-        names_.swap(names);
-        rows_.swap(rows);
-        started_ = false;
-        current_ = rows_.end();
+        // not supported by odbc
+        return unsigned long long(-1);
     }
-    cell_type &at(int col)
+
+    virtual int name_to_column(const string_ref& name)
     {
-        if(current_!=rows_.end() && col >= 0 && col <int(current_->size()))
-            return current_->at(col);
+        BOOST_AUTO(found, boost::equal_range(columns_, name, columns_set_less()));
+        return boost::empty(found) ? -1 : found.first->index_;
+    }
+
+    virtual std::string column_to_name(int col)
+    {
+        BOOST_FOREACH(columns_set::const_reference elem, columns_)
+        {
+            if (elem.index_ == col)
+                return elem.name_;
+        }
+
         throw invalid_column();
     }
+
 private:
-    int cols_;
-    bool started_;
-    std::vector<std::string> names_;
-    rows_type::iterator current_;
-    rows_type rows_;
+    SQLHSTMT stmt_;
+    bool wide_;
+    int fetch_col_;
+    columns_set columns_;
+    std::vector<char> column_char_buf_;  
 };
 
-class odbc_bindings : public backend::bind_by_name_helper
+class odbc_bindings : public backend::bind_by_name_helper, public boost::static_visitor<boost::shared_ptr<std::pair<SQLLEN, std::string> > >
 {
+    typedef std::pair<SQLLEN, std::string> holder;
+    typedef boost::shared_ptr<holder> holder_sp;
+
 public:
     odbc_bindings(const string_ref& sql, bool wide) 
         : backend::bind_by_name_helper(sql, backend::question_marker())
@@ -307,131 +456,117 @@ public:
         stmt_ = stmt;
     }
 
-private:
-    typedef std::pair<SQLLEN, std::string> holder;
-    typedef boost::shared_ptr<holder> holder_sp;
-
-    struct visitor : boost::static_visitor<holder_sp>
+    template<typename T>
+    holder_sp operator()(T v)
     {
-        visitor(SQLHSTMT stmt, int col, bool wide) : stmt_(stmt), col_(col), wide_(wide) {} 
-    
-        void bind(bool null, SQLSMALLINT ctype, SQLSMALLINT sqltype, holder& value)
+        std::ostringstream ss;
+        ss.imbue(std::locale::classic());
+
+        if(!std::numeric_limits<T>::is_integer)
+            ss << std::setprecision(std::numeric_limits<T>::digits10 + 1);
+
+        ss << v;
+
+        SQLSMALLINT sqltype = std::numeric_limits<T>::is_integer ? SQL_INTEGER : SQL_DOUBLE;
+
+        holder_sp value = boost::make_shared<holder>(0, ss.str());
+        do_bind(false, SQL_C_CHAR, sqltype, *value);
+        return value;
+    }
+
+    holder_sp operator()(null_type)
+    {
+        holder_sp value = boost::make_shared<holder>();
+        do_bind(true, 0, 0, *value);
+        return value;
+    }
+
+    holder_sp operator()(const string_ref& v)
+    {
+        holder_sp value;
+
+        if(wide_)
         {
-            int r;
-
-            if(null) 
-            {
-                value.first = SQL_NULL_DATA;
-                r = SQLBindParameter(stmt_,
-                    col_,
-                    SQL_PARAM_INPUT,
-                    SQL_C_CHAR, 
-                    SQL_NUMERIC, // for null
-                    10, // COLUMNSIZE
-                    0, //  Presision
-                    0, // string
-                    0, // size
-                    &value.first);
-            }
-            else 
-            {
-                value.first = value.second.size();
-                size_t column_size = value.second.size();
-                if(ctype == SQL_C_WCHAR)
-                    column_size/=2;
-                if(value.second.empty())
-                    column_size=1;
-                r = SQLBindParameter(	
-                    stmt_,
-                    col_,
-                    SQL_PARAM_INPUT,
-                    ctype,
-                    sqltype,
-                    column_size, // COLUMNSIZE
-                    0, //  Presision
-                    (void*)value.second.c_str(), // string
-                    value.second.size(),
-                    &value.first);
-            }
-
-            check_odbc_error(r,stmt_,SQL_HANDLE_STMT,wide_);
+            value = boost::make_shared<holder>(0, widen(v)); 
+            do_bind(false, SQL_C_WCHAR, SQL_WLONGVARCHAR, *value);
+        }
+        else 
+        {
+            value = boost::make_shared<holder>();
+            value->second.assign(v.begin(), v.end());
+            do_bind(false, SQL_C_CHAR, SQL_LONGVARCHAR, *value);
         }
 
-        template<typename T>
-        holder_sp operator()(T v)
+        return value;
+    }
+
+    holder_sp operator()(const std::tm& v)
+    {
+        holder_sp value = boost::make_shared<holder>(0, format_time(v));
+        do_bind(false, SQL_C_TIMESTAMP, SQL_C_CHAR, *value);
+        return value;
+    }
+
+    holder_sp operator()(std::istream* v)
+    {
+        std::ostringstream ss;
+        ss << v->rdbuf();
+        holder_sp value = boost::make_shared<holder>(0, ss.str());
+        do_bind(false, SQL_C_BINARY, SQL_LONGVARBINARY, *value);
+        return value;
+    }
+
+private:
+    void do_bind(bool null, SQLSMALLINT ctype, SQLSMALLINT sqltype, holder& value)
+    {
+        int r;
+
+        if(null) 
         {
-            std::ostringstream ss;
-            ss.imbue(std::locale::classic());
-
-            if(!std::numeric_limits<T>::is_integer)
-                ss << std::setprecision(std::numeric_limits<T>::digits10 + 1);
-
-            ss << v;
-
-            SQLSMALLINT sqltype = std::numeric_limits<T>::is_integer ? SQL_INTEGER : SQL_DOUBLE;
-
-            holder_sp value = boost::make_shared<holder>(0, ss.str());
-            bind(false, SQL_C_CHAR, sqltype, *value);
-            return value;
+            value.first = SQL_NULL_DATA;
+            r = SQLBindParameter(stmt_,
+                bind_col_,
+                SQL_PARAM_INPUT,
+                SQL_C_CHAR, 
+                SQL_NUMERIC, // for null
+                10, // COLUMNSIZE
+                0, //  Presision
+                0, // string
+                0, // size
+                &value.first);
+        }
+        else 
+        {
+            value.first = value.second.size();
+            size_t column_size = value.second.size();
+            if(ctype == SQL_C_WCHAR)
+                column_size/=2;
+            if(value.second.empty())
+                column_size=1;
+            r = SQLBindParameter(	
+                stmt_,
+                bind_col_,
+                SQL_PARAM_INPUT,
+                ctype,
+                sqltype,
+                column_size, // COLUMNSIZE
+                0, //  Presision
+                (void*)value.second.c_str(), // string
+                value.second.size(),
+                &value.first);
         }
 
-        holder_sp operator()(null_type)
-        {
-            holder_sp value = boost::make_shared<holder>();
-            bind(true, 0, 0, *value);
-            return value;
-        }
-
-        holder_sp operator()(const string_ref& v)
-        {
-            holder_sp value;
-
-            if(wide_)
-            {
-                value = boost::make_shared<holder>(0, widen(v)); 
-                bind(false, SQL_C_WCHAR, SQL_WLONGVARCHAR, *value);
-            }
-            else 
-            {
-                value = boost::make_shared<holder>();
-                value->second.assign(v.begin(), v.end());
-                bind(false, SQL_C_CHAR, SQL_LONGVARCHAR, *value);
-            }
-
-            return value;
-        }
-
-        holder_sp operator()(const std::tm& v)
-        {
-            holder_sp value = boost::make_shared<holder>(0, format_time(v));
-            bind(false, SQL_C_TIMESTAMP, SQL_C_CHAR, *value);
-            return value;
-        }
-
-        holder_sp operator()(std::istream* v)
-        {
-            std::ostringstream ss;
-            ss << v->rdbuf();
-            holder_sp value = boost::make_shared<holder>(0, ss.str());
-            bind(false, SQL_C_BINARY, SQL_LONGVARBINARY, *value);
-            return value;
-        }
-
-    private:
-        SQLHSTMT stmt_;
-        int col_;
-        bool wide_;
-    };
+        check_odbc_error(r,stmt_,SQL_HANDLE_STMT,wide_);
+    }
 
     virtual void bind_impl(int col, bind_types_variant const& v)
     {
-        visitor vis(stmt_, col, wide_);
-        params_.push_back(v.apply_visitor(vis));
+        params_.push_back(v.apply_visitor(*this));
     }
 
     virtual void reset_impl()
     {
-        SQLFreeStmt(stmt_,SQL_UNBIND);
+        SQLFreeStmt(stmt_, SQL_UNBIND);
         SQLCloseCursor(stmt_);
         params_.resize(0);
     }
@@ -439,6 +574,7 @@ private:
 private:
     SQLHSTMT stmt_;
     bool wide_;
+    int bind_col_;
     std::vector<holder_sp> params_;
 };
 
@@ -545,134 +681,7 @@ public:
     {
         int r = real_exec();
         check_error(r);
-        result::rows_type rows;
-        result::row_type row;
-
-        std::string value;
-        bool is_null = false;
-        SQLSMALLINT ocols;
-        r = SQLNumResultCols(stmt_,&ocols);
-        check_error(r);
-        int cols = ocols;
-
-        std::vector<std::string> names(cols);
-        std::vector<int> types(cols,SQL_C_CHAR);
-
-        for(int col=0;col < cols;col++) {
-            SQLSMALLINT name_length=0,data_type=0,digits=0,nullable=0;
-            SQLULEN collen = 0;
-
-            if(wide_) {
-                SQLWCHAR name[257] = {0};
-                r=SQLDescribeColW(stmt_,col+1,name,256,&name_length,&data_type,&collen,&digits,&nullable);
-                check_error(r);
-                names[col]=narrower(name);
-            }
-            else {
-                SQLCHAR name[257] = {0};
-                r=SQLDescribeColA(stmt_,col+1,name,256,&name_length,&data_type,&collen,&digits,&nullable);
-                check_error(r);
-                names[col]=(char*)name;
-            }
-            switch(data_type) {
-    case SQL_CHAR:
-    case SQL_VARCHAR:
-    case SQL_LONGVARCHAR:
-        types[col]=SQL_C_CHAR;
-        break;
-    case SQL_WCHAR:
-    case SQL_WVARCHAR:
-    case SQL_WLONGVARCHAR:
-        types[col]=SQL_C_WCHAR ;
-        break;
-    case SQL_BINARY:
-    case SQL_VARBINARY:
-    case SQL_LONGVARBINARY:
-        types[col]=SQL_C_BINARY ;
-        break;
-    default:
-        types[col]=SQL_C_DEFAULT;
-        // Just a hack, actually I'm going to use C
-        ;
-            }
-        }
-
-        while((r=SQLFetch(stmt_))==SQL_SUCCESS || r==SQL_SUCCESS_WITH_INFO) {
-            row.resize(cols);
-            for(int col=0;col < cols;col++) {
-                SQLLEN len = 0;
-                is_null=false;
-                int type = types[col];
-                if(type==SQL_C_DEFAULT) {
-                    char buf[64];
-                    int r = SQLGetData(stmt_,col+1,SQL_C_CHAR,buf,sizeof(buf),&len);
-                    check_error(r);
-                    if(len == SQL_NULL_DATA) {
-                        is_null = true;
-                    }
-                    else if(len <= 64) {
-                        value.assign(buf,len);
-                    }
-                    else {
-                        throw edba_error("edba::odbc::query - data too long");
-                    }
-                }
-                else {
-                    char buf[1024];
-                    size_t real_len;
-                    if(type == SQL_C_CHAR) {
-                        real_len = sizeof(buf)-1;
-                    }
-                    else if(type == SQL_C_BINARY) {
-                        real_len = sizeof(buf);
-                    }
-                    else { // SQL_C_WCHAR
-                        real_len = sizeof(buf) - sizeof(SQLWCHAR);
-                    }
-
-                    r = SQLGetData(stmt_,col+1,type,buf,sizeof(buf),&len);
-                    check_error(r);
-                    if(len == SQL_NULL_DATA) {
-                        is_null = true;	
-                    }
-                    else if(len == SQL_NO_TOTAL) {
-                        while(len==SQL_NO_TOTAL) {
-                            value.append(buf,real_len);
-                            r = SQLGetData(stmt_,col+1,type,buf,sizeof(buf),&len);
-                            check_error(r);
-                        }
-                        value.append(buf,len);
-                    }
-                    else if(0<= len && size_t(len) <= real_len) {
-                        value.assign(buf,len);
-                    }
-                    else if(len>=0) {
-                        value.assign(buf,real_len);
-                        size_t rem_len = len - real_len;
-                        std::vector<char> tmp(rem_len+2,0);
-                        r = SQLGetData(stmt_,col+1,type,&tmp[0],tmp.size(),&len);
-                        check_error(r);
-                        value.append(&tmp[0],rem_len);
-                    }
-                    else {
-                        throw edba_error("edba::odbc::query invalid result length");
-                    }
-                    if(!is_null && type == SQL_C_WCHAR) {
-                        std::string tmp=narrower(value);
-                        value.swap(tmp);
-                    }
-                }
-
-                row[col].first = is_null;
-                row[col].second.swap(value);
-            }
-            rows.push_back(result::row_type());
-            rows.back().swap(row);
-        }
-        if(r!=SQL_NO_DATA) {
-            check_error(r);
-        }
-        return boost::intrusive_ptr<result>(new result(rows,names,cols));
+        return boost::intrusive_ptr<result>(new result(stmt_, wide_));
     }
 
     int real_exec()
