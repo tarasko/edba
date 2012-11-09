@@ -113,7 +113,10 @@ public:
     template<typename T>
     bool fetch(const string_ref& n, T& v)
     {
-        return fetch(index(n),v);
+	int c = res_->name_to_column(n);
+        if (c < 0)
+            throw invalid_column();      
+        return fetch(c, v);
     }
 
     ///
@@ -223,6 +226,12 @@ class rowset_iterator
       , boost::single_pass_traversal_tag
       >
 {
+    typedef boost::iterator_facade<
+        rowset_iterator<T>
+      , T
+      , boost::single_pass_traversal_tag
+      > base_type;
+  
 public:
     rowset_iterator(rowset<T>* rs = 0) : rs_(rs) 
     {
@@ -243,11 +252,11 @@ public:
 private:
     friend class boost::iterator_core_access;
 
-    reference dereference() const
+    typename base_type::reference dereference() const
     {
         assert(rs_ && "Attempt to dereference end rowset_iterator");
 
-        if (!fetch_conversion<T>::fetch(r, 0, static_cast<T&>(*rs_)))
+        if (!fetch_conversion<T>::fetch(rs_->row_, 0, static_cast<T&>(*rs_)))
             throw null_value_fetch();
 
         return static_cast<T&>(*rs_);
@@ -278,7 +287,7 @@ private:
 template<typename T = row>
 class rowset : private boost::mpl::if_<boost::is_same<T, row>, null_type, T>::type
 {
-    template<typename T> friend class rowset_iterator;
+    template<typename T1> friend class rowset_iterator;
 
 public:
     typedef rowset_iterator<T> iterator;
@@ -299,7 +308,7 @@ public:
         if (opened_)
             throw multiple_rowset_traverse("Impossible to open rowset_iterator twice");
 
-        auto iter = rowset_iterator<T>(this);
+        rowset_iterator<T> iter(this);
         opened_ = true;
         return iter;
     }
@@ -373,6 +382,15 @@ inline rowset_iterator<row>::reference rowset_iterator<row>::dereference() const
     return rs_->row_;
 }
 
+/// Specialization of fetch_conversion for native types. 
+template<typename T>
+struct fetch_conversion<T, typename boost::enable_if< boost::mpl::contains<fetch_types, T*> >::type >
+{
+    static bool fetch(row& r, int col, T& v)
+    {
+        return r.fetch(col, fetch_types_variant(&v));
+    }
+};
 
 }
 

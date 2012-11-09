@@ -83,27 +83,6 @@ struct fetch_conversion
     }
 };
 
-// Specialization for native types
-template<typename T>
-struct bind_conversion<T, typename boost::enable_if< boost::mpl::contains<bind_types, T> >::type>
-{
-    template<typename ColOrName>
-    static void bind(statement& st, ColOrName col_or_name, const T& v)
-    {
-        st.bind(col_or_name, bind_types_variant(v));
-    }
-};
-
-// Specialization for native types. 
-template<typename T>
-struct fetch_conversion<T, typename boost::enable_if< boost::mpl::contains<fetch_types, T*> >::type >
-{
-    static bool fetch(row& r, int col, T& v)
-    {
-        return r.fetch(col, fetch_types_variant(&v));
-    }
-};
-
 }
 
 #endif // EDBA_TYPES_HPP

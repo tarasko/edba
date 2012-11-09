@@ -20,7 +20,7 @@ struct odbc_s
 {
     boost::intrusive_ptr<backend::connection> open_connection(const conn_info& ci, session_monitor* sm) const
     {
-        return boost::intrusive_ptr<::edba::backend::connection>(edba_odbc_get_connection(ci, sm));
+        return boost::intrusive_ptr<backend::connection>(edba_odbc_get_connection(ci, sm));
     }
 };
 

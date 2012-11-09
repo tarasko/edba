@@ -7,8 +7,6 @@
 #include <iostream>
 #include <ctime>
 
-#include <Windows.h>
-
 using namespace std;
 
 #ifdef _WIN32 
