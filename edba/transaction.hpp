@@ -40,4 +40,4 @@ private:
 
 }
 
-#endif EDBA_TRANSACTION_HPP
+#endif // EDBA_TRANSACTION_HPP

@@ -293,6 +293,19 @@ statement& operator<<(statement& st, const T& v)
     return st.bind(v);
 }
 
+/// Specialization of bind_conversion for native types
+template<typename T>
+struct bind_conversion<T, typename boost::enable_if< boost::mpl::contains<bind_types, T> >::type>
+{
+    template<typename ColOrName>
+    static void bind(statement& st, ColOrName col_or_name, const T& v)
+    {
+        st.bind(col_or_name, bind_types_variant(v));
+    }
+};
+
+
+
 }
 
 #endif // EDBA_STATEMENT_HPP

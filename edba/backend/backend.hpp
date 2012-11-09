@@ -172,7 +172,7 @@ class EDBA_API statement : public ref_cnt
 public:
     // Begin of API
     statement(session_monitor* sm, const string_ref& orig_sql);
-    virtual ~statement() = 0 {} 
+    virtual ~statement() {} 
 
     ///
     /// Return query that is scheduled for execution by backend after all possible transformations
@@ -192,7 +192,7 @@ public:
     /// 
     /// Return statement bindings
     ///
-    virtual bindings& bindings() = 0;
+    virtual backend::bindings& bindings() = 0;
 
     ///
     /// Fetch the last sequence generated for last inserted row. May use sequence as parameter

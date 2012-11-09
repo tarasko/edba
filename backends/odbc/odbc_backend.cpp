@@ -4,6 +4,7 @@
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/find_iterator.hpp>
+#include <boost/locale/encoding_utf.hpp>
 #include <boost/typeof/typeof.hpp>
 #include <boost/static_assert.hpp>
 #include <boost/make_shared.hpp>
@@ -22,8 +23,10 @@
 #endif
 #include <sqlext.h>
 
-namespace edba { namespace odbc_backend {
+using boost::locale::conv::utf_to_utf;    
 
+namespace edba { namespace odbc_backend {
+    
 const std::string g_backend("odbc");
 
 typedef unsigned odbc_u32;
@@ -33,88 +36,7 @@ BOOST_STATIC_ASSERT(sizeof(unsigned) == 4);
 BOOST_STATIC_ASSERT(sizeof(unsigned short) == 2);
 BOOST_STATIC_ASSERT(sizeof(SQLWCHAR) == 2);
 
-std::string widen(const string_ref& utf8)
-{
-#ifdef _WIN32    
-    // determine required size
-    int required = MultiByteToWideChar(CP_UTF8, 0, utf8.begin(), int(utf8.size()), 0, 0);
 
-    // convert
-    std::string utf16;
-    utf16.resize(required*2);
-    MultiByteToWideChar(
-        CP_UTF8
-      , 0
-      , utf8.begin()
-      , int(utf8.size())
-      , reinterpret_cast<wchar_t*>(&utf16[0])
-      , required
-      );
-    return utf16;
-#else
-    NOT_IMPLEMENTED;
-#endif
-}
-
-
-std::basic_string<SQLWCHAR> tosqlwide(const string_ref& utf8)
-{
-#ifdef _WIN32    
-    // determine required size
-    int required = MultiByteToWideChar(CP_UTF8, 0, utf8.begin(), int(utf8.size()), 0, 0);
-
-    // convert
-    std::basic_string<SQLWCHAR> utf16;
-    utf16.resize(required);
-    MultiByteToWideChar(CP_UTF8, 0, utf8.begin(), int(utf8.size()), &utf16[0], required);
-    return utf16;
-#else
-    NOT_IMPLEMENTED;
-#endif
-}
-
-std::string narrower(const std::basic_string<SQLWCHAR>& utf16)
-{
-#ifdef _WIN32
-    int required = WideCharToMultiByte(CP_UTF8, 0, utf16.c_str(), int(utf16.size()), 0, 0, 0, 0);
-
-    std::string utf8;
-    utf8.resize(required);
-    WideCharToMultiByte(CP_UTF8, 0, utf16.c_str(), int(utf16.size()), const_cast<char*>(utf8.data()), required, 0, 0);
-    return utf8;
-#else
-    NOT_IMPLEMENTED;
-#endif
-}
-
-std::string narrower(const std::string& utf16)
-{
-#ifdef _WIN32
-    int required = WideCharToMultiByte(
-        CP_UTF8
-      , 0
-      , reinterpret_cast<LPCWSTR>(utf16.c_str())
-      , int(utf16.size()/2)
-      , 0, 0, 0, 0
-      );
-
-    std::string utf8;
-    utf8.resize(required);
-    WideCharToMultiByte(
-        CP_UTF8
-      , 0
-      , reinterpret_cast<LPCWSTR>(utf16.c_str())
-      , int(utf16.size()/2)
-      , const_cast<char*>(utf8.data())
-      , required
-      , 0, 0
-      );
-
-    return utf8;
-#else
-    NOT_IMPLEMENTED;
-#endif
-}
 void check_odbc_errorW(SQLRETURN error,SQLHANDLE h,SQLSMALLINT type)
 {
     if(SQL_SUCCEEDED(error))
@@ -140,7 +62,13 @@ void check_odbc_errorW(SQLRETURN error,SQLHANDLE h,SQLSMALLINT type)
 
     }
     std::string utf8_str = "Unconvertable string";
-    try { std::string tmp = narrower(error_message); utf8_str = tmp; } catch(...){}
+    try 
+    { 
+        std::string tmp = utf_to_utf<char>(error_message); 
+        utf8_str = tmp;         
+    } 
+    catch(...){}
+    
     throw edba_error("edba::odbc_backend::Failed with error `" + utf8_str +"'");
 }
 
@@ -388,7 +316,9 @@ private:
 
             if(wide_)
             {
-                value = boost::make_shared<holder>(0, widen(v)); 
+                std::basic_string<SQLWCHAR> wstr = utf_to_utf<SQLWCHAR>(v.begin(), v.end());
+                
+                value = boost::make_shared<holder>(0, std::string(wstr.c_str(), wstr.c_str() + wstr.size()*sizeof(SQLWCHAR)));
                 bind(false, SQL_C_WCHAR, SQL_WLONGVARCHAR, *value);
             }
             else 
@@ -460,10 +390,11 @@ public:
         {
             try 
             {
-                if(wide_) {
+                if(wide_) 
+                {
                     r = SQLPrepareW(
                         stmt_,
-                        (SQLWCHAR*)tosqlwide(bindings_.sql()).c_str(),
+                        (SQLWCHAR*)utf_to_utf<SQLWCHAR>(bindings_.sql()).c_str(),
                         SQL_NTS);
                 }
                 else {
@@ -564,9 +495,9 @@ public:
 
             if(wide_) {
                 SQLWCHAR name[257] = {0};
-                r=SQLDescribeColW(stmt_,col+1,name,256,&name_length,&data_type,&collen,&digits,&nullable);
+                r = SQLDescribeColW(stmt_,col+1,name,256,&name_length,&data_type,&collen,&digits,&nullable);
                 check_error(r);
-                names[col]=narrower(name);
+                names[col] = utf_to_utf<char>(name);
             }
             else {
                 SQLCHAR name[257] = {0};
@@ -658,7 +589,7 @@ public:
                         throw edba_error("edba::odbc::query invalid result length");
                     }
                     if(!is_null && type == SQL_C_WCHAR) {
-                        std::string tmp=narrower(value);
+                        std::string tmp = utf_to_utf<char>(value);
                         value.swap(tmp);
                     }
                 }
@@ -683,7 +614,7 @@ public:
         }
         else {
             if(wide_)
-                r=SQLExecDirectW(stmt_,(SQLWCHAR*)tosqlwide(bindings_.sql()).c_str(),SQL_NTS);
+                r=SQLExecDirectW(stmt_,(SQLWCHAR*)utf_to_utf<SQLWCHAR>(bindings_.sql()).c_str(),SQL_NTS);
             else
                 r=SQLExecDirectA(stmt_,(SQLCHAR*)orig_sql(),SQL_NTS);
         }
@@ -747,7 +678,7 @@ public:
             dbc_created = true;
             if(wide_) {
                 r = SQLDriverConnectW(dbc_,0,
-                    (SQLWCHAR*)tosqlwide(ci.conn_string()).c_str(),
+                    (SQLWCHAR*)utf_to_utf<SQLWCHAR>(ci.conn_string()).c_str(),
                     SQL_NTS,0,0,0,SQL_DRIVER_COMPLETE);
             }
             else {
@@ -790,7 +721,7 @@ public:
 
         if( SQL_SUCCESS == rc || SQL_SUCCESS_WITH_INFO == rc ) 
         {
-            if (2 != sscanf_s(buf, "%2d.%2d", &ver_major_, &ver_minor_))
+            if (2 != EDBA_SSCANF(buf, "%2d.%2d", &ver_major_, &ver_minor_))
                 ver_major_ = ver_minor_ = -1;
         }
 
@@ -799,9 +730,9 @@ public:
 
         char desc_buf[256];
         if( SQL_SUCCESS == rc || SQL_SUCCESS_WITH_INFO == rc ) 
-            _snprintf_s(desc_buf, 255, "%s version %d.%d, user is '%s'", engine_.c_str(), ver_major_, ver_minor_, buf);
+            EDBA_SNPRINTF(desc_buf, 255, "%s version %d.%d, user is '%s'", engine_.c_str(), ver_major_, ver_minor_, buf);
         else
-            _snprintf_s(desc_buf, 255, "%s version %d.%d", engine_.c_str(), ver_major_, ver_minor_);
+            EDBA_SNPRINTF(desc_buf, 255, "%s version %d.%d", engine_.c_str(), ver_major_, ver_minor_);
 
         // remember description
         description_ = desc_buf;
@@ -854,13 +785,18 @@ public:
 
     virtual void rollback_impl() 
     {
-        try {
+        try
+        {
             SQLRETURN r = SQLEndTran(SQL_HANDLE_DBC,dbc_,SQL_ROLLBACK);
             check_odbc_error(r,dbc_,SQL_HANDLE_DBC,wide_);
-        } catch(...) {}
-        try {
+        } 
+        catch(...) {}
+        
+        try 
+        {
             set_autocommit(true);
-        } catch(...){}
+        } 
+        catch(...){}
     }
     boost::intrusive_ptr<backend::statement> real_prepare(const string_ref& q,bool prepared)
     {
