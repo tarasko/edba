@@ -118,7 +118,8 @@ void test_odbc(const char* conn_string)
     {
         using namespace edba;
 
-        session sess(driver::odbc(), conn_string);
+        monitor sm;
+        session sess(driver::odbc(), conn_string, &sm);
 
         // Create table
         sess << create_test1_table << exec;
