@@ -32,8 +32,6 @@ namespace mpl = boost::mpl;
 namespace edba { namespace odbc_backend {
 
 using boost::locale::conv::utf_to_utf;    
-
-namespace edba { namespace odbc_backend {
     
 const std::string g_backend("odbc");
 
@@ -113,45 +111,46 @@ void check_odbc_error(SQLRETURN error,SQLHANDLE h,SQLSMALLINT type,bool wide)
         check_odbc_errorA(error,h,type);
 }
 
+struct column_info
+{
+    std::string name_;  // name
+    int index_;         // index
+    SQLSMALLINT type_;  // type
+};
+
+template<typename T>
+struct name_access
+{
+    static const T& get(const T& v)
+    {
+        return v;
+    }
+};
+
+template<>
+struct name_access< column_info >
+{
+    static const std::string& get(const column_info& v)
+    {
+        return v.name_;
+    }
+};
+
+typedef std::vector<column_info> columns_set;
+struct columns_set_less 
+{
+    template<typename Range1, typename Range2>
+    bool operator()(const Range1& r1, const Range2& r2) const
+    {
+        return boost::algorithm::lexicographical_compare(
+            name_access<Range1>::get(r1)
+            , name_access<Range2>::get(r2)
+            );            
+    }
+};
+
 class result : public backend::result, public boost::static_visitor<bool>
 {
-    struct column_info
-    {
-        std::string name_;  // name
-        int index_;         // index
-        SQLSMALLINT type_;  // type
-    };
-
-    template<typename T>
-    struct name_access
-    {
-        static const T& get(const T& v)
-        {
-            return v;
-        }
-    };
-
-    template<>
-    struct name_access< column_info >
-    {
-        static const std::string& get(const column_info& v)
-        {
-            return v.name_;
-        }
-    };
-
-    typedef std::vector<column_info> columns_set;
-    struct columns_set_less 
-    {
-        template<typename Range1, typename Range2>
-        bool operator()(const Range1& r1, const Range2& r2) const
-        {
-            return boost::algorithm::lexicographical_compare(
-                name_access<Range1>::get(r1)
-              , name_access<Range2>::get(r2)
-              );            
-        }
-    };
 
 public:
     result(SQLHSTMT stmt, bool wide) : stmt_(stmt), wide_(wide) 
@@ -177,7 +176,7 @@ public:
                 SQLWCHAR name[257] = {0};
                 r = SQLDescribeColW(stmt_, col + 1, name, 256, &name_length, &ci.type_, &column_size, 0, 0);
                 check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
-                ci.name_ = narrower(name);
+                ci.name_ = utf_to_utf<char>(name);
             }
             else 
             {
@@ -220,11 +219,11 @@ public:
           > type_ids_map;
 
         typedef typename mpl::at<type_ids_map, T>::type data_pair;
-        typedef data_pair::first c_type_id;
-        typedef data_pair::second c_type;
+        typedef typename data_pair::first c_type_id;
+        typedef typename data_pair::second c_type;
 
         c_type tmp;
-        SQLINTEGER indicator;
+        SQLLEN indicator;
         
         SQLRETURN r = SQLGetData(stmt_, fetch_col_, c_type_id::value, &tmp, sizeof(tmp), &indicator);
         if (r == SQL_SUCCESS || r == SQL_SUCCESS_WITH_INFO)
@@ -245,7 +244,7 @@ public:
     bool operator()(std::tm* data)
     {
         TIMESTAMP_STRUCT tmp;
-        SQLINTEGER indicator;
+        SQLLEN indicator;
 
         SQLRETURN r = SQLGetData(stmt_, fetch_col_, SQL_C_TYPE_TIMESTAMP, &tmp, sizeof(tmp), &indicator);
         if (r == SQL_SUCCESS || r == SQL_SUCCESS_WITH_INFO)
@@ -273,7 +272,7 @@ public:
 
     bool operator()(std::string* data)
     {
-        SQLINTEGER indicator;
+        SQLLEN indicator;
         SQLRETURN r = SQLGetData(stmt_, fetch_col_, SQL_C_CHAR, &column_char_buf_[0], column_char_buf_.size(), &indicator);
         if (r == SQL_SUCCESS || r == SQL_SUCCESS_WITH_INFO)
         {
@@ -340,7 +339,7 @@ public:
     virtual unsigned long long rows()
     {
         // not supported by odbc
-        return unsigned long long(-1);
+        return (unsigned long long)-1;
     }
 
     virtual int name_to_column(const string_ref& name)
@@ -416,7 +415,9 @@ public:
 
         if(wide_)
         {
-            value = boost::make_shared<holder>(0, widen(v)); 
+            std::basic_string<SQLWCHAR> wstr = utf_to_utf<SQLWCHAR>(v.begin(), v.end());
+            
+            value = boost::make_shared<holder>(0, std::string(wstr.c_str(), wstr.c_str() + wstr.size() * sizeof(SQLWCHAR)));
             do_bind(false, SQL_C_WCHAR, SQL_WLONGVARCHAR, *value);
         }
         else 
