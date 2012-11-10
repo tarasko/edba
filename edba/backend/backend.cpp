@@ -132,7 +132,7 @@ void bindings::reset()
 {
     reset_impl();
     if (enable_recording_)
-    bindings_.str("");
+        bindings_.str("");
 }
 
 std::string bindings::to_string() const
@@ -230,7 +230,7 @@ boost::intrusive_ptr<statement> connection::prepare(const string_ref& q)
 {
     boost::intrusive_ptr<statement> st = 
         default_is_prepared_ ? get_prepared_statement(q) : get_statement(q);
-    st->bindings().enable_recording(!!st);
+    st->bindings().enable_recording(!!sm_);
     return st;
 }
 

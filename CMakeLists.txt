@@ -25,7 +25,7 @@ if(EDBA_STANDALONE_BUILD)
 	set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/stage/lib)	
 endif()
 
-find_package(Boost 1.48.0)
+find_package(Boost 1.48.0 COMPONENTS date_time locale)
 
 if (WIN32)
     add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS -DBOOST_ALL_NO_LIB)

@@ -433,7 +433,7 @@ public:
     holder_sp operator()(const std::tm& v)
     {
         holder_sp value = boost::make_shared<holder>(0, format_time(v));
-        do_bind(false, SQL_C_TIMESTAMP, SQL_C_CHAR, *value);
+        do_bind(false, SQL_C_CHAR, SQL_TYPE_TIMESTAMP, *value);
         return value;
     }
 
@@ -491,6 +491,7 @@ private:
 
     virtual void bind_impl(int col, bind_types_variant const& v)
     {
+        bind_col_ = col;
         params_.push_back(v.apply_visitor(*this));
     }
 

@@ -3,6 +3,10 @@
 
 #include <edba/rowset.hpp>
 
+#include <boost/type_traits/is_convertible.hpp>
+#include <boost/mpl/not.hpp>
+#include <boost/mpl/and.hpp>
+
 namespace edba {
 
 ///
@@ -304,8 +308,44 @@ struct bind_conversion<T, typename boost::enable_if< boost::mpl::contains<bind_t
     }
 };
 
+/// Specialization for types that are convertible to string_ref except string ref itself
+template<typename T>
+struct bind_conversion<
+    T
+  , typename boost::enable_if< 
+        boost::mpl::and_<
+            boost::is_convertible<T, string_ref>
+          , boost::mpl::not_< boost::mpl::contains<bind_types, T> > 
+          >
+      >::type
+  >
+{
+    template<typename ColOrName>
+    static void bind(statement& st, ColOrName col_or_name, const T& v)
+    {
+        st.bind(col_or_name, bind_types_variant(string_ref(v)));
+    }
+};
 
+/// Specialization for types that are convertible to std::istream*
+template<typename T>
+struct bind_conversion<
+    T
+  , typename boost::enable_if<
+        boost::mpl::and_<
+            boost::is_convertible<T, std::istream*>
+          , boost::mpl::not_< boost::is_same<T, std::istream*> >
+          >
+      >::type
+  >
+{
+    template<typename ColOrName>
+    static void bind(statement& st, ColOrName col_or_name, std::istream* v)
+    {
+        st.bind(col_or_name, bind_types_variant(bind_types_variant(v)));
+    }
+};
 
-}
+} // namespace edba
 
 #endif // EDBA_STATEMENT_HPP
