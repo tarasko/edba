@@ -46,7 +46,10 @@ class row
     template<typename T> friend class rowset;
 
     // Row doesn`t support construction by user, only by rowset
-    row(const boost::intrusive_ptr<backend::result>& res) : res_(res), current_col_(0) {}
+    row(const boost::intrusive_ptr<backend::result>& res, const boost::intrusive_ptr<backend::statement>& stmt) 
+        : res_(res)
+        , stmt_(stmt)
+        , current_col_(0) {}
 
 public:
     ///
@@ -168,6 +171,7 @@ public:
 
 private:
     boost::intrusive_ptr<backend::result> res_;
+    boost::intrusive_ptr<backend::statement> stmt_;
     int current_col_;
 };
 
@@ -296,9 +300,8 @@ public:
     /// 
     /// Construct rowset from backend result
     ///
-    rowset(const boost::intrusive_ptr<backend::result>& res, const boost::intrusive_ptr<backend::statement>& stat) 
-        : row_(res)
-        , stat_(stat)
+    rowset(const boost::intrusive_ptr<backend::result>& res, const boost::intrusive_ptr<backend::statement>& stmt) 
+        : row_(res, stmt)
         , opened_(false) {}
     ///
     /// Open rowset for traversion and return begin iterator
@@ -385,6 +388,24 @@ inline rowset_iterator<row>::reference rowset_iterator<row>::dereference() const
 /// Specialization of fetch_conversion for native types. 
 template<typename T>
 struct fetch_conversion<T, typename boost::enable_if< boost::mpl::contains<fetch_types, T*> >::type >
+{
+    static bool fetch(row& r, int col, T& v)
+    {
+        return r.fetch(col, fetch_types_variant(&v));
+    }
+};
+
+/// Specialization for fetch_conversion for types derived from ostream
+template<typename T>
+struct fetch_conversion<
+    T
+  , typename boost::enable_if< 
+        boost::mpl::and_< 
+            boost::is_convertible<T*, std::ostream*>
+          , boost::mpl::not_< boost::mpl::contains<fetch_types, T*> >
+          >
+      >::type
+  >
 {
     static bool fetch(row& r, int col, T& v)
     {

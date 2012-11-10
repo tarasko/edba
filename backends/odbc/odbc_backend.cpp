@@ -151,6 +151,7 @@ struct columns_set_less
 
 class result : public backend::result, public boost::static_visitor<bool>
 {
+    static const SQLUINTEGER MAX_READ_BUFFER_SIZE = 4096;
 
 public:
     result(SQLHSTMT stmt, bool wide) : stmt_(stmt), wide_(wide) 
@@ -186,6 +187,18 @@ public:
                 ci.name_ = (char*)name;
             }
 
+            // For types like varchar(max) and varbinary(max) column_size == 0
+            // Explicitly assign column size
+            if (SQL_VARCHAR == ci.type_ ||
+                SQL_WVARCHAR == ci.type_ ||
+                SQL_LONGVARCHAR == ci.type_ ||
+                SQL_VARBINARY == ci.type_ || 
+                SQL_LONGVARBINARY)
+            {
+                if (0 == column_size)
+                    column_size = MAX_READ_BUFFER_SIZE;
+            }
+
             if (column_size > max_column_size)
                 max_column_size = column_size;
 
@@ -196,6 +209,7 @@ public:
         // Prepare columns_ for equal_range algorithm
         boost::sort(columns_, columns_set_less());
 
+        max_column_size = (std::min)(max_column_size, MAX_READ_BUFFER_SIZE);
         column_char_buf_.resize(max_column_size + 1);
     }
 
@@ -270,26 +284,49 @@ public:
         return false;
     }
 
-    bool operator()(std::string* data)
+    bool operator()(std::string* _data)
     {
         SQLLEN indicator;
-        SQLRETURN r = SQLGetData(stmt_, fetch_col_, SQL_C_CHAR, &column_char_buf_[0], column_char_buf_.size(), &indicator);
-        if (r == SQL_SUCCESS || r == SQL_SUCCESS_WITH_INFO)
+        std::string data;
+
+        SQLRETURN r;
+
+        do 
         {
+            r = SQLGetData(stmt_, fetch_col_, SQL_C_CHAR, &column_char_buf_[0], column_char_buf_.size(), &indicator);
+            check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
+            
             if (SQL_NULL_DATA == indicator)
                 return false;
 
-            data->assign(column_char_buf_.begin(), column_char_buf_.begin() + indicator);
-            return true;
-        }
+            SQLLEN bytes_read = (std::min)(indicator, (SQLLEN)column_char_buf_.size() - 1);
 
-        check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
-        return false;
+            data.append(column_char_buf_.begin(), column_char_buf_.begin() + bytes_read);
+        } while(SQL_SUCCESS_WITH_INFO == r);
+
+        _data->swap(data);
+
+        return true;
     }
 
-    bool operator()(...)
+    bool operator()(std::ostream* data)
     {
-        return false;
+        SQLLEN indicator;
+        SQLRETURN r;
+        
+        do
+        {
+            r = SQLGetData(stmt_, fetch_col_, SQL_C_BINARY, &column_char_buf_[0], column_char_buf_.size(), &indicator);
+            check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
+            
+            if (SQL_NULL_DATA == indicator)
+                return false;
+            
+            SQLLEN bytes_read = (std::min)(indicator, (SQLLEN)column_char_buf_.size());
+            data->write(&column_char_buf_[0], bytes_read);
+        } while(SQL_SUCCESS_WITH_INFO == r);
+
+        return true;
     }
 
     virtual next_row has_next() 
@@ -405,7 +442,16 @@ public:
     holder_sp operator()(null_type)
     {
         holder_sp value = boost::make_shared<holder>();
-        do_bind(true, 0, 0, *value);
+
+        SQLSMALLINT sqltype_;
+        SQLULEN size_;
+        SQLSMALLINT digits_;
+        SQLSMALLINT nullable_;
+
+        SQLRETURN r = SQLDescribeParam(stmt_, bind_col_, &sqltype_, &size_, &digits_, &nullable_);
+        check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
+
+        do_bind(true, SQL_C_CHAR, sqltype_, *value);
         return value;
     }
 
@@ -417,7 +463,7 @@ public:
         {
             std::basic_string<SQLWCHAR> wstr = utf_to_utf<SQLWCHAR>(v.begin(), v.end());
             
-            value = boost::make_shared<holder>(0, std::string(wstr.c_str(), wstr.c_str() + wstr.size() * sizeof(SQLWCHAR)));
+            value = boost::make_shared<holder>(0, std::string((const char*)&wstr[0], wstr.size() * sizeof(SQLWCHAR)));
             do_bind(false, SQL_C_WCHAR, SQL_WLONGVARCHAR, *value);
         }
         else 
@@ -457,8 +503,8 @@ private:
             r = SQLBindParameter(stmt_,
                 bind_col_,
                 SQL_PARAM_INPUT,
-                SQL_C_CHAR, 
-                SQL_NUMERIC, // for null
+                ctype, 
+                sqltype, // for null
                 10, // COLUMNSIZE
                 0, //  Presision
                 0, // string

@@ -83,7 +83,7 @@ void test_odbc(const char* conn_string)
     const char* create_test1_table = 
         "~Microsoft SQL Server~create table ##test1( "
         "   id int identity(1, 1) primary key clustered, "
-        "   dec decimal(28), "
+        "   dec numeric(18, 3), "
         "   dt datetime, "
         "   dt_small smalldatetime, "
         "   vchar20 nvarchar(20), "
@@ -97,68 +97,98 @@ void test_odbc(const char* conn_string)
         "~Microsoft SQL Server~insert into ##test1(dec, dt, dt_small, vchar20, vcharmax, vbin20, vbinmax, txt) "
         "   values(:dec, :dt, :dt_small, :vchar20, :vcharmax, :vbin20, :vbinmax, :txt)";
 
-    using namespace edba;
+    const char* select_test1_row = 
+        "~Microsoft SQL Server~select id, dec, dt, dt_small, vchar20, vcharmax, vbin20, vbinmax, txt from ##test1~~";
 
-    session sess(driver::odbc(), conn_string);
+    const char* drop_test1 = "drop table ##test1";
 
-    // Create table
-    sess << create_test1_table << exec;
+    std::string short_binary("binary");
+    std::string long_binary(7000, 't');
 
-    // Compile statement for inserting data 
-    statement st = sess << insert_test1_data;
+    std::istringstream long_binary_stream;
+    std::istringstream short_binary_stream;
 
-    std::string long_string(10000, 'z');
-    std::istringstream long_string_stream;
-    std::istringstream short_string_stream;
+    short_binary_stream.str(short_binary);
+    long_binary_stream.str(long_binary);
 
-    short_string_stream.str("zzzzzzzzzzz");
-    long_string_stream.str("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz");
+    std::string text(10000, 'z');
 
     std::time_t now = std::time(0);
 
-    // Bind data to statement and execute
-    st 
-        << use("dec", 10.10) 
-        << use("dt", *std::gmtime(&now)) 
-        << use("dt_small", *std::gmtime(&now)) 
-        << use("vchar20", "Hello!")
-        << use("vcharmax", "Hello! max")
-        << use("vbin20", &short_string_stream)
-        << use("vbinmax", &long_string_stream)
-        << use("txt", long_string)
-        << exec;
+    {
+        using namespace edba;
 
-    long long id = st.last_insert_id();
+        session sess(driver::odbc(), conn_string);
 
-    statement st1 = sess << "~Microsoft SQL Server~insert into ##test1(dec, dt, dt_small, vchar20, vcharmax, vbin20, vbinmax) "
-        "   values(:dec, :dt, :dt_small, :vchar20, :vcharmax, :vbin20, :vbinmax)";
+        // Create table
+        sess << create_test1_table << exec;
 
+        // Compile statement for inserting data 
+        statement st = sess << insert_test1_data;
 
-    // Exec with null types
-    st1 << reset
-       << null_type() 
-       << null_type()
-       << null_type()
-       << null_type()
-       << null_type()
-       << null_type()
-       << null_type()
-       << exec;
+        // Bind data to statement and execute two times
+        st 
+            << use("dec", 10.10) 
+            << use("dt", *std::gmtime(&now)) 
+            << use("dt_small", *std::gmtime(&now)) 
+            << use("vchar20", "Hello!")
+            << use("vcharmax", "Hello! max")
+            << use("vbin20", &short_binary_stream)
+            << use("vbinmax", &long_binary_stream)
+            << use("txt", text)
+            << exec
+            << exec;
+
+        long long id = st.last_insert_id();
+
+        // Exec with null types
+        st << reset
+           << null 
+           << null
+           << null
+           << null
+           << null
+           << null
+           << null
+           << null
+           << exec;
+
+        // Query single row
+        {
+            row r = sess << select_test1_row << id << first_row;
+    
+            {
+                long long id;
+                double dec;
+                std::tm tm1, tm2;
+                std::string short_str;
+                std::string long_str;
+                std::ostringstream short_oss;
+                std::ostringstream long_oss;
+                std::string txt;
+
+                r >> id >> dec >> tm1 >> tm2 >> short_str >> long_str >> short_oss >> long_oss >> txt;
+
+                assert(dec == 10.10);
+                assert(!memcmp(std::gmtime(&now), &tm1, sizeof(tm1)));
+                assert(short_str == "Hello!");
+                assert(long_str == "Hello! max");
+                assert(short_oss.str() == short_binary);
+                assert(long_oss.str() == long_binary);
+                assert(text == txt);
+            }
+        }
+
+        sess.exec_batch("~Microsoft SQL Server~insert into ##test1(dec) values(10.2); insert into ##test1(dec) values(10.3)~~");
+
+        sess << drop_test1 << exec;
+    }
 }
 
 int main()
 {
     test_odbc("DSN=EDBA_TESTING_MSSQL");
+    test_odbc("DSN=EDBA_TESTING_MSSQL;@utf=wide");
 
-    //test_simple(sqlite3_lib, "sqlite3", "db=db.db");
-    //test_simple(postgres_lib, "postgres", "user = postgres; password = postgres;");
-    //test_simple(odbc_lib, "odbc", "DSN=PostgreSQL35W; @utf=wide");
-    //test_simple(mysql_lib, "mysql", "user=root; password=root; database=test");
-    //test_simple(odbc_lib, "odbc", "DSN=MySQLDS");
-    //test_simple(oracle_lib, "oracle", "User=system; Password=root; ConnectionString=localhost/XE");
-
-    //test_initdb(sqlite3_lib, "sqlite3", "db=dbinternal.dbs");
-    //test_initdb(postgres_lib, "postgres", "user = postgres; password = postgres;");
-    //test_initdb(odbc_lib, "odbc", "DSN=PostgreSQL35W; @utf=wide");
     return 0;
 }

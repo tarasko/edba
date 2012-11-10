@@ -5,6 +5,8 @@
 
 namespace edba {
 
+null_type null;
+
 statement::statement() : placeholder_(1) {}
 
 statement::statement(const boost::intrusive_ptr<backend::statement>& stat) 
@@ -45,7 +47,7 @@ row statement::first_row()
     if (ri.has_next())
         throw multiple_rows_query();
 
-    return *rs.begin();
+    return *ri;
 }
 
 rowset<> statement::query()
