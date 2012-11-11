@@ -15,7 +15,7 @@
 #include <ctime>
 #include <string>
 #include <memory>
-#include <map>
+#include <vector>
 
 namespace edba {
 
@@ -237,9 +237,22 @@ public:
     connection(conn_info const &info, session_monitor* sm);
     virtual ~connection() {}
 
-    boost::intrusive_ptr<statement> prepare(const string_ref& q);
-    boost::intrusive_ptr<statement> get_prepared_statement(const string_ref& q);
-    boost::intrusive_ptr<statement> get_statement(const string_ref& q);
+    ///
+    /// Try get already compiled statement from the cache. If failed then use prepare_statement_impl 
+    /// to create prepared statement. \a q. May throw if preparation had failed.
+    /// Should never return null value.
+    /// 
+    boost::intrusive_ptr<statement> prepare_statement(const string_ref& q);
+
+    ///
+    /// Create a (unprepared) statement \a q. May throw if had failed.
+    /// Should never return null value.
+    ///    
+    boost::intrusive_ptr<statement> create_statement(const string_ref& q);
+    
+    ///
+    /// Executes commands batch in one shot
+    ///
     void exec_batch(const string_ref& q);
 
     // API 
@@ -295,10 +308,15 @@ protected:
     ///
     virtual boost::intrusive_ptr<statement> prepare_statement_impl(const string_ref& q) = 0;
     ///
-    /// Create a (unprepared) statement \a q. May throw if preparation had failed.
+    /// Create a (unprepared) statement \a q. May throw if had failed.
     /// Should never return null value.
     ///
     virtual boost::intrusive_ptr<statement> create_statement_impl(const string_ref& q) = 0;
+
+    ///
+    /// Executes commands batch in one shot
+    ///
+    virtual void exec_batch_impl(const string_ref& q) = 0;
 
     ///
     /// Start new isolated transaction. Would not be called
@@ -315,14 +333,11 @@ protected:
     ///
     virtual void rollback_impl() = 0;
 
-    ///
-    /// Executes commands batch in one shot
-    ///
-    virtual void exec_batch_impl(const string_ref& q) = 0;
+    typedef std::vector< std::pair<std::string, boost::intrusive_ptr<statement> > > stmt_map;
 
-    session_monitor* sm_;
-    unsigned default_is_prepared_ : 1;
-    unsigned expand_conditionals_ : 1;
+    stmt_map cache_;                                                                 // Statement cache
+    session_monitor* sm_;                                                            // Session monitor
+    unsigned expand_conditionals_ : 1;                                               // If true then process query as list of backend specific queries
     unsigned reserved_ : 30;
 
 private: 
@@ -331,6 +346,7 @@ private:
     /// sql string.
     ///
     string_ref select_statement(const string_ref& q);
+
 };
 
 }} // edba, backend

@@ -2,6 +2,9 @@
 #include <edba/detail/utils.hpp>
 
 #include <boost/algorithm/string/predicate.hpp>
+#include <boost/range/algorithm/equal_range.hpp>
+#include <boost/range/algorithm/sort.hpp>
+#include <boost/typeof/typeof.hpp>
 #include <boost/timer.hpp>
 
 #include <map>
@@ -226,24 +229,30 @@ string_ref connection::select_statement(const string_ref& _q)
     return q;
 }
 
-boost::intrusive_ptr<statement> connection::prepare(const string_ref& q) 
-{
-    boost::intrusive_ptr<statement> st = 
-        default_is_prepared_ ? get_prepared_statement(q) : get_statement(q);
-    st->bindings().enable_recording(!!sm_);
-    return st;
-}
-
-boost::intrusive_ptr<statement> connection::get_statement(const string_ref& _q)
+boost::intrusive_ptr<statement> connection::prepare_statement(const string_ref& _q)
 {
     string_ref q = select_statement(_q);
-    return q.empty() ? boost::intrusive_ptr<statement>() : create_statement_impl(q);
+    BOOST_AUTO(found, (boost::equal_range(cache_, q, string_ref_iless())));
+    if (boost::empty(found))
+    {
+        boost::intrusive_ptr<statement> st = prepare_statement_impl(q);
+        cache_.resize(cache_.size() + 1);
+        cache_.back().first.assign(q.begin(), q.end());
+        cache_.back().second = st;
+        boost::sort(cache_, string_ref_iless());
+        return st;
+    }
+    else
+    {
+        found.first->second->bindings().reset();
+        return found.first->second;
+    }
 }
 
-boost::intrusive_ptr<statement> connection::get_prepared_statement(const string_ref& _q)
+boost::intrusive_ptr<statement> connection::create_statement(const string_ref& _q)
 {
     string_ref q = select_statement(_q);
-    return q.empty() ? boost::intrusive_ptr<statement>() : prepare_statement_impl(q);
+    return create_statement_impl(q);
 }
 
 void connection::exec_batch(const string_ref& _q)
@@ -295,14 +304,6 @@ void connection::rollback()
 
 connection::connection(conn_info const &info, session_monitor* sm) : sm_(sm)
 {
-    string_ref def_is_prep = info.get("@use_prepared","on");
-    if(boost::algorithm::iequals(def_is_prep, "on"))
-        default_is_prepared_ = 1;
-    else if(boost::algorithm::iequals(def_is_prep, "off"))
-        default_is_prepared_ = 0;
-    else
-        throw edba_error("edba::backend::connection: @use_prepared should be either 'on' or 'off'");
-
     string_ref exp_cond = info.get("@expand_conditionals", "on");
     if(boost::algorithm::iequals(exp_cond, "on"))
         expand_conditionals_ = 1;

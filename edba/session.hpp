@@ -11,7 +11,8 @@ namespace edba {
 /// It is the main class that is used for access to the DB, it uses various singleton classes to
 /// load drivers open connections and cache them. 
 ///
-class EDBA_API session {
+class EDBA_API session 
+{
 public:
 
     ///
@@ -38,22 +39,17 @@ public:
     bool is_open();
 
     ///
-    /// Create a new statement, by default is creates prepared statement - create_prepared_statement() unless \@use_prepared connection string
-    /// property is set to off, then it uses normal statements by calling create_statement()
-    ///
+    /// Try fetch statement from cache. If it doesn`t exist then create prepared statement, put it in cache and return.
     /// This is the most convenient function to create statements with.
     ///
-    statement prepare(const string_ref& query);
+    statement prepare_statement(const string_ref& q);
 
     ///
     /// Create ordinary statement it generally unprepared statement and it is never cached. It should
     /// be used when such statement is executed rarely or very customized.
     ///
     statement create_statement(const string_ref& q);
-    ///
-    /// Create prepared statement that will be cached for next calls.		
-    ///
-    statement create_prepared_statement(const string_ref& q);
+
     ///
     /// Execute list of sql commands as single request to database
     ///
@@ -123,6 +119,14 @@ public:
     ///
     const std::string& description();
 
+    ///
+    /// Equality operator
+    ///
+    friend bool operator==(const session& s1, const session& s2)
+    {
+        return s1.conn_ == s2.conn_;
+    }
+
 private:
     boost::intrusive_ptr<backend::connection> conn_;
 };
@@ -132,7 +136,7 @@ private:
 ///
 inline statement operator<<(session& s, string_ref query)
 {
-    return s.prepare(query);
+    return s.prepare_statement(query);
 }
 
 }

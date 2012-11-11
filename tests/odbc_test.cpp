@@ -182,6 +182,13 @@ void test_odbc(const char* conn_string)
 
         sess.exec_batch("~Microsoft SQL Server~insert into ##test1(dec) values(10.2); insert into ##test1(dec) values(10.3)~~");
 
+        // Check that cache works as expected
+        statement st1 = sess << insert_test1_data;
+        assert(st == st1);
+
+        // Try to bind non prepared statement
+        sess.create_statement("insert into ##test1(dec) values(:dec)") << use("dec", 10.5) << exec;
+
         sess << drop_test1 << exec;
     }
 }

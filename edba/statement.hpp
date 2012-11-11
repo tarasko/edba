@@ -162,6 +162,14 @@ public:
     ///
     void exec();
 
+    ///
+    /// Equality operator
+    ///
+    friend bool operator==(const statement& s1, const statement& s2)
+    {
+        return s1.stat_ == s2.stat_;
+    }
+
 private:
     statement(const boost::intrusive_ptr<backend::statement>& stat);
 

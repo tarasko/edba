@@ -21,22 +21,6 @@ public:
     string_ref(const boost::iterator_range<const char*>& r) : boost::iterator_range<const char*>(r) {}
     string_ref(const char* b, const char* e) : boost::iterator_range<const char*>(b, e) {}
     string_ref(const char* b, size_t sz) : boost::iterator_range<const char*>(b, b + sz) {}
-
-    struct iless
-    {
-        bool operator()(const string_ref& r1, const string_ref& r2) const
-        {
-            return boost::algorithm::ilexicographical_compare(r1, r2);
-        }
-    };
-
-    struct less
-    {
-        bool operator()(const string_ref& r1, const string_ref& r2) const
-        {
-            return boost::algorithm::lexicographical_compare(r1, r2);
-        }
-    };
 };
 
 inline std::size_t hash_value(string_ref const& str)
@@ -49,6 +33,36 @@ inline std::ostream& operator<<(std::ostream& os, const string_ref& s)
     os.write(s.begin(), s.size());
     return os;
 }
+
+template<typename T>
+string_ref to_string_ref(const T& obj)
+{
+    return string_ref(obj);
+}
+
+template<typename T>
+string_ref to_string_ref(const std::pair<std::string, T>& obj)
+{
+    return string_ref(obj.first);
+}
+
+struct string_ref_iless
+{
+    template<typename T1, typename T2>
+    bool operator()(const T1& r1, const T2& r2) const
+    {
+        return boost::algorithm::ilexicographical_compare(to_string_ref(r1), to_string_ref(r2));
+    }
+};
+
+struct string_ref_less
+{
+    template<typename T1, typename T2>
+    bool operator()(const T1& r1, const T2& r2) const
+    {
+        return boost::algorithm::lexicographical_compare(to_string_ref(r1), to_string_ref(r2));
+    }
+};
 
 }
 

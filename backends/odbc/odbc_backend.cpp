@@ -29,7 +29,25 @@
 
 namespace mpl = boost::mpl;
 
-namespace edba { namespace odbc_backend {
+namespace edba { 
+
+namespace {
+
+struct column_info
+{
+    std::string name_;  // name
+    int index_;         // index
+    SQLSMALLINT type_;  // type
+};
+
+}
+
+string_ref to_string_ref(const column_info& ci)
+{
+    return string_ref(ci.name_);
+}
+
+namespace odbc_backend {
 
 using boost::locale::conv::utf_to_utf;    
     
@@ -111,47 +129,11 @@ void check_odbc_error(SQLRETURN error,SQLHANDLE h,SQLSMALLINT type,bool wide)
         check_odbc_errorA(error,h,type);
 }
 
-struct column_info
-{
-    std::string name_;  // name
-    int index_;         // index
-    SQLSMALLINT type_;  // type
-};
-
-template<typename T>
-struct name_access
-{
-    static const T& get(const T& v)
-    {
-        return v;
-    }
-};
-
-template<>
-struct name_access< column_info >
-{
-    static const std::string& get(const column_info& v)
-    {
-        return v.name_;
-    }
-};
-
-typedef std::vector<column_info> columns_set;
-struct columns_set_less 
-{
-    template<typename Range1, typename Range2>
-    bool operator()(const Range1& r1, const Range2& r2) const
-    {
-        return boost::algorithm::lexicographical_compare(
-            name_access<Range1>::get(r1)
-            , name_access<Range2>::get(r2)
-            );            
-    }
-};
-
 class result : public backend::result, public boost::static_visitor<bool>
 {
     static const SQLUINTEGER MAX_READ_BUFFER_SIZE = 4096;
+
+    typedef std::vector<column_info> columns_set;
 
 public:
     result(SQLHSTMT stmt, bool wide) : stmt_(stmt), wide_(wide) 
@@ -207,10 +189,15 @@ public:
         }
 
         // Prepare columns_ for equal_range algorithm
-        boost::sort(columns_, columns_set_less());
+        boost::sort(columns_, string_ref_less());
 
         max_column_size = (std::min)(max_column_size, MAX_READ_BUFFER_SIZE);
         column_char_buf_.resize(max_column_size + 1);
+    }
+
+    ~result()
+    {
+        SQLCloseCursor(stmt_);
     }
 
     template<typename T>
@@ -381,7 +368,7 @@ public:
 
     virtual int name_to_column(const string_ref& name)
     {
-        BOOST_AUTO(found, boost::equal_range(columns_, name, columns_set_less()));
+        BOOST_AUTO(found, boost::equal_range(columns_, name, string_ref_less()));
         return boost::empty(found) ? -1 : found.first->index_;
     }
 
@@ -596,9 +583,9 @@ public:
             SQLSMALLINT params_no;
             r = SQLNumParams(stmt_,&params_no);
             check_error(r);
-
-            bindings_.set_stmt(stmt_);
         }
+
+        bindings_.set_stmt(stmt_);
     }
     ~statement()
     {
@@ -672,7 +659,7 @@ public:
             if(wide_)
                 r=SQLExecDirectW(stmt_,(SQLWCHAR*)utf_to_utf<SQLWCHAR>(bindings_.sql()).c_str(),SQL_NTS);
             else
-                r=SQLExecDirectA(stmt_,(SQLCHAR*)orig_sql(),SQL_NTS);
+                r=SQLExecDirectA(stmt_,(SQLCHAR*)bindings_.sql().c_str(),SQL_NTS);
         }
         return r;
     }

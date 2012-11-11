@@ -17,23 +17,16 @@ bool session::is_open()
     return conn_;
 }
 
-statement session::prepare(const string_ref& query)
+statement session::prepare_statement(const string_ref& query)
 {
-    boost::intrusive_ptr<backend::statement> stat_ptr(conn_->prepare(query));
+    boost::intrusive_ptr<backend::statement> stat_ptr(conn_->prepare_statement(query));
     statement stat(stat_ptr);
     return stat;
 }
 
 statement session::create_statement(const string_ref& query)
 {
-    boost::intrusive_ptr<backend::statement> stat_ptr(conn_->get_statement(query));
-    statement stat(stat_ptr);
-    return stat;
-}
-
-statement session::create_prepared_statement(const string_ref& query)
-{
-    boost::intrusive_ptr<backend::statement> stat_ptr(conn_->get_prepared_statement(query));
+    boost::intrusive_ptr<backend::statement> stat_ptr(conn_->create_statement(query));
     statement stat(stat_ptr);
     return stat;
 }
