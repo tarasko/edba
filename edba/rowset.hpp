@@ -13,29 +13,6 @@ namespace edba {
 class row;
 template<typename Row> class rowset_iterator;
 template<typename Row> class rowset;
- 
-namespace detail {
-
-template<typename T>
-struct ptr_holder
-{
-    ptr_holder(T* ptr = 0) : ptr_(ptr) {}
-
-    T& dereference() const
-    {
-        return *ptr_;
-    }
-
-    T* ptr_;
-};
-
-template<>
-struct ptr_holder<row>
-{
-    ptr_holder(row* ptr = 0) {}
-};
-
-}
 
 ///
 /// Represent single row in result set.

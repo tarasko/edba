@@ -14,7 +14,7 @@ class session;
 /// This class is RAII transaction guard that causes automatic transaction rollback on stack unwind, unless
 /// the transaction is committed
 ///
-class EDBA_API transaction : boost::noncopyable 
+class transaction : boost::noncopyable 
 {
 public:
     ///
@@ -37,6 +37,28 @@ private:
     session& s_;
     bool commited_;
 };
+
+// ------ transaction implementation ------
+
+inline transaction::transaction(session& s) : s_(s), commited_(false)
+{
+    s_.begin();
+}
+inline void transaction::commit()
+{
+    s_.commit();
+    commited_ =true;
+}
+inline void transaction::rollback()
+{
+    if(!commited_)
+        s_.rollback();
+    commited_=true;
+}
+inline transaction::~transaction()
+{
+    rollback();
+}
 
 }
 

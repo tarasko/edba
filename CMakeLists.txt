@@ -46,13 +46,10 @@ set(sources
   edba/statement.hpp
   edba/statement.cpp
   edba/session.hpp
-  edba/session.cpp
   edba/string_ref.hpp
   edba/types.hpp
   edba/transaction.hpp
-  edba/transaction.cpp
   edba/rowset.hpp
-  edba/rowset.cpp
   edba/backend/backend_fwd.hpp
   edba/backend/backend.hpp
   edba/backend/backend.cpp 

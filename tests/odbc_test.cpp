@@ -187,9 +187,9 @@ void test_odbc(const char* conn_string)
         assert(st == st1);
 
         // Try to bind non prepared statement
-        sess.create_statement("insert into ##test1(dec) values(:dec)") << use("dec", 10.5) << exec;
-
-        sess << drop_test1 << exec;
+        // Test once helper 
+        sess.once() << "insert into ##test1(dec) values(:dec)" << use("dec", 10.5);
+        sess.once() << drop_test1;
     }
 }
 

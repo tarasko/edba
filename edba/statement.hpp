@@ -2,6 +2,7 @@
 #define EDBA_STATEMENT_HPP
 
 #include <edba/rowset.hpp>
+#include <edba/backend/backend.hpp>
 
 #include <boost/type_traits/is_convertible.hpp>
 #include <boost/mpl/not.hpp>
@@ -9,6 +10,9 @@
 
 namespace edba {
 
+///
+/// Global instance of null_type, can be used in bind expressions
+///
 extern EDBA_API null_type null;
 
 ///
@@ -16,7 +20,7 @@ extern EDBA_API null_type null;
 ///
 /// This object is usually created via session::prepare() function.
 ///
-class EDBA_API statement 
+class statement 
 {
 public:
     ///
@@ -43,11 +47,7 @@ public:
     /// If placeholder was not binded the behavior is undefined and may vary between different backends.
     ///
     template<typename T>
-    statement& bind(int col, const T& v)
-    {
-        bind_conversion<T>::template bind(*this, col, v);
-        return *this;
-    }
+    statement& bind(int col, const T& v);
 
     ///
     /// Bind a value \a v to the placeholder by index (starting from the 1).
@@ -69,11 +69,7 @@ public:
     /// If placeholder was not binded the behavior is undefined and may vary between different backends.
     ///
     template<typename T>
-    statement& bind(const string_ref& name, const T& v)
-    {
-        bind_conversion<T>::template bind(*this, name, v);
-        return *this;
-    }
+    statement& bind(const string_ref& name, const T& v);
 
     ///
     /// Bind a value \a v to the placeholder by name.
@@ -95,10 +91,7 @@ public:
     /// If placeholder was not binded the behavior is undefined and may vary between different backends.
     ///
     template<typename T>
-    statement& bind(const T& v)
-    {
-        return bind(placeholder_++, v);
-    }
+    statement& bind(const T& v);
 
     ///
     /// Get last insert id from the last executed statement, note, it is the same as sequence_last("").
@@ -151,10 +144,7 @@ public:
     /// Same as query() - syntactic sugar
     ///
     template<typename T>
-    operator rowset<T>()
-    {
-        return query();
-    }
+    operator rowset<T>();
 
     ///
     /// Execute a statement, of the statement is actually SELECT like operator, it throws edba_error exception,
@@ -178,6 +168,94 @@ private:
     int placeholder_;
     boost::intrusive_ptr<backend::statement> stat_;
 };
+
+// ------ statement implementation ------
+
+inline statement::statement() : placeholder_(1) 
+{
+}
+inline statement::statement(const boost::intrusive_ptr<backend::statement>& stat) 
+    : placeholder_(1)
+    , stat_(stat)
+{
+}
+inline void statement::reset()
+{
+    placeholder_ = 1;
+    stat_->bindings().reset();
+}
+template<typename T>
+statement& statement::bind(int col, const T& v)
+{
+    bind_conversion<T>::template bind(*this, col, v);
+    return *this;
+}
+inline statement& statement::bind(int col, const bind_types_variant& v)
+{
+    stat_->bindings().bind(col, v);
+    return *this;
+}
+template<typename T>
+statement& statement::bind(const string_ref& name, const T& v)
+{
+    bind_conversion<T>::template bind(*this, name, v);
+    return *this;
+}
+inline statement& statement::bind(const string_ref& name, const bind_types_variant& v)
+{
+    stat_->bindings().bind(name, v);
+    return *this;
+}
+template<typename T>
+statement& statement::bind(const T& v)
+{
+    return bind(placeholder_++, v);
+}
+inline long long statement::last_insert_id()
+{
+    return stat_->sequence_last(std::string());
+}
+inline long long statement::sequence_last(std::string const &seq)
+{
+    return stat_->sequence_last(seq);
+}
+inline unsigned long long statement::affected()
+{
+    return stat_->affected();
+}
+inline row statement::first_row()
+{
+    rowset<> rs(stat_->query(), stat_);
+
+    rowset_iterator<row> ri = rs.begin();
+
+    if (rs.end() == ri)
+        throw empty_row_access();
+
+    if (ri.has_next())
+        throw multiple_rows_query();
+
+    return *ri;
+}
+inline rowset<> statement::query()
+{
+    if (!stat_)
+        throw empty_string_query();
+
+    return rowset<>(stat_->query(), stat_);
+}
+template<typename T>
+statement::operator rowset<T>()
+{
+    return query();
+}
+inline void statement::exec() 
+{
+    if (stat_)
+        stat_->exec();
+}
+
+// ------ free functions ------
 
 ///
 /// \brief Bind statement parameter by name
