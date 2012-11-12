@@ -1,11 +1,11 @@
-#define EDBA_DRIVER_SOURCE
 #include <sqlite3.h>
 
-#include <edba/backend.hpp>
-#include <edba/errors.hpp>
-#include <edba/utils.hpp>
+#include <edba/backend/backend.hpp>
 
 #include <boost/algorithm/string/predicate.hpp>
+#include <boost/type_traits/is_signed.hpp>
+#include <boost/type_traits/is_unsigned.hpp>
+#include <boost/type_traits/is_floating_point.hpp>
 
 #include <sstream>
 #include <limits>
@@ -23,23 +23,26 @@ static int g_ver_major = (sqlite3_libversion_number() / 1000) % 1000;
 static int g_ver_minor = sqlite3_libversion_number() % 1000;
 static std::string g_description = std::string("SQLite Version ") + sqlite3_libversion();
 
-class result : public backend::result {
+class result : public backend::result, public boost::static_visitor<>
+{
 public:
     result(sqlite3_stmt *st,sqlite3 *conn) : 
         st_(st),
         conn_(conn),
         cols_(-1)
     {
-        cols_=sqlite3_column_count(st_);
+        cols_ = sqlite3_column_count(st_);
     }
-    virtual ~result() 
+    ~result()
     {
-        st_ = 0;
+        sqlite3_reset(st_);
     }
+
     virtual next_row has_next()
     {
         return next_row_unknown;
     }
+
     virtual bool next() 
     {
         int r = sqlite3_step(st_);
@@ -50,126 +53,93 @@ public:
         }
         return true;
     }
-    template<typename T>
-    bool do_fetch(int col,T &v)
+
+    virtual bool fetch(int col, const fetch_types_variant& v)
     {
-        if(do_is_null(col))
+        if(col < 0 || col >= cols_)
+            throw invalid_column();
+
+        if(sqlite3_column_type(st_,col) == SQLITE_NULL)
             return false;
-        if(sqlite3_column_type(st_,col)==SQLITE_NULL)
-            return false;
-        sqlite3_int64 rv = sqlite3_column_int64(st_,col);
-        T tmp;
-        if(std::numeric_limits<T>::is_signed) {
-            tmp=static_cast<T>(rv);
-            if(static_cast<sqlite3_int64>(tmp)!=rv)
-                throw bad_value_cast();
-        }
-        else {
-            if(rv < 0)
-                throw bad_value_cast();
-            unsigned long long urv = static_cast<unsigned long long>(rv);
-            tmp=static_cast<T>(urv);
-            if(static_cast<unsigned long long>(tmp)!=urv)
-                throw bad_value_cast();
-        }
-        v=tmp;
+        
+        fetch_col_ = col;
+        v.apply_visitor(*this);
         return true;
     }
 
-    virtual bool fetch(int col,short &v) 
-    {
-        return do_fetch(col,v);
-    }
-    virtual bool fetch(int col,unsigned short &v)
-    {
-        return do_fetch(col,v);
-    }
-    virtual bool fetch(int col,int &v)
-    {
-        return do_fetch(col,v);
-    }
-    virtual bool fetch(int col,unsigned &v)
-    {
-        return do_fetch(col,v);
-    }
-    virtual bool fetch(int col,long &v)
-    {
-        return do_fetch(col,v);
-    }
-    virtual bool fetch(int col,unsigned long &v)
-    {
-        return do_fetch(col,v);
-    }
-    virtual bool fetch(int col,long long &v)
-    {
-        return do_fetch(col,v);
-    }
-    virtual bool fetch(int col,unsigned long long &v)
-    {
-        return do_fetch(col,v);
-    }
     template<typename T>
-    bool do_real_fetch(int col,T &v)
+    void operator()(T* data, typename boost::enable_if< boost::is_signed<T> >::type* = 0)
     {
-        if(do_is_null(col))
-            return false;
-        v=static_cast<T>(sqlite3_column_double(st_,col));
-        return true;
+        sqlite3_int64 rv = sqlite3_column_int64(st_, fetch_col_);
+        T tmp = static_cast<T>(rv);
+        if (static_cast<sqlite3_int64>(tmp) != rv)
+            throw bad_value_cast();
+
+        *data = tmp;
     }
-    virtual bool fetch(int col,float &v) 
+
+    template<typename T>
+    void operator()(T* data, typename boost::enable_if< boost::is_unsigned<T> >::type* = 0)
     {
-        return do_real_fetch(col,v);
+        sqlite3_int64 rv = sqlite3_column_int64(st_, fetch_col_);
+        if (rv < 0)
+            throw bad_value_cast();
+        unsigned long long urv = static_cast<unsigned long long>(rv);
+        T tmp = static_cast<T>(urv);
+        if(static_cast<unsigned long long>(tmp)!=urv)
+            throw bad_value_cast();
+
+        *data = tmp;
     }
-    virtual bool fetch(int col,double &v)
+    
+    template<typename T>
+    void operator()(T* data, typename boost::enable_if< boost::is_floating_point<T> >::type* = 0)
     {
-        return do_real_fetch(col,v);
+        *data = static_cast<T>(sqlite3_column_double(st_, fetch_col_));
     }
-    virtual bool fetch(int col,long double &v)
+
+    void operator()(std::string* data)
     {
-        return do_real_fetch(col,v);
+        char const *txt = (char const *)sqlite3_column_text(st_, fetch_col_);
+        int size = sqlite3_column_bytes(st_, fetch_col_);
+        data->assign(txt, size);
     }
-    virtual bool fetch(int col,std::string &v)
+
+    void operator()(std::ostream* data)
     {
-        if(do_is_null(col))
-            return false;
-        char const *txt = (char const *)sqlite3_column_text(st_,col);
-        int size = sqlite3_column_bytes(st_,col);
-        v.assign(txt,size);
-        return true;
+        char const *txt = (char const *)sqlite3_column_text(st_, fetch_col_);
+        int size = sqlite3_column_bytes(st_, fetch_col_);
+        data->write(txt,size);
     }
-    virtual bool fetch(int col,std::ostream &v)
+
+    void operator()(std::tm *data)
     {
-        if(do_is_null(col))
-            return false;
-        char const *txt = (char const *)sqlite3_column_text(st_,col);
-        int size = sqlite3_column_bytes(st_,col);
-        v.write(txt,size);
-        return true;
+        *data = parse_time((char const *)(sqlite3_column_text(st_, fetch_col_)));
     }
-    virtual bool fetch(int col,std::tm &v)
-    {
-        if(do_is_null(col))
-            return false;
-        v=parse_time((char const *)(sqlite3_column_text(st_,col)));
-        return true;
-    }
+
     virtual bool is_null(int col)
     {
-        return do_is_null(col);
+        if(col < 0 || col >= cols_)
+            throw invalid_column();
+
+        return sqlite3_column_type(st_, col) == SQLITE_NULL;
     }
+
     virtual int cols() 
     {
         return cols_;
     }
+
     virtual unsigned long long rows()
     {
         return unsigned long long(-1);
     }
+
     virtual int name_to_column(const string_ref& n)
     {
         if(column_names_.empty()) 
         {
-            for(int i=0;i<cols_;i++) 
+            for(int i=0; i < cols_; i++) 
             {
                 char const *name = sqlite3_column_name(st_,i);
                 if(!name)
@@ -182,9 +152,12 @@ public:
         column_names_map::const_iterator p = column_names_.find(n);
         return p == column_names_.end() ? -1 : p->second;
     }
+
     virtual std::string column_to_name(int col)
     {
-        check(col);
+        if(col < 0 || col >= cols_)
+            throw invalid_column();
+
         char const *name = sqlite3_column_name(st_,col);
         if(!name) {
             throw std::bad_alloc();
@@ -192,120 +165,135 @@ public:
         return name;
     }
 private:
-    bool do_is_null(int col)
-    {
-        check(col);
-        return sqlite3_column_type(st_,col)==SQLITE_NULL;
-    }
-    void check(int col)
-    {
-        if(col < 0 || col >= cols_)
-            throw invalid_column();
-    }
     sqlite3_stmt *st_;
     sqlite3 *conn_;
 
-    typedef std::map<string_ref, int, string_ref::iless> column_names_map;
+    typedef std::map<string_ref, int, string_ref_iless> column_names_map;
     column_names_map column_names_;
-    bool column_names_prepared_;
     int cols_;
+    int fetch_col_;
 };
 
-class statement : public backend::statement {
+class statement : public backend::statement, private backend::bindings, public boost::static_visitor<>
+{
 public:
+    statement(const string_ref& query, sqlite3* conn, session_monitor* sm) : 
+        backend::statement(sm),
+        st_(0),
+        conn_(conn),
+        reset_(true)
+    {
+        if(sqlite3_prepare_v2(conn_, query.begin(), int(query.size()), &st_, 0) != SQLITE_OK)
+            throw edba_error(sqlite3_errmsg(conn_));
+
+        orig_sql_.assign(query.begin(), query.end());
+    }
+    ~statement()
+    {
+        sqlite3_finalize(st_);
+    }
+
+    // backend::bindings implementation
+
+    void reset_stat()
+    {
+        if(!reset_) {
+            sqlite3_reset(st_);
+            reset_ = true;
+        }
+    }
+    
     virtual void reset_impl()
     {
         reset_stat();
         sqlite3_clear_bindings(st_);
     }
-    void reset_stat()
-    {
-        if(!reset_) {
-            sqlite3_reset(st_);
-            reset_=true;
-        }
-    }
-    virtual void bind_impl(int col,string_ref const &v) 
+    
+    virtual void bind_impl(int col, bind_types_variant const& v)
     {
         reset_stat();
-        check_bind(sqlite3_bind_text(st_, col, v.begin(), int(v.size()), SQLITE_TRANSIENT));
+        bind_col_ = col;
+        v.apply_visitor(*this);
     }
-    virtual void bind_impl(int col,std::tm const &v)
+
+    virtual void bind_impl(const string_ref& name, bind_types_variant const& v)
     {
         reset_stat();
-        std::string tmp = format_time(v);
-        check_bind(sqlite3_bind_text(st_, col, tmp.c_str(), int(tmp.size()), SQLITE_TRANSIENT));
+        std::string tmp(name.begin(), name.end());
+        bind_col_ = sqlite3_bind_parameter_index(st_, tmp.c_str());
+        if (!bind_col_)
+            throw invalid_column();
+        v.apply_visitor(*this);
     }
-    virtual void bind_impl(int col,std::istream &v) 
+
+    void operator()(null_type)
     {
-        reset_stat();
-        // TODO Fix me
-        std::ostringstream ss;
-        ss<<v.rdbuf();
-        std::string tmp = ss.str();
-        check_bind(sqlite3_bind_text(st_, col, tmp.c_str(), int(tmp.size()), SQLITE_TRANSIENT));
+        check_bind(sqlite3_bind_null(st_, bind_col_));
     }
-    virtual void bind_impl(int col,int v) 
+
+    template<typename T>
+    void operator()(T v, typename boost::enable_if< boost::is_integral<T> >::type* = 0)
     {
-        reset_stat();
-        check_bind(sqlite3_bind_int(st_,col,v));
-    }
-    template<typename IntType>
-    void do_bind(int col,IntType value)
-    {
-        reset_stat();
         int r;
-        if(sizeof(value) > sizeof(int) || (long long)(value) > std::numeric_limits<int>::max())
-            r = sqlite3_bind_int64(st_,col,static_cast<sqlite3_int64>(value));
+
+        if(sizeof(v) > sizeof(int) || (long long)(v) > std::numeric_limits<int>::max())
+            r = sqlite3_bind_int64(st_, bind_col_, static_cast<sqlite3_int64>(v));
         else
-            r = sqlite3_bind_int(st_,col,static_cast<int>(value));
+            r = sqlite3_bind_int(st_, bind_col_, static_cast<int>(v));
+
         check_bind(r);
     }
-    virtual void bind_impl(int col,unsigned v) 
+
+    template<typename T>
+    void operator()(T v, typename boost::enable_if< boost::is_floating_point<T> >::type* = 0)
     {
-        do_bind(col,v);
+        check_bind(sqlite3_bind_double(st_, bind_col_, static_cast<double>(v)));
     }
-    virtual void bind_impl(int col,long v)
+
+    void operator()(const string_ref& v)
     {
-        do_bind(col,v);
+        check_bind(sqlite3_bind_text(st_, bind_col_, v.begin(), int(v.size()), SQLITE_TRANSIENT));
     }
-    virtual void bind_impl(int col,unsigned long v)
+
+    void operator()(const std::tm& v)
     {
-        do_bind(col,v);
+        std::string tmp = format_time(v);
+        check_bind(sqlite3_bind_text(st_, bind_col_, tmp.c_str(), int(tmp.size()), SQLITE_TRANSIENT));
     }
-    virtual void bind_impl(int col,long long v)
+
+    void operator()(std::istream* v)
     {
-        do_bind(col,v);
+        // TODO Fix me
+        std::ostringstream ss;
+        ss << v->rdbuf();
+        std::string tmp = ss.str();
+        check_bind(sqlite3_bind_text(st_, bind_col_, tmp.c_str(), int(tmp.size()), SQLITE_TRANSIENT));
     }
-    virtual void bind_impl(int col,unsigned long long v)
+
+    // backend::statement implementation
+    
+    virtual const char* orig_sql() const
     {
-        do_bind(col,v);
+        return orig_sql_.c_str();
     }
-    virtual void bind_impl(int col,double v)
+
+    virtual backend::bindings& bindings()
     {
-        reset_stat();
-        check_bind(sqlite3_bind_double(st_,col,v));
+        return *this;
     }
-    virtual void bind_impl(int col,long double v) 
+
+    virtual long long sequence_last(std::string const &/*name*/)
     {
-        reset_stat();
-        check_bind(sqlite3_bind_double(st_,col,static_cast<double>(v)));
+        return sqlite3_last_insert_rowid(conn_);
     }
-    virtual void bind_null_impl(int col)
-    {
-        reset_stat();
-        check_bind(sqlite3_bind_null(st_,col));
-    }
+
     virtual boost::intrusive_ptr<edba::backend::result> query_impl()
     {
         reset_stat();
         reset_ = false;
         return boost::intrusive_ptr<result>(new result(st_,conn_));
     }
-    virtual long long sequence_last(std::string const &/*name*/)
-    {
-        return sqlite3_last_insert_rowid(conn_);
-    }
+
     virtual void exec_impl()
     {
         reset_stat();
@@ -319,22 +307,10 @@ public:
                 check_bind(r);
         }
     }
+
     virtual unsigned long long affected()
     {
         return sqlite3_changes(conn_);
-    }
-    statement(const string_ref& query,sqlite3 *conn, session_monitor* sm) : 
-        backend::statement(sm, query),
-        st_(0),
-        conn_(conn),
-        reset_(true)
-    {
-        if(sqlite3_prepare_v2(conn_, query.begin(), int(query.size()), &st_, 0)!=SQLITE_OK)
-            throw edba_error(sqlite3_errmsg(conn_));
-    }
-    ~statement()
-    {
-        sqlite3_finalize(st_);
     }
 
 private:
@@ -349,7 +325,9 @@ private:
     }
     sqlite3_stmt *st_;
     sqlite3 *conn_;
+    std::string orig_sql_;
     bool reset_;
+    int bind_col_;
 };
 
 class connection : public backend::connection {
@@ -405,11 +383,11 @@ public:
     {
         fast_exec("rollback");
     }
-    virtual boost::intrusive_ptr<backend::statement> prepare_statement(const string_ref& q)
+    virtual boost::intrusive_ptr<backend::statement> prepare_statement_impl(const string_ref& q)
     {
-        return boost::intrusive_ptr<backend::statement>(new statement(q,conn_, sm_));
+        return boost::intrusive_ptr<backend::statement>(new statement(q, conn_, sm_));
     }
-    virtual boost::intrusive_ptr<backend::statement> create_statement(const string_ref& q)
+    virtual boost::intrusive_ptr<backend::statement> create_statement_impl(const string_ref& q)
     {
         return prepare_statement(q);
     }

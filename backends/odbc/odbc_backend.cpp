@@ -546,7 +546,7 @@ class statement : public backend::statement
 {
 public:
     statement(const string_ref& q, SQLHDBC dbc, bool wide, bool prepared, session_monitor* sm) 
-        : backend::statement(sm, q)
+        : backend::statement(sm)
         , bindings_(q, wide)
         , dbc_(dbc)
         , wide_(wide)

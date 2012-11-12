@@ -158,7 +158,7 @@ bool bindings::enable_recording() const
 //////////////
 
 // Begin of API
-statement::statement(session_monitor* sm, const string_ref& orig_sql) : 
+statement::statement(session_monitor* sm) : 
     sm_(sm)
 {
 }

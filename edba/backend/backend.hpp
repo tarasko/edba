@@ -145,8 +145,6 @@ protected:
     /// May throw bad_value_cast() if the value out of supported range by the DB. 
     ///
     virtual void bind_impl(int col, bind_types_variant const& v) = 0;
-
-   
     virtual void bind_impl(const string_ref& name, bind_types_variant const& v) = 0; 
     ///
     /// Reset all bindings
@@ -171,7 +169,7 @@ class EDBA_API statement : public ref_cnt
 {
 public:
     // Begin of API
-    statement(session_monitor* sm, const string_ref& orig_sql);
+    statement(session_monitor* sm);
     virtual ~statement() {} 
 
     ///
