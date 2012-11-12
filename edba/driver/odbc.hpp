@@ -1,7 +1,7 @@
 #ifndef EDBA_DRIVER_ODBC_HPP
 #define EDBA_DRIVER_ODBC_HPP
 
-#include <edba/backend/backend_fwd.hpp>
+#include <edba/types.hpp>
 
 extern "C" edba::backend::connection* edba_odbc_get_connection(const edba::conn_info& cs, edba::session_monitor* sm);
 

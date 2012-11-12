@@ -49,11 +49,11 @@ set(sources
   edba/types.hpp
   edba/transaction.hpp
   edba/rowset.hpp
-  edba/backend/backend_fwd.hpp
   edba/backend/backend.hpp
   edba/backend/backend.cpp 
   edba/backend/bind_by_name_helper.hpp
   edba/driver/odbc.hpp
+  edba/driver/sqlite3.hpp
   edba/driver/all.hpp
 )
 

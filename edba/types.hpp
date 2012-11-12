@@ -2,6 +2,7 @@
 #define EDBA_TYPES_HPP
 
 #include <edba/string_ref.hpp>
+#include <edba/detail/utils.hpp>
 
 #include <boost/mpl/vector.hpp>
 #include <boost/mpl/contains.hpp>
@@ -15,10 +16,23 @@
 
 namespace edba {
 
+class conn_info;
+class session;
+class session_monitor;
 class statement;
 class row;
 
-namespace backend { class statement; }
+namespace backend { 
+
+class result;
+class statement;
+class connection;
+
+EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE(result);
+EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE(statement);
+EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE(connection);
+
+}
 
 /// Null type
 struct null_type {};
@@ -91,5 +105,7 @@ struct fetch_conversion
 };
 
 }
+
+typedef edba::backend::connection* (*connect_function_type)(const edba::conn_info& cs, edba::session_monitor* sm);
 
 #endif // EDBA_TYPES_HPP

@@ -1,8 +1,8 @@
-#ifndef EDBA_BACKEND_H
-#define EDBA_BACKEND_H
+#ifndef EDBA_BACKEND_HPP
+#define EDBA_BACKEND_HPP
 
-#include <edba/backend/backend_fwd.hpp>
 #include <edba/detail/exports.hpp>
+#include <edba/detail/utils.hpp>
 
 #include <edba/conn_info.hpp>
 #include <edba/errors.hpp>
@@ -23,6 +23,11 @@ namespace edba {
 /// \brief This namepace includes all classes required to implement a edba SQL backend.
 ///
 namespace backend {	
+
+///
+/// Load backend shared library and return pointer to entry point
+///
+EDBA_API connect_function_type get_connect_function(const char* path, const char* entry_func_name);
 
 ///
 /// \brief This class represents query result.
@@ -344,9 +349,8 @@ private:
     /// sql string.
     ///
     string_ref select_statement(const string_ref& q);
-
 };
 
 }} // edba, backend
 
-#endif
+#endif // EDBA_BACKEND_HPP

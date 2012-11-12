@@ -78,7 +78,8 @@ struct monitor : edba::session_monitor
     }
 };
 
-void test_odbc(const char* conn_string)
+template<typename Driver>
+void test(const char* conn_string)
 {
     const char* create_test1_table = 
         "~Microsoft SQL Server~create table ##test1( "
@@ -91,6 +92,14 @@ void test_odbc(const char* conn_string)
         "   vbin20 varbinary(20), "
         "   vbinmax varbinary(max), "
         "   txt text ) "
+        "~Sqlite3~create temp table test1( "
+        "   id integer primary key autoincrement, "
+        "   dec double, "
+        "   dt text, "
+        "   dt_small text, "
+        "   vchar20 varchar(20), "
+        "   vcharmax text, "
+        "   vbin20 v "
         "~~";
 
     const char* insert_test1_data =
@@ -119,7 +128,7 @@ void test_odbc(const char* conn_string)
         using namespace edba;
 
         monitor sm;
-        session sess(driver::odbc(), conn_string, &sm);
+        session sess(Driver(), conn_string, &sm);
 
         // Create table
         sess << create_test1_table << exec;
@@ -195,8 +204,9 @@ void test_odbc(const char* conn_string)
 
 int main()
 {
-    test_odbc("DSN=EDBA_TESTING_MSSQL");
-    test_odbc("DSN=EDBA_TESTING_MSSQL;@utf=wide");
+    test<edba::driver::odbc>("DSN=EDBA_TESTING_MSSQL");
+    test<edba::driver::odbc_s>("DSN=EDBA_TESTING_MSSQL;@utf=wide");
+    test<edba::driver::sqlite3>("db=test.db");
 
     return 0;
 }
