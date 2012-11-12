@@ -5,6 +5,4 @@
 
 namespace edba {
 
-null_type null;
-
 }

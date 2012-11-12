@@ -11,11 +11,6 @@
 namespace edba {
 
 ///
-/// Global instance of null_type, can be used in bind expressions
-///
-extern EDBA_API null_type null;
-
-///
 /// \brief This class represents a prepared (or ordinary) statement that can be executed.
 ///
 /// This object is usually created via session::prepare() function.

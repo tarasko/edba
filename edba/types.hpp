@@ -23,6 +23,13 @@ namespace backend { class statement; }
 /// Null type
 struct null_type {};
 
+namespace {
+///
+/// Global instance of null_type, can be used in bind expressions
+///
+null_type null;
+}
+
 /// Types natively supported by statement::bind method
 typedef boost::mpl::vector<
     null_type

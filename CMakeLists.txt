@@ -44,7 +44,6 @@ set(sources
   edba/errors.hpp
   edba/session_monitor.hpp
   edba/statement.hpp
-  edba/statement.cpp
   edba/session.hpp
   edba/string_ref.hpp
   edba/types.hpp
