@@ -216,13 +216,19 @@ public:
         v.apply_visitor(*this);
     }
 
-    virtual void bind_impl(const string_ref& name, bind_types_variant const& v)
+    virtual void bind_impl(const string_ref& _name, bind_types_variant const& v)
     {
         reset_stat();
-        std::string tmp(name.begin(), name.end());
-        bind_col_ = sqlite3_bind_parameter_index(st_, tmp.c_str());
+
+        std::string name;
+        name.push_back(':');
+        name.append(_name.begin(), _name.end());
+        
+        bind_col_ = sqlite3_bind_parameter_index(st_, name.c_str());
+
         if (!bind_col_)
             throw invalid_column();
+
         v.apply_visitor(*this);
     }
 
@@ -389,7 +395,7 @@ public:
     }
     virtual boost::intrusive_ptr<backend::statement> create_statement_impl(const string_ref& q)
     {
-        return prepare_statement(q);
+        return prepare_statement_impl(q);
     }
     virtual void exec_batch_impl(const string_ref& q)
     {

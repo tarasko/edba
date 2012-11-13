@@ -99,17 +99,27 @@ void test(const char* conn_string)
         "   dt_small text, "
         "   vchar20 varchar(20), "
         "   vcharmax text, "
-        "   vbin20 v "
+        "   vbin20 blob, "
+        "   vbinmax blob, "
+        "   txt text ) "
         "~~";
 
     const char* insert_test1_data =
         "~Microsoft SQL Server~insert into ##test1(dec, dt, dt_small, vchar20, vcharmax, vbin20, vbinmax, txt) "
-        "   values(:dec, :dt, :dt_small, :vchar20, :vcharmax, :vbin20, :vbinmax, :txt)";
+        "   values(:dec, :dt, :dt_small, :vchar20, :vcharmax, :vbin20, :vbinmax, :txt)"
+        "~Sqlite3~insert into test1(dec, dt, dt_small, vchar20, vcharmax, vbin20, vbinmax, txt)"
+        "   values(:dec, :dt, :dt_small, :vchar20, :vcharmax, :vbin20, :vbinmax, :txt)"
+        "~~";
 
     const char* select_test1_row = 
-        "~Microsoft SQL Server~select id, dec, dt, dt_small, vchar20, vcharmax, vbin20, vbinmax, txt from ##test1~~";
+        "~Microsoft SQL Server~select id, dec, dt, dt_small, vchar20, vcharmax, vbin20, vbinmax, txt from ##test1 where id=:id"
+        "~Sqlite3~select id, dec, dt, dt_small, vchar20, vcharmax, vbin20, vbinmax, txt from test1 where id=:id"
+        "~~";
 
-    const char* drop_test1 = "drop table ##test1";
+    const char* drop_test1 = 
+        "~Microsoft SQL Server~drop table ##test1"
+        "~Sqlite3~drop table test1"
+        "~~";
 
     std::string short_binary("binary");
     std::string long_binary(7000, 't');
@@ -131,7 +141,7 @@ void test(const char* conn_string)
         session sess(Driver(), conn_string, &sm);
 
         // Create table
-        sess << create_test1_table << exec;
+        sess.once() << create_test1_table << exec;
 
         // Compile statement for inserting data 
         statement st = sess << insert_test1_data;
@@ -189,7 +199,13 @@ void test(const char* conn_string)
             }
         }
 
-        sess.exec_batch("~Microsoft SQL Server~insert into ##test1(dec) values(10.2); insert into ##test1(dec) values(10.3)~~");
+        sess.exec_batch(
+            "~Microsoft SQL Server~insert into ##test1(dec) values(10.2)"
+            "~Sqlite3~insert into test1(dec) values(10.2)"
+            "~~;"
+            "~Microsoft SQL Server~insert into ##test1(dec) values(10.3)"
+            "~Sqlite3~insert into test1(dec) values(10.3)"
+            "~~");
 
         // Check that cache works as expected
         statement st1 = sess << insert_test1_data;
@@ -197,8 +213,14 @@ void test(const char* conn_string)
 
         // Try to bind non prepared statement
         // Test once helper 
-        sess.once() << "insert into ##test1(dec) values(:dec)" << use("dec", 10.5);
-        sess.once() << drop_test1;
+        sess.once() << 
+            "~Microsoft SQL Server~insert into ##test1(dec) values(:dec)"
+            "~Sqlite3~insert into test1(dec) values(:dec)"
+            "~~"
+            << use("dec", 10.5) 
+            << exec;
+
+        sess.once() << drop_test1 << exec;
     }
 }
 

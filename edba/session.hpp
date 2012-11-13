@@ -144,17 +144,14 @@ private:
 struct session::once_type
 {
     once_type(session* sess) : sess_(sess) {}
-    ~once_type() { st_ << exec; }
 
     statement operator<<(const string_ref& q)
     {
-        st_ = sess_->create_statement(q);
-        return st_;
+        return sess_->create_statement(q);
     }
 
 private:
     session* sess_;
-    statement st_;
 };
 
 inline session::session()
