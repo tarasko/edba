@@ -1,8 +1,7 @@
-#define EDBA_DRIVER_SOURCE
-
-#include <edba/backend.hpp>
+#include <edba/backend/backend.hpp>
 #include <edba/errors.hpp>
-#include <edba/utils.hpp>
+#include <edba/detail/utils.hpp>
+#include <edba/backend/bind_by_name_helper.hpp>
 
 #include <boost/scope_exit.hpp>
 
@@ -33,8 +32,32 @@ public:
 
 namespace unprep {
 
-class result : public backend::result {
+class result : public backend::result, public boost::static_visitor<bool>
+{
 public:
+    result(MYSQL *conn) : 
+        res_(0)
+      , cols_(0)
+      , current_row_(0)
+      , row_(0)
+    {
+        res_ = mysql_store_result(conn);
+        if(!res_) {
+            cols_ = mysql_field_count(conn);
+            if(cols_ == 0)
+                throw edba_myerror("Seems that the query does not produce any result");
+        }
+        else {
+            cols_ = mysql_num_fields(res_);
+        }
+
+    }
+    ~result()
+    {
+        if(res_)
+            mysql_free_result(res_);
+    }
+
     ///
     /// Check if the next row in the result exists. If the DB engine can't perform
     /// this check without loosing data for current row, it should return next_row_unknown.
@@ -62,109 +85,41 @@ public:
             return false;
         return true;
     }
-    ///
-    /// Fetch an integer value for column \a col starting from 0.
-    ///
-    /// Should throw invalid_column() \a col value is invalid, should throw bad_value_cast() if the underlying data
-    /// can't be converted to integer or its range is not supported by the integer type.
-    ///
-    char const *at(int col)
-    {
-        if(!res_)
-            throw empty_row_access();
-        if(col < 0 || col >= cols_)
-            throw invalid_column();
-        return row_[col];
-    }
 
-    char const *at(int col,size_t &len)
+    virtual bool fetch(int col, const fetch_types_variant& v)
     {
-        if(!res_)
-            throw empty_row_access();
-        if(col < 0 || col >= cols_)
-            throw invalid_column();
-        unsigned long *lengths = mysql_fetch_lengths(res_);
-        if(lengths==0) 
-            throw edba_myerror("Can't get length of column");
-        len = lengths[col];
-        return row_[col];
+        fetch_col_ = col;
+        return v.apply_visitor(*this);
     }
 
     template<typename T>
-    bool do_fetch(int col,T &v)
+    bool operator()(T* v, typename boost::enable_if< boost::is_arithmetic<T> >::type* = 0)
     {
         size_t len;
-        char const *s=at(col,len);
+        char const *s = at(fetch_col_, len);
         if(!s)
             return false;
-
-        parse_number(chptr_range(s, len), v);
-
+        parse_number(string_ref(s, len), *v);
+        return true;
+    }
+    
+    bool operator()(std::string* v)
+    {
+        size_t len;
+        char const *s = at(fetch_col_, len);
+        if(!s)
+            return false;
+        v->assign(s, len);
         return true;
     }
 
-    virtual bool fetch(int col,short &v) 
-    {
-        return do_fetch(col,v);;
-    }
-    virtual bool fetch(int col,unsigned short &v) 
-    {
-        return do_fetch(col,v);
-    }
-    virtual bool fetch(int col,int &v)
-    {
-        return do_fetch(col,v);
-    }
-    virtual bool fetch(int col,unsigned &v) 
-    {
-        return do_fetch(col,v);
-    }
-    virtual bool fetch(int col,long &v)
-    {
-        return do_fetch(col,v);
-    }
-    virtual bool fetch(int col,unsigned long &v)
-    {
-        return do_fetch(col,v);
-    }
-    virtual bool fetch(int col,long long &v)
-    {
-        return do_fetch(col,v);
-    }
-    ///
-    virtual bool fetch(int col,unsigned long long &v)
-    {
-        return do_fetch(col,v);
-    }
-    virtual bool fetch(int col,float &v)
-    {
-        return do_fetch(col,v);
-    }
-    virtual bool fetch(int col,double &v)
-    {
-        return do_fetch(col,v);
-    }
-    virtual bool fetch(int col,long double &v)
-    {
-        return do_fetch(col,v);
-    }
-    ///
-    virtual bool fetch(int col,std::string &v)
+    bool operator()(std::ostream* v)
     {
         size_t len;
-        char const *s=at(col,len);
+        char const *s = at(fetch_col_, len);
         if(!s)
             return false;
-        v.assign(s,len);
-        return true;
-    }
-    virtual bool fetch(int col,std::ostream &v)
-    {
-        size_t len;
-        char const *s=at(col,len);
-        if(!s)
-            return false;
-        v.write(s,len);
+        v->write(s, len);
         return true;
     }
     ///
@@ -174,14 +129,14 @@ public:
     /// Should throw invalid_column() \a col value is invalid. If the data can't be converted
     /// to date-time it should throw bad_value_cast()
     ///
-    virtual bool fetch(int col,std::tm &v) 
+    bool operator()(std::tm* v) 
     {
         size_t len;
-        char const *s=at(col,len);
+        char const *s = at(fetch_col_, len);
         if(!s)
             return false;
-        std::string tmp(s,len);
-        v = parse_time(tmp);
+        std::string tmp(s, len);
+        *v = parse_time(tmp);
         return true;
     }
     ///
@@ -214,7 +169,7 @@ public:
         }
         return flds[col].name;
     }
-    virtual int name_to_column(const chptr_range& name) 
+    virtual int name_to_column(const string_ref& name) 
     {
         if(!res_)
             throw empty_row_access();
@@ -229,67 +184,86 @@ public:
     }
 
     // End of API
-
-    result(MYSQL *conn) : 
-        res_(0)
-      , cols_(0)
-      , current_row_(0)
-      , row_(0)
-    {
-        res_ = mysql_store_result(conn);
-        if(!res_) {
-            cols_ = mysql_field_count(conn);
-            if(cols_ == 0)
-                throw edba_myerror("Seems that the query does not produce any result");
-        }
-        else {
-            cols_ = mysql_num_fields(res_);
-        }
-
-    }
-    ~result()
-    {
-        if(res_)
-            mysql_free_result(res_);
-    }
 private:
+    ///
+    /// Fetch an integer value for column \a col starting from 0.
+    ///
+    /// Should throw invalid_column() \a col value is invalid, should throw bad_value_cast() if the underlying data
+    /// can't be converted to integer or its range is not supported by the integer type.
+    ///
+    char const *at(int col)
+    {
+        if(!res_)
+            throw empty_row_access();
+        if(col < 0 || col >= cols_)
+            throw invalid_column();
+        return row_[col];
+    }
+
+    char const *at(int col,size_t &len)
+    {
+        if(!res_)
+            throw empty_row_access();
+        if(col < 0 || col >= cols_)
+            throw invalid_column();
+        unsigned long *lengths = mysql_fetch_lengths(res_);
+        if(lengths==0) 
+            throw edba_myerror("Can't get length of column");
+        len = lengths[col];
+        return row_[col];
+    }
+
     MYSQL_RES *res_;
     int cols_;
     unsigned current_row_;
+    int fetch_col_;
     MYSQL_ROW row_;
 };
 
-class statement : public backend::statement {
+class statement : public backend::statement, private backend::bind_by_name_helper, public boost::static_visitor<>
+{
 public:
-    virtual void bind_impl(int col,chptr_range const &rng) 
+    statement(const string_ref& q, MYSQL *conn, session_monitor* sm) :
+        backend::statement(sm)
+      , backend::bind_by_name_helper(q, backend::question_marker())
+      , conn_(conn)
+      , params_no_(0)
     {
-        std::vector<char> buf(2*rng.size()+1);
-        size_t len = mysql_real_escape_string(conn_,&buf.front(),rng.begin(),rng.size());
-        std::string &s=at(col);
-        s.clear();
-        s.reserve(rng.size()+2);
-        s+='\'';
-        s.append(&buf.front(),len);
-        s+='\'';
+        fmt_.imbue(std::locale::classic());
+        bool inside_text = false;
+        const std::string& patched_sql = sql();
+
+        for (size_t i = 0; i < patched_sql.size(); i++) 
+        {
+            if(patched_sql[i]=='\'') 
+                inside_text=!inside_text;
+
+            if(patched_sql[i]=='?' && !inside_text) 
+            {
+                params_no_++;
+                binders_.push_back(i);
+            }
+        }
+
+        if(inside_text)
+            throw edba_myerror("Unterminated string found in query");
+
+        reset_params();
     }
-    virtual void bind_impl(int col,std::tm const &v) 
+
+    // backend::bindings implementation
+    virtual void reset_impl()
     {
-        std::string &s = at(col);
-        s.clear();
-        s.reserve(30);
-        s+='\'';
-        s+=format_time(v);
-        s+='\'';
     }
-    virtual void bind_impl(int col,std::istream &v)
+
+    virtual void bind_impl(int col, bind_types_variant const& v)
     {
-        std::ostringstream ss;
-        ss << v.rdbuf();
-        std::string tmp=ss.str();
-        bind(col,tmp);
+        bind_col_ = col;
+        v.apply_visitor(*this);
     }
+    
     template<typename T>
-    void do_bind(int col,T v)
+    void operator()(T v, typename boost::enable_if< boost::is_arithmetic<T> >::type* = 0)
     {
         fmt_.str(std::string());
         if(!std::numeric_limits<T>::is_integer)
@@ -298,67 +272,62 @@ public:
         std::string tmp = fmt_.str();
         at(col).swap(tmp);
     }
-    virtual void bind_impl(int col,int v)
+    
+    void operator()(const string_ref& rng)
     {
-        do_bind(col,v);
+        std::vector<char> buf(2*rng.size() + 1);
+        size_t len = mysql_real_escape_string(conn_, &buf.front(), rng.begin(), rng.size());
+        std::string& s = at(bind_col_);
+        s.clear();
+        s.reserve(rng.size()+2);
+        s += '\'';
+        s.append(&buf.front(),len);
+        s += '\'';
     }
-    virtual void bind_impl(int col,unsigned v)
+
+    void operator()(const std::tm& v) 
     {
-        do_bind(col,v);
+        std::string& s = at(bind_col_);
+        s.clear();
+        s.reserve(30);
+        s += '\'';
+        s += format_time(v);
+        s += '\'';
     }
-    virtual void bind_impl(int col,long v)
+
+    void operator()(std::istream* v)
     {
-        do_bind(col,v);
+        std::ostringstream ss;
+        ss << v->rdbuf();
+        std::string tmp = ss.str();
+        bind(bind_col_, tmp);
     }
-    virtual void bind_impl(int col,unsigned long v)
+
+    void operator()(null_type)
     {
-        do_bind(col,v);
+        at(bind_col_) = "NULL";
     }
-    virtual void bind_impl(int col,long long v)
-    {
-        do_bind(col,v);
-    }
-    virtual void bind_impl(int col,unsigned long long v)
-    {
-        do_bind(col,v);
-    }
-    virtual void bind_impl(int col,double v) 
-    {
-        do_bind(col,v);
-    }
-    virtual void bind_impl(int col,long double v)
-    {
-        do_bind(col,v);
-    }
-    virtual void bind_null_impl(int col)
-    {
-        at(col)="NULL";
-    }
+
+    // backend::statement implementation
+
     virtual long long sequence_last(std::string const &/*sequence*/) 
     {
         return mysql_insert_id(conn_);
     }
+
     virtual unsigned long long affected()
     {
         return mysql_affected_rows(conn_);
     }
 
-    void bind_all(std::string &real_query)
+    virtual backend::bindings& bindings()
     {
-        size_t total = query_.size();
-        for(unsigned i=0;i<params_.size();i++) {
-            total+=params_[i].size();
-        }
-        real_query.clear();
-        real_query.reserve(total);
-        size_t pos_ = 0;
-        for(unsigned i=0;i<params_.size();i++) {
-            size_t marker = binders_[i];
-            real_query.append(query_,pos_,marker-pos_);
-            pos_ = marker+1;
-            real_query.append(params_[i]);
-        }
-        real_query.append(query_,pos_,std::string::npos);
+        return *this;
+    }
+
+    virtual const char* orig_sql() const
+    {
+        return sql().c_str();
     }
 
     virtual boost::intrusive_ptr<edba::backend::result> query_impl() 
@@ -377,72 +346,65 @@ public:
         std::string real_query;	
         bind_all(real_query);
         reset_params();
-        if(mysql_real_query(conn_,real_query.c_str(),real_query.size())) {
+        if(mysql_real_query(conn_,real_query.c_str(),real_query.size())) 
             throw edba_myerror(mysql_error(conn_));
-        }
+
         MYSQL_RES *r=mysql_store_result(conn_);
-        if(r){
+        if (r)
+        {
             mysql_free_result(r);
             throw edba_myerror("Calling exec() on query!");
         }
     }
 
+private:
     std::string &at(int col)
     {
-        if(col < 1 || col > params_no_) {
+        if(col < 1 || col > params_no_) 
             throw invalid_placeholder();
-        }
+
         return params_[col-1];
     }
+
     void reset_params()
     {
         params_.clear();
         params_.resize(params_no_,"NULL");
     }
 
-    statement(const chptr_range& q, MYSQL *conn, session_monitor* sm) :
-        backend::statement(sm, q)
-      , conn_(conn)
-      , params_no_(0)
+    void bind_all(std::string& real_query)
     {
-        fmt_.imbue(std::locale::classic());
-        bool inside_text = false;
-        for(size_t i=0;i<query_.size();i++) {
-            if(query_[i]=='\'') {
-                inside_text=!inside_text;
-            }
-            if(query_[i]=='?' && !inside_text) {
-                params_no_++;
-                binders_.push_back(i);
-            }
+        size_t total = sql().size();
+        for(unsigned i=0;i<params_.size();i++) 
+            total+=params_[i].size();
+
+        real_query.clear();
+        real_query.reserve(total);
+        size_t pos_ = 0;
+        for(unsigned i=0;i<params_.size();i++) 
+        {
+            size_t marker = binders_[i];
+            real_query.append(sql(), pos_, marker-pos_);
+            pos_ = marker+1;
+            real_query.append(params_[i]);
         }
-        if(inside_text) {
-            throw edba_myerror("Unterminated string found in query");
-        }
-        reset_params();
-    }
-    virtual ~statement()
-    {
-    }
-    virtual void reset_impl()
-    {
+        real_query.append(sql(), pos_, std::string::npos);
     }
 
-private:
     std::ostringstream fmt_;
     std::vector<std::string> params_;
     std::vector<size_t> binders_;
 
-    std::string query_;
     MYSQL *conn_;
     int params_no_;
+    int bind_col_;
 };
 
 } // namespace uprep
 
 namespace prep {
 
-class result : public backend::result 
+class result : public backend::result, boost::static_visitor<bool>
 {
     struct bind_data 
     {
@@ -527,7 +489,7 @@ public:
         if(d.is_null)
             return false;
 
-        parse_number(chptr_range(d.ptr,d.length), v);
+        parse_number(string_ref(d.ptr,d.length), v);
 
         return true;
     }
@@ -718,7 +680,7 @@ public:
         }
         return flds[col].name;
     }
-    virtual int name_to_column(const chptr_range& name) 
+    virtual int name_to_column(const string_ref& name) 
     {
         MYSQL_FIELD *flds=mysql_fetch_fields(meta_);
         if(!flds) {
@@ -772,7 +734,8 @@ private:
     std::vector<bind_data> bind_data_;
 };
 
-class statement : public backend::statement {
+class statement : public backend::statement 
+{
     struct param 
     {
         my_bool is_null;
@@ -830,7 +793,7 @@ public:
     /// ignore if it is impossible to know whether the placeholder exists without special
     /// support from back-end.
     ///
-    virtual void bind_impl(int col,const chptr_range& rng) 
+    virtual void bind_impl(int col,const string_ref& rng) 
     {
         at(col).set(rng.begin(),rng.end());
     }
@@ -1044,7 +1007,7 @@ public:
 
     // Caching support
 
-    statement(const chptr_range& q, MYSQL *conn, session_monitor* sm) :
+    statement(const string_ref& q, MYSQL *conn, session_monitor* sm) :
         backend::statement(sm, q)
       , stmt_(0)
       , params_count_(0)
@@ -1267,13 +1230,13 @@ public:
     }
     // API 
 
-    void fast_exec(const chptr_range& sql) 
+    void fast_exec(const string_ref& sql) 
     {
         if(mysql_real_query(conn_,sql.begin(),sql.size()))
             throw edba_myerror(mysql_error(conn_));
     }
 
-    virtual void exec_batch_impl(const chptr_range& q)
+    virtual void exec_batch_impl(const string_ref& q)
     {
         if(mysql_set_server_option(conn_, MYSQL_OPTION_MULTI_STATEMENTS_ON))
             throw edba_myerror(mysql_error(conn_));
@@ -1317,11 +1280,11 @@ public:
     /// Create a prepared statement \a q. May throw if preparation had failed.
     /// Should never return null value.
     ///
-    virtual boost::intrusive_ptr<backend::statement> prepare_statement(const chptr_range& q)
+    virtual boost::intrusive_ptr<backend::statement> prepare_statement(const string_ref& q)
     {
         return boost::intrusive_ptr<backend::statement>(new prep::statement(q, conn_, sm_));
     }
-    virtual boost::intrusive_ptr<backend::statement> create_statement(const chptr_range& q)
+    virtual boost::intrusive_ptr<backend::statement> create_statement(const string_ref& q)
     {
         return boost::intrusive_ptr<backend::statement>(new unprep::statement(q, conn_, sm_));
     }
