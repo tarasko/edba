@@ -67,7 +67,8 @@ void check_odbc_errorW(SQLRETURN error,SQLHANDLE h,SQLSMALLINT type)
         return;
     std::basic_string<SQLWCHAR> error_message;
     int rec=1,r;
-    for(;;){
+    for(;;)
+    {
         SQLWCHAR msg[SQL_MAX_MESSAGE_LENGTH + 2] = {0};
         SQLWCHAR stat[SQL_SQLSTATE_SIZE + 1] = {0};
         SQLINTEGER err;
@@ -102,7 +103,8 @@ void check_odbc_errorA(SQLRETURN error,SQLHANDLE h,SQLSMALLINT type)
         return;
     std::string error_message;
     int rec=1,r;
-    for(;;){
+    for(;;)
+    {
         SQLCHAR msg[SQL_MAX_MESSAGE_LENGTH + 2] = {0};
         SQLCHAR stat[SQL_SQLSTATE_SIZE + 1] = {0};
         SQLINTEGER err;
@@ -391,21 +393,68 @@ private:
     std::vector<char> column_char_buf_;  
 };
 
-class odbc_bindings : public backend::bind_by_name_helper, public boost::static_visitor<boost::shared_ptr<std::pair<SQLLEN, std::string> > >
+class statement : public backend::statement, private backend::bind_by_name_helper, public boost::static_visitor<boost::shared_ptr<std::pair<SQLLEN, std::string> > >
 {
     typedef std::pair<SQLLEN, std::string> holder;
     typedef boost::shared_ptr<holder> holder_sp;
 
 public:
-    odbc_bindings(const string_ref& sql, bool wide) 
-        : backend::bind_by_name_helper(sql, backend::question_marker())
-        , stmt_(0)
-        , wide_(wide) 
-    {}
-
-    void set_stmt(SQLHSTMT stmt)
+    statement(const string_ref& q, SQLHDBC dbc, bool wide, bool prepared, session_monitor* sm) 
+        : backend::statement(sm)
+        , backend::bind_by_name_helper(q, backend::question_marker())
+        , dbc_(dbc)
+        , wide_(wide)
+        , prepared_(prepared)
     {
-        stmt_ = stmt;
+        bool stmt_created = false;
+        SQLRETURN r = SQLAllocHandle(SQL_HANDLE_STMT,dbc,&stmt_);
+        check_odbc_error(r,dbc,SQL_HANDLE_DBC,wide_);
+        stmt_created = true;
+        if(prepared_) 
+        {
+            try 
+            {
+                if(wide_) 
+                {
+                    r = SQLPrepareW(
+                        stmt_,
+                        (SQLWCHAR*)utf_to_utf<SQLWCHAR>(sql()).c_str(),
+                        SQL_NTS);
+                }
+                else {
+                    r = SQLPrepareA(
+                        stmt_,
+                        (SQLCHAR*)sql().c_str(),
+                        SQL_NTS);
+                }
+                check_error(r);
+            }
+            catch(...) {
+                SQLFreeHandle(SQL_HANDLE_STMT,stmt_);
+                throw;
+            }
+
+            SQLSMALLINT params_no;
+            r = SQLNumParams(stmt_,&params_no);
+            check_error(r);
+        }
+    }
+    ~statement()
+    {
+        SQLFreeHandle(SQL_HANDLE_STMT,stmt_);
+    }
+
+    virtual void reset_impl()
+    {
+        SQLFreeStmt(stmt_, SQL_UNBIND);
+        SQLCloseCursor(stmt_);
+        params_.resize(0);
+    }
+
+    virtual void bind_impl(int col, bind_types_variant const& v)
+    {
+        bind_col_ = col;
+        params_.push_back(v.apply_visitor(*this));
     }
 
     template<typename T>
@@ -479,127 +528,15 @@ public:
         return value;
     }
 
-private:
-    void do_bind(bool null, SQLSMALLINT ctype, SQLSMALLINT sqltype, holder& value)
-    {
-        int r;
-
-        if(null) 
-        {
-            value.first = SQL_NULL_DATA;
-            r = SQLBindParameter(stmt_,
-                bind_col_,
-                SQL_PARAM_INPUT,
-                ctype, 
-                sqltype, // for null
-                10, // COLUMNSIZE
-                0, //  Presision
-                0, // string
-                0, // size
-                &value.first);
-        }
-        else 
-        {
-            value.first = value.second.size();
-            size_t column_size = value.second.size();
-            if(ctype == SQL_C_WCHAR)
-                column_size/=2;
-            if(value.second.empty())
-                column_size=1;
-            r = SQLBindParameter(	
-                stmt_,
-                bind_col_,
-                SQL_PARAM_INPUT,
-                ctype,
-                sqltype,
-                column_size, // COLUMNSIZE
-                0, //  Presision
-                (void*)value.second.c_str(), // string
-                value.second.size(),
-                &value.first);
-        }
-
-        check_odbc_error(r,stmt_,SQL_HANDLE_STMT,wide_);
-    }
-
-    virtual void bind_impl(int col, bind_types_variant const& v)
-    {
-        bind_col_ = col;
-        params_.push_back(v.apply_visitor(*this));
-    }
-
-    virtual void reset_impl()
-    {
-        SQLFreeStmt(stmt_, SQL_UNBIND);
-        SQLCloseCursor(stmt_);
-        params_.resize(0);
-    }
-
-private:
-    SQLHSTMT stmt_;
-    bool wide_;
-    int bind_col_;
-    std::vector<holder_sp> params_;
-};
-
-class statement : public backend::statement 
-{
-public:
-    statement(const string_ref& q, SQLHDBC dbc, bool wide, bool prepared, session_monitor* sm) 
-        : backend::statement(sm)
-        , bindings_(q, wide)
-        , dbc_(dbc)
-        , wide_(wide)
-        , prepared_(prepared)
-    {
-        bool stmt_created = false;
-        SQLRETURN r = SQLAllocHandle(SQL_HANDLE_STMT,dbc,&stmt_);
-        check_odbc_error(r,dbc,SQL_HANDLE_DBC,wide_);
-        stmt_created = true;
-        if(prepared_) 
-        {
-            try 
-            {
-                if(wide_) 
-                {
-                    r = SQLPrepareW(
-                        stmt_,
-                        (SQLWCHAR*)utf_to_utf<SQLWCHAR>(bindings_.sql()).c_str(),
-                        SQL_NTS);
-                }
-                else {
-                    r = SQLPrepareA(
-                        stmt_,
-                        (SQLCHAR*)bindings_.sql().c_str(),
-                        SQL_NTS);
-                }
-                check_error(r);
-            }
-            catch(...) {
-                SQLFreeHandle(SQL_HANDLE_STMT,stmt_);
-                throw;
-            }
-
-            SQLSMALLINT params_no;
-            r = SQLNumParams(stmt_,&params_no);
-            check_error(r);
-        }
-
-        bindings_.set_stmt(stmt_);
-    }
-    ~statement()
-    {
-        SQLFreeHandle(SQL_HANDLE_STMT,stmt_);
-    }
 
     virtual const char* orig_sql() const
     {
-        return bindings_.sql().c_str();
+        return sql().c_str();
     }
 
     virtual edba::backend::bindings& bindings()
     {
-        return bindings_;
+        return *this;
     }
 
     virtual long long sequence_last(std::string const &sequence) 
@@ -657,9 +594,9 @@ public:
         }
         else {
             if(wide_)
-                r=SQLExecDirectW(stmt_,(SQLWCHAR*)utf_to_utf<SQLWCHAR>(bindings_.sql()).c_str(),SQL_NTS);
+                r=SQLExecDirectW(stmt_,(SQLWCHAR*)utf_to_utf<SQLWCHAR>(sql()).c_str(),SQL_NTS);
             else
-                r=SQLExecDirectA(stmt_,(SQLCHAR*)bindings_.sql().c_str(),SQL_NTS);
+                r=SQLExecDirectA(stmt_,(SQLCHAR*)sql().c_str(),SQL_NTS);
         }
         return r;
     }
@@ -677,10 +614,51 @@ private:
         check_odbc_error(code,stmt_,SQL_HANDLE_STMT,wide_);
     }
 
+    void do_bind(bool null, SQLSMALLINT ctype, SQLSMALLINT sqltype, holder& value)
+    {
+        int r;
+
+        if(null) 
+        {
+            value.first = SQL_NULL_DATA;
+            r = SQLBindParameter(stmt_,
+                bind_col_,
+                SQL_PARAM_INPUT,
+                ctype, 
+                sqltype, // for null
+                10, // COLUMNSIZE
+                0, //  Presision
+                0, // string
+                0, // size
+                &value.first);
+        }
+        else 
+        {
+            value.first = value.second.size();
+            size_t column_size = value.second.size();
+            if(ctype == SQL_C_WCHAR)
+                column_size/=2;
+            if(value.second.empty())
+                column_size=1;
+            r = SQLBindParameter(	
+                stmt_,
+                bind_col_,
+                SQL_PARAM_INPUT,
+                ctype,
+                sqltype,
+                column_size, // COLUMNSIZE
+                0, //  Presision
+                (void*)value.second.c_str(), // string
+                value.second.size(),
+                &value.first);
+        }
+
+        check_odbc_error(r,stmt_,SQL_HANDLE_STMT,wide_);
+    }
+
 private:
     friend class connection;
 
-    odbc_bindings bindings_;
     SQLHDBC dbc_;
     SQLHSTMT stmt_;
     bool wide_;
@@ -688,7 +666,8 @@ private:
     std::string sequence_last_;
     std::string last_insert_id_;
     bool prepared_;
-
+    int bind_col_;
+    std::vector<holder_sp> params_;
 };
 
 class connection : public backend::connection {
@@ -869,10 +848,13 @@ public:
 
         for (;spl_iter != spl_iter_end; ++spl_iter)
         {
-            if (spl_iter->empty()) 
+            BOOST_AUTO(query, *spl_iter);
+            trim(query);
+
+            if (boost::empty(query))
                 continue;
 
-            create_statement_impl(*spl_iter)->exec();    
+            create_statement_impl(*spl_iter)->exec();
         }
     }
 

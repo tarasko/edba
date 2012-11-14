@@ -270,7 +270,7 @@ public:
             fmt_ << std::setprecision(std::numeric_limits<T>::digits10+1);
         fmt_ << v;
         std::string tmp = fmt_.str();
-        at(col).swap(tmp);
+        at(bind_col_).swap(tmp);
     }
     
     void operator()(const string_ref& rng)
@@ -404,7 +404,7 @@ private:
 
 namespace prep {
 
-class result : public backend::result, boost::static_visitor<bool>
+class result : public backend::result, public boost::static_visitor<bool>
 {
     struct bind_data 
     {
@@ -422,6 +422,21 @@ class result : public backend::result, boost::static_visitor<bool>
     };
 
 public:
+    result(MYSQL_STMT *stmt) : stmt_(stmt), current_row_(0),meta_(0)
+    {
+        cols_ = mysql_stmt_field_count(stmt_);
+        if(mysql_stmt_store_result(stmt_)) {
+            throw edba_myerror(mysql_stmt_error(stmt_));
+        }
+        meta_ = mysql_stmt_result_metadata(stmt_);
+        if(!meta_) {
+            throw edba_myerror("Seems that the query does not produce any result");
+        }
+    }
+    ~result()
+    {
+        mysql_free_result(meta_);
+    }
 
     ///
     /// Check if the next row in the result exists. If the DB engine can't perform
@@ -467,191 +482,52 @@ public:
         }
         return true;
     }
-    ///
-    /// Fetch an integer value for column \a col starting from 0.
-    ///
-    /// Should throw invalid_column() \a col value is invalid, should throw bad_value_cast() if the underlying data
-    /// can't be converted to integer or its range is not supported by the integer type.
-    ///
-    bind_data &at(int col)
+
+    virtual bool fetch(int col, const fetch_types_variant& v)
     {
-        if(col < 0 || col >= cols_)
-            throw invalid_column();
-        if(bind_data_.empty())
-            throw edba_myerror("Attempt to access data without fetching it first");
-        return bind_data_.at(col);
+        fetch_col_ = col;
+        return v.apply_visitor(*this);
     }
 
     template<typename T>
-    bool do_fetch(int col,T& v)
+    bool operator()(T* v, typename boost::enable_if< boost::is_arithmetic<T> >::type* = 0)
     {
-        bind_data& d = at(col);
+        bind_data& d = at(fetch_col_);
         if(d.is_null)
             return false;
 
-        parse_number(string_ref(d.ptr,d.length), v);
+        parse_number(string_ref(d.ptr,d.length), *v);
 
         return true;
     }
-    virtual bool fetch(int col,short &v) 
+
+    bool operator()(std::string* v)
     {
-        return do_fetch(col,v);;
-    }
-    ///
-    /// Fetch an integer value for column \a col starting from 0.
-    /// Returns true if ok, returns false if the column value is NULL and the referenced object should remain unchanged
-    ///
-    /// Should throw invalid_column() \a col value is invalid, should throw bad_value_cast() if the underlying data
-    /// can't be converted to integer or its range is not supported by the integer type.
-    ///
-    virtual bool fetch(int col,unsigned short &v) 
-    {
-        return do_fetch(col,v);
-    }
-    ///
-    /// Fetch an integer value for column \a col starting from 0.
-    /// Returns true if ok, returns false if the column value is NULL and the referenced object should remain unchanged
-    ///
-    /// Should throw invalid_column() \a col value is invalid, should throw bad_value_cast() if the underlying data
-    /// can't be converted to integer or its range is not supported by the integer type.
-    ///
-    virtual bool fetch(int col,int &v)
-    {
-        return do_fetch(col,v);
-    }
-    ///
-    /// Fetch an integer value for column \a col starting from 0.
-    /// Returns true if ok, returns false if the column value is NULL and the referenced object should remain unchanged
-    ///
-    /// Should throw invalid_column() \a col value is invalid, should throw bad_value_cast() if the underlying data
-    /// can't be converted to integer or its range is not supported by the integer type.
-    ///
-    virtual bool fetch(int col,unsigned &v) 
-    {
-        return do_fetch(col,v);
-    }
-    ///
-    /// Fetch an integer value for column \a col starting from 0.
-    /// Returns true if ok, returns false if the column value is NULL and the referenced object should remain unchanged
-    ///
-    /// Should throw invalid_column() \a col value is invalid, should throw bad_value_cast() if the underlying data
-    /// can't be converted to integer or its range is not supported by the integer type.
-    ///
-    virtual bool fetch(int col,long &v)
-    {
-        return do_fetch(col,v);
-    }
-    ///
-    /// Fetch an integer value for column \a col starting from 0.
-    /// Returns true if ok, returns false if the column value is NULL and the referenced object should remain unchanged
-    ///
-    /// Should throw invalid_column() \a col value is invalid, should throw bad_value_cast() if the underlying data
-    /// can't be converted to integer or its range is not supported by the integer type.
-    ///
-    virtual bool fetch(int col,unsigned long &v)
-    {
-        return do_fetch(col,v);
-    }
-    ///
-    /// Fetch an integer value for column \a col starting from 0.
-    /// Returns true if ok, returns false if the column value is NULL and the referenced object should remain unchanged
-    ///
-    /// Should throw invalid_column() \a col value is invalid, should throw bad_value_cast() if the underlying data
-    /// can't be converted to integer or its range is not supported by the integer type.
-    ///
-    virtual bool fetch(int col,long long &v)
-    {
-        return do_fetch(col,v);
-    }
-    ///
-    /// Fetch an integer value for column \a col starting from 0.
-    /// Returns true if ok, returns false if the column value is NULL and the referenced object should remain unchanged
-    ///
-    /// Should throw invalid_column() \a col value is invalid, should throw bad_value_cast() if the underlying data
-    /// can't be converted to integer or its range is not supported by the integer type.
-    ///
-    virtual bool fetch(int col,unsigned long long &v)
-    {
-        return do_fetch(col,v);
-    }
-    ///
-    /// Fetch a floating point value for column \a col starting from 0.
-    /// Returns true if ok, returns false if the column value is NULL and the referenced object should remain unchanged
-    ///
-    /// Should throw invalid_column() \a col value is invalid, should throw bad_value_cast() if the underlying data
-    /// can't be converted to floating point value.
-    ///
-    virtual bool fetch(int col,float &v)
-    {
-        return do_fetch(col,v);
-    }
-    ///
-    /// Fetch a floating point value for column \a col starting from 0.
-    /// Returns true if ok, returns false if the column value is NULL and the referenced object should remain unchanged
-    ///
-    /// Should throw invalid_column() \a col value is invalid, should throw bad_value_cast() if the underlying data
-    /// can't be converted to floating point value.
-    ///
-    virtual bool fetch(int col,double &v)
-    {
-        return do_fetch(col,v);
-    }
-    ///
-    /// Fetch a floating point value for column \a col starting from 0.
-    /// Returns true if ok, returns false if the column value is NULL and the referenced object should remain unchanged
-    ///
-    /// Should throw invalid_column() \a col value is invalid, should throw bad_value_cast() if the underlying data
-    /// can't be converted to floating point value.
-    ///
-    virtual bool fetch(int col,long double &v)
-    {
-        return do_fetch(col,v);
-    }
-    ///
-    /// Fetch a string value for column \a col starting from 0.
-    /// Returns true if ok, returns false if the column value is NULL and the referenced object should remain unchanged
-    ///
-    /// Should throw invalid_column() \a col value is invalid, any data should be convertible to
-    /// text value (as formatting integer, floating point value or date-time as string).
-    ///
-    virtual bool fetch(int col,std::string &v)
-    {
-        bind_data &d=at(col);
+        bind_data &d = at(fetch_col_);
         if(d.is_null)
             return false;
-        v.assign(d.ptr,d.length);
+        v->assign(d.ptr,d.length);
         return true;
     }
-    ///
-    /// Fetch a BLOB value for column \a col starting from 0.
-    /// Returns true if ok, returns false if the column value is NULL and the referenced object should remain unchanged
-    ///
-    /// Should throw invalid_column() \a col value is invalid, any data should be convertible to
-    /// BLOB value as text (as formatting integer, floating point value or date-time as string).
-    ///
-    virtual bool fetch(int col,std::ostream &v)
+
+    bool operator()(std::ostream* v)
     {
-        bind_data &d=at(col);
+        bind_data &d = at(fetch_col_);
         if(d.is_null)
             return false;
-        v.write(d.ptr,d.length);
+        v->write(d.ptr,d.length);
         return true;
     }
-    ///
-    /// Fetch a date-time value for column \a col starting from 0.
-    /// Returns true if ok, returns false if the column value is NULL and the referenced object should remain unchanged
-    ///
-    /// Should throw invalid_column() \a col value is invalid. If the data can't be converted
-    /// to date-time it should throw bad_value_cast()
-    ///
-    virtual bool fetch(int col,std::tm &v) 
+
+    bool operator()(std::tm* v)
     {
         std::string tmp;
-        if(!fetch(col,tmp))
+        if(!this->operator()(&tmp))
             return false;
-        v = parse_time(tmp);
+        *v = parse_time(tmp);
         return true;
     }
+
     ///
     /// Check if the column \a col is NULL starting from 0, should throw invalid_column() if the index out of range
     ///
@@ -692,23 +568,7 @@ public:
         return -1;
     }
 
-    // End of API
-
-    result(MYSQL_STMT *stmt) : stmt_(stmt), current_row_(0),meta_(0)
-    {
-        cols_ = mysql_stmt_field_count(stmt_);
-        if(mysql_stmt_store_result(stmt_)) {
-            throw edba_myerror(mysql_stmt_error(stmt_));
-        }
-        meta_ = mysql_stmt_result_metadata(stmt_);
-        if(!meta_) {
-            throw edba_myerror("Seems that the query does not produce any result");
-        }
-    }
-    ~result()
-    {
-        mysql_free_result(meta_);
-    }
+private:
     void reset()
     {
         bind_.resize(0);
@@ -725,16 +585,26 @@ public:
             bind_data_[i].ptr = bind_data_[i].buf;
         }
     }
-private:
+
+    bind_data &at(int col)
+    {
+        if(col < 0 || col >= cols_)
+            throw invalid_column();
+        if(bind_data_.empty())
+            throw edba_myerror("Attempt to access data without fetching it first");
+        return bind_data_.at(col);
+    }
+
     int cols_;
     MYSQL_STMT *stmt_;
     unsigned current_row_;
     MYSQL_RES *meta_;
     std::vector<MYSQL_BIND> bind_;
     std::vector<bind_data> bind_data_;
+    int fetch_col_;
 };
 
-class statement : public backend::statement 
+class statement : public backend::statement, private backend::bind_by_name_helper, public boost::static_visitor<>
 {
     struct param 
     {
@@ -785,161 +655,84 @@ class statement : public backend::statement
     };
 
 public:
-    ///
-    /// Bind a text value to column \a col (starting from 1). You may assume
-    /// that the reference remains valid until real call of query() or exec()
-    ///
-    /// Should throw invalid_placeholder() if the value of col is out of range. May
-    /// ignore if it is impossible to know whether the placeholder exists without special
-    /// support from back-end.
-    ///
-    virtual void bind_impl(int col,const string_ref& rng) 
+    statement(const string_ref& q, MYSQL *conn, session_monitor* sm) :
+        backend::statement(sm)
+      , backend::bind_by_name_helper(q, backend::question_marker())
+      , stmt_(0)
+      , params_count_(0)
     {
-        at(col).set(rng.begin(),rng.end());
+        fmt_.imbue(std::locale::classic());
+
+        stmt_ = mysql_stmt_init(conn);
+        try {
+            if(!stmt_) {
+                throw edba_myerror(" Failed to create a statement");
+            }
+            if(mysql_stmt_prepare(stmt_, sql().c_str(), sql().size())) {
+                throw edba_myerror(mysql_stmt_error(stmt_));
+            }
+            params_count_ = mysql_stmt_param_count(stmt_);
+            reset_data();
+        }
+        catch(...) {
+            if(stmt_)
+                mysql_stmt_close(stmt_);
+            throw;
+        }
     }
-    ///
-    /// Bind a date-time value to column \a col (starting from 1).
-    ///
-    /// Should throw invalid_placeholder() if the value of col is out of range. May
-    /// ignore if it is impossible to know whether the placeholder exists without special
-    /// support from back-end.
-    ///
-    virtual void bind_impl(int col,std::tm const &v) 
+    virtual ~statement()
     {
-        at(col).set(v);
+        mysql_stmt_close(stmt_);
     }
-    ///
-    /// Bind a BLOB value to column \a col (starting from 1).
-    ///
-    /// Should throw invalid_placeholder() if the value of col is out of range. May
-    /// ignore if it is impossible to know whether the placeholder exists without special
-    /// support from back-end.
-    ///
-    virtual void bind_impl(int col,std::istream &v)
+
+    // ------------------ backend::binding implementation
+    virtual void reset_impl()
     {
-        std::ostringstream ss;
-        ss << v.rdbuf();
-        at(col).set_str(ss.str());
-        at(col).is_blob = true;
+        reset_data();
+        mysql_stmt_reset(stmt_);
     }
+
+    virtual void bind_impl(int col, bind_types_variant const& v)
+    {
+        bind_col_ = col;
+        v.apply_visitor(*this);
+    }
+
     template<typename T>
-    void do_bind(int col,T v)
+    void operator()(T v, typename boost::enable_if< boost::is_arithmetic<T> >::type* = 0)
     {
         fmt_.str(std::string());
         if(!std::numeric_limits<T>::is_integer)
             fmt_ << std::setprecision(std::numeric_limits<T>::digits10+1);
         fmt_ << v;
-        at(col).set_str(fmt_.str());
+        at(bind_col_).set_str(fmt_.str());
     }
-    ///
-    /// Bind an integer value to column \a col (starting from 1).
-    ///
-    /// Should throw invalid_placeholder() if the value of col is out of range. May
-    /// ignore if it is impossible to know whether the placeholder exists without special
-    /// support from back-end.
-    ///
-    virtual void bind_impl(int col,int v)
+
+    void operator()(const string_ref& rng)
     {
-        do_bind(col,v);
+        at(bind_col_).set(rng.begin(), rng.end());
     }
-    ///
-    /// Bind an integer value to column \a col (starting from 1).
-    ///
-    /// Should throw invalid_placeholder() if the value of col is out of range. May
-    /// ignore if it is impossible to know whether the placeholder exists without special
-    /// support from back-end.
-    ///
-    /// May throw bad_value_cast() if the value out of supported range by the DB. 
-    ///
-    virtual void bind_impl(int col,unsigned v)
+
+    void operator()(const std::tm& v)
     {
-        do_bind(col,v);
+        at(bind_col_).set(v);
     }
-    ///
-    /// Bind an integer value to column \a col (starting from 1).
-    ///
-    /// Should throw invalid_placeholder() if the value of col is out of range. May
-    /// ignore if it is impossible to know whether the placeholder exists without special
-    /// support from back-end.
-    ///
-    /// May throw bad_value_cast() if the value out of supported range by the DB. 
-    ///
-    virtual void bind_impl(int col,long v)
+
+    void operator()(std::istream* v)
     {
-        do_bind(col,v);
+        std::ostringstream ss;
+        ss << v->rdbuf();
+        at(bind_col_).set_str(ss.str());
+        at(bind_col_).is_blob = true;
     }
-    ///
-    /// Bind an integer value to column \a col (starting from 1).
-    ///
-    /// Should throw invalid_placeholder() if the value of col is out of range. May
-    /// ignore if it is impossible to know whether the placeholder exists without special
-    /// support from back-end.
-    ///
-    /// May throw bad_value_cast() if the value out of supported range by the DB. 
-    ///
-    virtual void bind_impl(int col,unsigned long v)
+
+    void operator()(null_type)
     {
-        do_bind(col,v);
+        at(bind_col_)=param();
     }
-    ///
-    /// Bind an integer value to column \a col (starting from 1).
-    ///
-    /// Should throw invalid_placeholder() if the value of col is out of range. May
-    /// ignore if it is impossible to know whether the placeholder exists without special
-    /// support from back-end.
-    ///
-    /// May throw bad_value_cast() if the value out of supported range by the DB. 
-    ///
-    virtual void bind_impl(int col,long long v)
-    {
-        do_bind(col,v);
-    }
-    ///
-    /// Bind an integer value to column \a col (starting from 1).
-    ///
-    /// Should throw invalid_placeholder() if the value of col is out of range. May
-    /// ignore if it is impossible to know whether the placeholder exists without special
-    /// support from back-end.
-    ///
-    /// May throw bad_value_cast() if the value out of supported range by the DB. 
-    ///
-    virtual void bind_impl(int col,unsigned long long v)
-    {
-        do_bind(col,v);
-    }
-    ///
-    /// Bind a floating point value to column \a col (starting from 1).
-    ///
-    /// Should throw invalid_placeholder() if the value of col is out of range. May
-    /// ignore if it is impossible to know whether the placeholder exists without special
-    /// support from back-end.
-    ///
-    virtual void bind_impl(int col,double v) 
-    {
-        do_bind(col,v);
-    }
-    ///
-    /// Bind a floating point value to column \a col (starting from 1).
-    ///
-    /// Should throw invalid_placeholder() if the value of col is out of range. May
-    /// ignore if it is impossible to know whether the placeholder exists without special
-    /// support from back-end.
-    ///
-    virtual void bind_impl(int col,long double v)
-    {
-        do_bind(col,v);
-    }
-    ///
-    /// Bind a NULL value to column \a col (starting from 1).
-    ///
-    /// Should throw invalid_placeholder() if the value of col is out of range. May
-    /// ignore if it is impossible to know whether the placeholder exists without special
-    /// support from back-end.
-    ///
-    virtual void bind_null_impl(int col)
-    {
-        at(col)=param();
-    }
+
+    // ----------- backend::statement -----------
+
     ///
     /// Fetch the last sequence generated for last inserted row. May use sequence as parameter
     /// if the database uses sequences, should ignore the parameter \a sequence if the last
@@ -963,15 +756,14 @@ public:
         return mysql_stmt_affected_rows(stmt_);
     }
 
-    void bind_all()
+    virtual const char* orig_sql() const
     {
-        if(!params_.empty()) {
-            for(unsigned i=0;i<params_.size();i++)
-                params_[i].bind_it(&bind_[i]);
-            if(mysql_stmt_bind_param(stmt_,&bind_.front())) {
-                throw edba_myerror(mysql_stmt_error(stmt_));
-            }
-        }
+        return sql().c_str();
+    }
+
+    virtual backend::bindings& bindings()
+    {
+        return *this;
     }
 
     ///
@@ -1003,38 +795,8 @@ public:
             throw edba_myerror("Calling exec() on query!");
         }
     }
-    // End of API
 
-    // Caching support
-
-    statement(const string_ref& q, MYSQL *conn, session_monitor* sm) :
-        backend::statement(sm, q)
-      , stmt_(0)
-      , params_count_(0)
-    {
-        fmt_.imbue(std::locale::classic());
-
-        stmt_ = mysql_stmt_init(conn);
-        try {
-            if(!stmt_) {
-                throw edba_myerror(" Failed to create a statement");
-            }
-            if(mysql_stmt_prepare(stmt_, q.begin(), q.size())) {
-                throw edba_myerror(mysql_stmt_error(stmt_));
-            }
-            params_count_ = mysql_stmt_param_count(stmt_);
-            reset_data();
-        }
-        catch(...) {
-            if(stmt_)
-                mysql_stmt_close(stmt_);
-            throw;
-        }
-    }
-    virtual ~statement()
-    {
-        mysql_stmt_close(stmt_);
-    }
+private:
     void reset_data()
     {
         params_.resize(0);
@@ -1042,13 +804,7 @@ public:
         bind_.resize(0);
         bind_.resize(params_count_,MYSQL_BIND());
     }
-    virtual void reset_impl()
-    {
-        reset_data();
-        mysql_stmt_reset(stmt_);
-    }
 
-private:
     param &at(int col)
     {
         if(col < 1 || col > params_count_)
@@ -1056,11 +812,23 @@ private:
         return params_[col-1];
     }
 
+    void bind_all()
+    {
+        if(!params_.empty()) {
+            for(unsigned i=0;i<params_.size();i++)
+                params_[i].bind_it(&bind_[i]);
+            if(mysql_stmt_bind_param(stmt_,&bind_.front())) {
+                throw edba_myerror(mysql_stmt_error(stmt_));
+            }
+        }
+    }
+
     std::ostringstream fmt_;
     std::vector<param> params_;
     std::vector<MYSQL_BIND> bind_;
     MYSQL_STMT *stmt_;
     int params_count_;
+    int bind_col_;
 };
 
 } // namespace prep
@@ -1088,7 +856,7 @@ public:
         std::string unix_socket = ci.get_copy("unix_socket","");
         char const *punix_socket = unix_socket.empty() ? 0 : unix_socket.c_str();
 
-#if MYSQL_VERSION_ID >= 50507
+#if MYSQL_VERSION_ID >= 50507 && MYSQL_VERSION_ID < 60000
         std::string default_auth = ci.get_copy("default_auth","");
         if (!default_auth.empty()) {
             mysql_set_option(MYSQL_DEFAULT_AUTH, default_auth.c_str());
@@ -1139,7 +907,7 @@ public:
                 mysql_set_option(MYSQL_OPT_RECONNECT, &value);
             }
         }
-#if MYSQL_VERSION_ID >= 50507
+#if MYSQL_VERSION_ID >= 50507 && MYSQL_VERSION_ID < 60000
         std::string plugin_dir = ci.get_copy("plugin_dir", "");
         if(!plugin_dir.empty()) {
             mysql_set_option(MYSQL_PLUGIN_DIR, plugin_dir.c_str());
@@ -1280,11 +1048,11 @@ public:
     /// Create a prepared statement \a q. May throw if preparation had failed.
     /// Should never return null value.
     ///
-    virtual boost::intrusive_ptr<backend::statement> prepare_statement(const string_ref& q)
+    virtual boost::intrusive_ptr<backend::statement> prepare_statement_impl(const string_ref& q)
     {
         return boost::intrusive_ptr<backend::statement>(new prep::statement(q, conn_, sm_));
     }
-    virtual boost::intrusive_ptr<backend::statement> create_statement(const string_ref& q)
+    virtual boost::intrusive_ptr<backend::statement> create_statement_impl(const string_ref& q)
     {
         return boost::intrusive_ptr<backend::statement>(new unprep::statement(q, conn_, sm_));
     }

@@ -54,6 +54,9 @@ set(sources
   edba/backend/bind_by_name_helper.hpp
   edba/driver/odbc.hpp
   edba/driver/sqlite3.hpp
+  edba/driver/mysql.hpp
+  edba/driver/oracle.hpp
+  edba/driver/postgres.hpp
   edba/driver/all.hpp
 )
 
