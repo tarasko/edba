@@ -1,6 +1,12 @@
+find_package(Boost 1.48.0 COMPONENTS date_time locale unit_test_framework)
+
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)
-add_executable(edba.example example.cpp)
+
+add_executable(edba.example example.cpp monitor.hpp)
 target_link_libraries(edba.example edba edba_odbc_s ${Boost_LIBRARIES})
 
-add_executable(edba.tests.odbc odbc_test.cpp)
-target_link_libraries(edba.tests.odbc edba edba_odbc_s ${Boost_LIBRARIES})
+add_executable(edba.tests.backends_smoke_test backends_smoke_test.cpp monitor.hpp)
+target_link_libraries(edba.tests.backends_smoke_test edba edba_odbc_s ${Boost_LIBRARIES})
+
+add_executable(edba.tests.types_support_test types_support_test.cpp monitor.hpp)
+target_link_libraries(edba.tests.types_support_test edba edba_sqlite3_s ${Boost_LIBRARIES})

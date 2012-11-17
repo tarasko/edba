@@ -1,3 +1,5 @@
+#include "monitor.hpp"
+
 #include <edba/edba.hpp>
 
 #include <boost/iostreams/device/mapped_file.hpp>
@@ -22,75 +24,6 @@ const char* mysql_lib   = "libedba_mysql.so";
 const char* oracle_lib  = "libedba_oracle.so";
 const char* odbc_lib    = "libedba_odbc.so";
 #endif
-
-struct monitor : edba::session_monitor
-{
-    ///
-    /// Called after statement has been executed. 
-    /// \param bindings - commaseparated list of bindings, ready for loggging. Empty if there are no bindings
-    /// \param ok - false when error occurred
-    /// \param execution_time - time that has been taken to execute row
-    /// \param rows_affected - rows affected during execution. 0 on errors
-    ///
-    virtual void statement_executed(
-        const char* sql
-      , const std::string& bindings
-      , bool ok
-      , double execution_time
-      , unsigned long long rows_affected
-      )
-    {
-        clog << "[SessionMonitor] exec: " << sql << endl;
-        if (!bindings.empty())
-            clog << "[SessionMonitor] with bindings:" << bindings << endl;
-        if (ok)
-            clog << "[SessionMonitor] took " << execution_time << " sec, rows affected " << rows_affected << endl;
-        else
-            clog << "[SessionMonitor] FAILED\n";
-    }
-
-    ///
-    /// Called after query has been executed. 
-    /// \param bindings - commaseparated list of bindings, ready for loggging. Empty if there are no bindings
-    /// \param ok - false when error occurred
-    /// \param execution_time - time that has been taken to execute row
-    /// \param rows_read - rows read. 0 on errors
-    ///
-    virtual void query_executed(
-        const char* sql
-      , const std::string& bindings
-      , bool ok
-      , double execution_time
-      , unsigned long long rows_read
-      )
-    {
-        clog << "[SessionMonitor] query: " << sql << endl;
-        if (!bindings.empty())
-            clog << "[SessionMonitor] with bindings:" << bindings << endl;
-        if (ok)
-        {
-            if (rows_read == -1)
-                clog << "[SessionMonitor] took " << execution_time << " sec\n";
-            else
-                clog << "[SessionMonitor] took " << execution_time << " sec, rows selected " << rows_read << endl;
-        }
-        else
-            clog << "[SessionMonitor] FAILED\n";
-    }
-
-    virtual void transaction_started() 
-    {
-        clog << "[SessionMonitor] Transaction started\n";
-    }
-    virtual void transaction_committed() 
-    {
-        clog << "[SessionMonitor] Transaction committed\n";
-    }
-    virtual void transaction_reverted() 
-    {
-        clog << "[SessionMonitor] Transaction reverted\n";
-    }
-};
 
 //void test_simple(const char* lib, const char* entry, const char* conn_str)
 //{
