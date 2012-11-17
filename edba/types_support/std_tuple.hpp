@@ -31,7 +31,7 @@ struct bind_conversion< std::tuple<BOOST_PP_ENUM_PARAMS(BOOST_PP_ITERATION(), T)
     static void bind(statement& st, ColOrName, const tuple_type& v)
     {
 
-#  define BOOST_PP_LOCAL_MACRO(n) st << v.get<n>();
+#  define BOOST_PP_LOCAL_MACRO(n) st << std::get<n>(v);
 #  define BOOST_PP_LOCAL_LIMITS (0, BOOST_PP_ITERATION() - 1)
 #  include BOOST_PP_LOCAL_ITERATE()
 
@@ -47,7 +47,7 @@ struct fetch_conversion< std::tuple<BOOST_PP_ENUM_PARAMS(BOOST_PP_ITERATION(), T
     static bool fetch(row& res, ColOrName, tuple_type& v)
     {
 
-#  define BOOST_PP_LOCAL_MACRO(n) res << v.get<n>();
+#  define BOOST_PP_LOCAL_MACRO(n) res << std::get<n>(v);
 #  define BOOST_PP_LOCAL_LIMITS (0, BOOST_PP_ITERATION() - 1)
 #  include BOOST_PP_LOCAL_ITERATE()
 

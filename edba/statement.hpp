@@ -204,7 +204,17 @@ inline statement& statement::bind(const string_ref& name, const bind_types_varia
 template<typename T>
 statement& statement::bind(const T& v)
 {
-    return bind(placeholder_++, v);
+    // bind_conversion specialization can recursively call bind and thus increment placeholder many times.
+    // In case when bind has internally changed placeholder_ we should not increment placeholder.
+    // Placeholder must be incremented only if bind was plain and was not called recursively
+
+    int old_placeholder_value = placeholder_;
+    bind(placeholder_, v);
+
+    if (old_placeholder_value == placeholder_)
+        ++placeholder_;
+
+    return *this;
 }
 inline long long statement::last_insert_id()
 {

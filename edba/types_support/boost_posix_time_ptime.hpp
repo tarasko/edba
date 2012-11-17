@@ -9,7 +9,7 @@
 namespace edba 
 {
 
-template<typename T>
+template<>
 struct bind_conversion<boost::posix_time::ptime, void>
 {
     template<typename ColOrName>
@@ -19,14 +19,14 @@ struct bind_conversion<boost::posix_time::ptime, void>
     }
 };
 
-template<typename T>
+template<>
 struct fetch_conversion<boost::posix_time::ptime, void>
 {
     template<typename ColOrName>
     static bool fetch(row& res, ColOrName col_or_name, boost::posix_time::ptime& v)
     {
         std::tm tm_struct;
-        bool ret = res.fetch(col_or_name, tm_struct));
+        bool ret = res.fetch(col_or_name, tm_struct);
         if (ret)
             v = ptime_from_tm(tm_struct);
 

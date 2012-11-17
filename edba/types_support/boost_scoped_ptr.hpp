@@ -22,7 +22,7 @@ struct bind_conversion<boost::scoped_ptr<T>, void>
 };
 
 template<typename T>
-struct fetch_conversion<boost::shared_ptr<T>, typename boost::disable_if< boost::is_const<T> >::type>
+struct fetch_conversion<boost::scoped_ptr<T>, typename boost::disable_if< boost::is_const<T> >::type>
 {
     template<typename ColOrName>
     static bool fetch(row& res, ColOrName col_or_name, boost::scoped_ptr<T>& v)
