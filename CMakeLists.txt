@@ -58,6 +58,16 @@ set(sources
   edba/driver/oracle.hpp
   edba/driver/postgres.hpp
   edba/driver/all.hpp
+  edba/types_support/std_shared_ptr.hpp
+  edba/types_support/std_unique_ptr.hpp
+  edba/types_support/std_tuple.hpp
+  edba/types_support/boost_shared_ptr.hpp
+  edba/types_support/boost_scoped_ptr.hpp
+  edba/types_support/boost_tuple.hpp
+  edba/types_support/boost_optional.hpp
+  edba/types_support/boost_fusion.hpp
+  edba/types_support/boost_gregorian_date.hpp
+  edba/types_support/boost_posix_time_ptime.hpp 
 )
 
 add_library(edba SHARED ${sources})

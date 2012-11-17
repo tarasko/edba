@@ -1,4 +1,5 @@
 #include <edba/edba.hpp>
+#include <edba/types_support/boost_fusion.hpp>
 
 #include <boost/iostreams/device/mapped_file.hpp>
 #include <boost/foreach.hpp>
@@ -117,19 +118,19 @@ void test(const char* conn_string)
     const char* insert_test1_data =
         "~Microsoft SQL Server~insert into ##test1(num, dt, dt_small, vchar20, vcharmax, vbin20, vbinmax, txt) "
         "   values(:num, :dt, :dt_small, :vchar20, :vcharmax, :vbin20, :vbinmax, :txt)"
-        "~Sqlite3~insert into test1(num, dt, dt_small, vchar20, vcharmax, vbin20, vbinmax, txt)"
+        "~~insert into test1(num, dt, dt_small, vchar20, vcharmax, vbin20, vbinmax, txt)"
         "   values(:num, :dt, :dt_small, :vchar20, :vcharmax, :vbin20, :vbinmax, :txt)"
-        "~~";
+        "~";
 
     const char* select_test1_row = 
         "~Microsoft SQL Server~select id, num, dt, dt_small, vchar20, vcharmax, vbin20, vbinmax, txt from ##test1 where id=:id"
-        "~Sqlite3~select id, num, dt, dt_small, vchar20, vcharmax, vbin20, vbinmax, txt from test1 where id=:id"
-        "~~";
+        "~~select id, num, dt, dt_small, vchar20, vcharmax, vbin20, vbinmax, txt from test1 where id=:id"
+        "~";
 
     const char* drop_test1 = 
         "~Microsoft SQL Server~drop table ##test1"
-        "~Sqlite3~drop table test1"
-        "~~";
+        "~~drop table test1"
+        "~";
 
     std::string short_binary("binary");
     std::string long_binary(7000, 't');
@@ -211,12 +212,12 @@ void test(const char* conn_string)
 
         sess.exec_batch(
             "~Microsoft SQL Server~insert into ##test1(num) values(10.2)"
-            "~Sqlite3~insert into test1(num) values(10.2)"
-            "~~;"
+            "~~insert into test1(num) values(10.2)"
+            "~;"
             "~Microsoft SQL Server~insert into ##test1(num) values(10.3)"
-            "~Sqlite3~insert into test1(num) values(10.3)"
-            "~~");
-
+            "~~insert into test1(num) values(10.3)"
+            "~");
+        
         // Check that cache works as expected
         statement st1 = sess << insert_test1_data;
         assert(st == st1);
@@ -225,8 +226,8 @@ void test(const char* conn_string)
         // Test once helper 
         sess.once() << 
             "~Microsoft SQL Server~insert into ##test1(num) values(:num)"
-            "~Sqlite3~insert into test1(num) values(:num)"
-            "~~"
+            "~~insert into test1(num) values(:num)"
+            "~"
             << use("num", 10.5) 
             << exec;
 

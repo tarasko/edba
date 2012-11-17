@@ -349,7 +349,7 @@ public:
         if(mysql_real_query(conn_,real_query.c_str(),real_query.size())) 
             throw edba_myerror(mysql_error(conn_));
 
-        MYSQL_RES *r=mysql_store_result(conn_);
+        MYSQL_RES *r = mysql_store_result(conn_);
         if (r)
         {
             mysql_free_result(r);
@@ -789,7 +789,7 @@ public:
         if(mysql_stmt_store_result(stmt_)) {
             throw edba_myerror(mysql_stmt_error(stmt_));
         }
-        MYSQL_RES *r=mysql_stmt_result_metadata(stmt_);
+        MYSQL_RES *r = mysql_stmt_result_metadata(stmt_);
         if(r) {
             mysql_free_result(r);
             throw edba_myerror("Calling exec() on query!");
@@ -1002,6 +1002,20 @@ public:
     {
         if(mysql_real_query(conn_,sql.begin(),sql.size()))
             throw edba_myerror(mysql_error(conn_));
+
+        // process each statement result
+
+        int status;
+        do 
+        {
+            MYSQL_RES* result = mysql_store_result(conn_);
+            if (result) 
+                mysql_free_result(result);
+
+            if ((status = mysql_next_result(conn_)) > 0)
+                throw edba_myerror(mysql_error(conn_));
+        } 
+        while(status == 0);
     }
 
     virtual void exec_batch_impl(const string_ref& q)
