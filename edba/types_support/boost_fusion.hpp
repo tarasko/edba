@@ -21,7 +21,7 @@ struct bind_conversion< T, typename boost::enable_if< boost::fusion::traits::is_
         helper(statement& st) : st_(st) {}
 
         template<typename T1>
-        void operator()(const T1& v)
+        void operator()(const T1& v) const
         {
             st_ << v;
         }
@@ -43,7 +43,7 @@ struct fetch_conversion< T, typename boost::enable_if< boost::fusion::traits::is
         helper(row& r) : r_(r) {}
 
         template<typename T1>
-        void operator()(const T1& v)
+        void operator()(T1& v) const
         {
             r_ >> v;
         }

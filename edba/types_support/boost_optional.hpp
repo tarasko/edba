@@ -29,11 +29,10 @@ struct fetch_conversion<boost::optional<T>, void>
     static bool fetch(row& res, ColOrName col_or_name, boost::optional<T>& v)
     {
         T object;
-        bool ret = res.fetch(col_or_name, object);
-        if (ret)
+        if (res.fetch(col_or_name, object))
             v = boost::move(object);
 
-        return ret;
+        return true;
     }
 };
 

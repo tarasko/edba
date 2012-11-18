@@ -152,16 +152,17 @@ public:
     ///
     friend bool operator==(const statement& s1, const statement& s2)
     {
-        return s1.stat_ == s2.stat_;
+        return s1.stmt_ == s2.stmt_;
     }
 
 private:
-    statement(const boost::intrusive_ptr<backend::statement>& stat);
+    statement(const boost::intrusive_ptr<backend::connection>& conn, const boost::intrusive_ptr<backend::statement>& stmt);
 
     friend class session;
 
     int placeholder_;
-    boost::intrusive_ptr<backend::statement> stat_;
+    boost::intrusive_ptr<backend::connection> conn_;
+    boost::intrusive_ptr<backend::statement> stmt_;
 };
 
 // ------ statement implementation ------
@@ -169,15 +170,16 @@ private:
 inline statement::statement() : placeholder_(1) 
 {
 }
-inline statement::statement(const boost::intrusive_ptr<backend::statement>& stat) 
+inline statement::statement(const boost::intrusive_ptr<backend::connection>& conn, const boost::intrusive_ptr<backend::statement>& stmt) 
     : placeholder_(1)
-    , stat_(stat)
+    , conn_(conn)
+    , stmt_(stmt)
 {
 }
 inline void statement::reset()
 {
     placeholder_ = 1;
-    stat_->bindings().reset();
+    stmt_->bindings().reset();
 }
 template<typename T>
 statement& statement::bind(int col, const T& v)
@@ -187,7 +189,7 @@ statement& statement::bind(int col, const T& v)
 }
 inline statement& statement::bind(int col, const bind_types_variant& v)
 {
-    stat_->bindings().bind(col, v);
+    stmt_->bindings().bind(col, v);
     return *this;
 }
 template<typename T>
@@ -198,7 +200,7 @@ statement& statement::bind(const string_ref& name, const T& v)
 }
 inline statement& statement::bind(const string_ref& name, const bind_types_variant& v)
 {
-    stat_->bindings().bind(name, v);
+    stmt_->bindings().bind(name, v);
     return *this;
 }
 template<typename T>
@@ -218,19 +220,19 @@ statement& statement::bind(const T& v)
 }
 inline long long statement::last_insert_id()
 {
-    return stat_->sequence_last(std::string());
+    return stmt_->sequence_last(std::string());
 }
 inline long long statement::sequence_last(std::string const &seq)
 {
-    return stat_->sequence_last(seq);
+    return stmt_->sequence_last(seq);
 }
 inline unsigned long long statement::affected()
 {
-    return stat_->affected();
+    return stmt_->affected();
 }
 inline row statement::first_row()
 {
-    rowset<> rs(stat_->query(), stat_);
+    rowset<> rs(conn_, stmt_, stmt_->query());
 
     rowset_iterator<row> ri = rs.begin();
 
@@ -244,10 +246,10 @@ inline row statement::first_row()
 }
 inline rowset<> statement::query()
 {
-    if (!stat_)
+    if (!stmt_)
         throw empty_string_query();
 
-    return rowset<>(stat_->query(), stat_);
+    return rowset<>(conn_, stmt_, stmt_->query());
 }
 template<typename T>
 statement::operator rowset<T>()
@@ -256,8 +258,8 @@ statement::operator rowset<T>()
 }
 inline void statement::exec() 
 {
-    if (stat_)
-        stat_->exec();
+    if (stmt_)
+        stmt_->exec();
 }
 
 // ------ free functions ------

@@ -23,7 +23,10 @@ class row
     template<typename T> friend class rowset;
 
     // Row doesn`t support construction by user, only by rowset
-    row(const boost::intrusive_ptr<backend::result>& res, const boost::intrusive_ptr<backend::statement>& stmt);
+    row(const boost::intrusive_ptr<backend::connection>& conn
+      , const boost::intrusive_ptr<backend::statement>& stmt
+      , const boost::intrusive_ptr<backend::result>& res
+      );
 
 public:
     ///
@@ -103,23 +106,29 @@ public:
     T get(int col);
 
 private:
-    boost::intrusive_ptr<backend::result> res_;
+    boost::intrusive_ptr<backend::connection> conn_;
     boost::intrusive_ptr<backend::statement> stmt_;
+    boost::intrusive_ptr<backend::result> res_;
     int current_col_;
 };
 
 // -------- row implementation ---------
 
-inline row::row(const boost::intrusive_ptr<backend::result>& res, const boost::intrusive_ptr<backend::statement>& stmt) 
-  : res_(res)
+inline row::row(
+    const boost::intrusive_ptr<backend::connection>& conn
+  , const boost::intrusive_ptr<backend::statement>& stmt
+  , const boost::intrusive_ptr<backend::result>& res
+  ) 
+  : conn_(conn)
   , stmt_(stmt)
+  , res_(res)
   , current_col_(0) 
 {
 }
 
 inline bool row::is_null(int col)
 {
-    res_->is_null(col);
+    return res_->is_null(col);
 }
 
 inline bool row::is_null(const string_ref& n)
@@ -159,7 +168,12 @@ bool row::fetch(const string_ref& n, T& v)
 template<typename T>
 bool row::fetch(T& v)
 {
-    return fetch(current_col_++, v);
+    int old_current_col = current_col_;
+    bool res = fetch(current_col_, v);
+    if (old_current_col == current_col_)
+        ++current_col_;
+
+    return res;
 }
 
 template<typename T>
@@ -258,6 +272,53 @@ private:
     rowset<T>* rs_;
 };
 
+///
+/// Represent select query result set. Has range interface, implements Single Pass Range concept. rowset can be iterated
+/// only once. That means when begin has been called once, all subsequent calls to begin will give undefined behavior
+///
+template<typename T = row>
+class rowset : private boost::mpl::if_<boost::is_same<T, row>, null_type, T>::type
+{
+    template<typename T1> friend class rowset_iterator;
+
+public:
+    typedef rowset_iterator<T> iterator;
+    typedef rowset_iterator<T> const_iterator;
+
+    /// 
+    /// Construct rowset from backend result
+    ///
+    rowset(
+        const boost::intrusive_ptr<backend::connection>& conn
+      , const boost::intrusive_ptr<backend::statement>& stmt
+      , const boost::intrusive_ptr<backend::result>& res
+      );
+    ///
+    /// Open rowset for traversion and return begin iterator
+    ///
+    rowset_iterator<T> begin();
+    ///
+    /// Return end iterator for rowset
+    ///
+    rowset_iterator<T> end();
+
+    ///
+    /// Provide conversion between rowset`s of different types.
+    ///
+    template<typename T1>
+    operator rowset<T1>() const;
+
+    unsigned long long rows();
+    int columns();
+    std::string column_name(int col);
+    int column_index(const string_ref& n);
+    int find_column(const string_ref& name);
+
+private:
+    row row_;
+    bool opened_;                                   //!< User have already called begin method
+};
+
 // -------- rowset_iterator<T> implementation ---------
 
 template<typename T>
@@ -282,22 +343,35 @@ template<typename T>
 typename rowset_iterator<T>::reference rowset_iterator<T>::dereference() const
 {
     assert(rs_ && "Attempt to dereference end rowset_iterator");
-
-    if (!fetch_conversion<T>::fetch(rs_->row_, 0, static_cast<T&>(*rs_)))
-        throw null_value_fetch();
-
     return static_cast<T&>(*rs_);
 }
 
 template<typename T>
 void rowset_iterator<T>::increment()
 {
-    if (rs_)
-        if (rs_->row_.res_->next())
-            rs_->row_.rewind_column();
-        else
-            rs_ = 0;
+    if (!rs_)
+        return;
 
+    if (rs_->row_.res_->next())
+    {
+        rs_->row_.rewind_column();
+        if (!fetch_conversion<T>::fetch(rs_->row_, 0, static_cast<T&>(*rs_)))
+            throw null_value_fetch();
+    }
+    else
+        rs_ = 0;
+}
+
+template<>
+void rowset_iterator<row>::increment()
+{
+    if (!rs_)
+        return;
+
+    if (rs_->row_.res_->next())
+        rs_->row_.rewind_column();
+    else
+        rs_ = 0;
 }
 
 template<typename T>
@@ -306,61 +380,16 @@ bool rowset_iterator<T>::equal(rowset_iterator<T> const& other) const
     return rs_ == other.rs_;
 }
 
-
-///
-/// Represent select query result set. Has range interface, implements Single Pass Range concept. rowset can be iterated
-/// only once. That means when begin has been called once, all subsequent calls to begin will give undefined behavior
-///
-template<typename T = row>
-class rowset : private boost::mpl::if_<boost::is_same<T, row>, null_type, T>::type
-{
-    template<typename T1> friend class rowset_iterator;
-
-public:
-    typedef rowset_iterator<T> iterator;
-    typedef rowset_iterator<T> const_iterator;
-
-    /// 
-    /// Construct rowset from backend result
-    ///
-    rowset(const boost::intrusive_ptr<backend::result>& res, const boost::intrusive_ptr<backend::statement>& stmt);
-    ///
-    /// Open rowset for traversion and return begin iterator
-    ///
-    rowset_iterator<T> begin();
-    ///
-    /// Return end iterator for rowset
-    ///
-    rowset_iterator<T> end();
-
-    ///
-    /// Provide conversion between rowset`s of different types.
-    ///
-    template<typename T1>
-    operator rowset<T1>() const;
-
-    unsigned long long rows();
-    int columns();
-    std::string column_name(int col);
-    int column_index(const string_ref& n);
-    int find_column(const string_ref& name);
-
-private:
-    row row_;
-
-    boost::intrusive_ptr<backend::statement> stat_; //!< Rowset doesn`t use anything from statement, however
-                                                    //!< we want to ensures that statement backend stay alive until
-                                                    //!< alive we are.
-
-    bool opened_;                                   //!< User have already called begin method
-};
-
 // -------- rowset implementation ---------
 
 template<typename T>
-rowset<T>::rowset(const boost::intrusive_ptr<backend::result>& res, const boost::intrusive_ptr<backend::statement>& stmt) 
-    : row_(res, stmt)
-    , opened_(false) 
+rowset<T>::rowset(
+    const boost::intrusive_ptr<backend::connection>& conn
+  , const boost::intrusive_ptr<backend::statement>& stmt
+  , const boost::intrusive_ptr<backend::result>& res
+  ) 
+  : row_(conn, stmt, res)
+  , opened_(false) 
 {
 }
 
@@ -385,7 +414,7 @@ template<typename T>
 template<typename T1>
 rowset<T>::operator rowset<T1>() const
 {
-    return rowset<T1>(row_.res_);
+    return rowset<T1>(row_.conn_, row_.stmt_, row_.res_);
 }
 
 template<typename T>

@@ -174,15 +174,13 @@ inline bool session::is_open()
 }
 inline statement session::prepare_statement(const string_ref& query)
 {
-    boost::intrusive_ptr<backend::statement> stat_ptr(conn_->prepare_statement(query));
-    statement stat(stat_ptr);
-    return stat;
+    boost::intrusive_ptr<backend::statement> stmt(conn_->prepare_statement(query));
+    return statement(conn_, stmt);
 }
 inline statement session::create_statement(const string_ref& query)
 {
-    boost::intrusive_ptr<backend::statement> stat_ptr(conn_->create_statement(query));
-    statement stat(stat_ptr);
-    return stat;
+    boost::intrusive_ptr<backend::statement> stmt(conn_->create_statement(query));
+    return statement(conn_, stmt);
 }
 inline session::once_type session::once()
 {

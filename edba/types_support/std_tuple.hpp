@@ -47,7 +47,7 @@ struct fetch_conversion< std::tuple<BOOST_PP_ENUM_PARAMS(BOOST_PP_ITERATION(), T
     static bool fetch(row& res, ColOrName, tuple_type& v)
     {
 
-#  define BOOST_PP_LOCAL_MACRO(n) res << std::get<n>(v);
+#  define BOOST_PP_LOCAL_MACRO(n) res >> std::get<n>(v);
 #  define BOOST_PP_LOCAL_LIMITS (0, BOOST_PP_ITERATION() - 1)
 #  include BOOST_PP_LOCAL_ITERATE()
 

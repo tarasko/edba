@@ -28,7 +28,7 @@ struct fetch_conversion<boost::posix_time::ptime, void>
         std::tm tm_struct;
         bool ret = res.fetch(col_or_name, tm_struct);
         if (ret)
-            v = ptime_from_tm(tm_struct);
+            v = boost::posix_time::ptime_from_tm(tm_struct);
 
         return ret;
     }
