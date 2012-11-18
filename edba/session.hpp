@@ -6,6 +6,8 @@
 
 namespace edba {
 
+class session_pool;
+
 ///
 /// \brief SQL session object that represents a single connection and is the gateway to SQL database
 ///
@@ -148,6 +150,10 @@ public:
     }
 
 private:
+    friend class session_pool;
+
+    session(const boost::intrusive_ptr<backend::connection>& conn);
+
     boost::intrusive_ptr<backend::connection> conn_;
 };
 
@@ -172,7 +178,12 @@ inline session::session()
 
 template<typename Driver>
 session::session(Driver driver, const string_ref& conn_string, session_monitor* sm) 
-    : conn_(driver.open_connection(conn_string, sm))
+    : conn_(driver(conn_string, sm))
+{
+}
+
+inline session::session(const boost::intrusive_ptr<backend::connection>& conn)
+    : conn_(conn)
 {
 }
 

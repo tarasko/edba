@@ -25,7 +25,7 @@ if(EDBA_STANDALONE_BUILD)
 	set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/stage/lib)	
 endif()
 
-find_package(Boost 1.48.0 COMPONENTS date_time locale)
+find_package(Boost 1.48.0 COMPONENTS date_time locale thread)
 
 if (WIN32)
     add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS -DBOOST_ALL_NO_LIB)
@@ -42,9 +42,11 @@ set(sources
   edba/conn_info.cpp
   edba/edba.hpp
   edba/errors.hpp
-  edba/session_monitor.hpp
-  edba/statement.hpp
   edba/session.hpp
+  edba/session_monitor.hpp
+  edba/session_pool.hpp
+  edba/session_pool.cpp
+  edba/statement.hpp
   edba/string_ref.hpp
   edba/types.hpp
   edba/transaction.hpp
@@ -71,10 +73,11 @@ set(sources
 )
 
 add_library(edba SHARED ${sources})
+target_link_libraries(edba ${Boost_LIBRARIES})
 
 foreach(src ${sources})
 	string(REGEX REPLACE "(.*)/.*" "\\1" dir ${src})
-  string(REPLACE "/" "\\" msvc_folder ${dir})
+	string(REPLACE "/" "\\" msvc_folder ${dir})
 	source_group(${msvc_folder} FILES ${src})
 endforeach(src ${sources})
 
