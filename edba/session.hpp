@@ -64,6 +64,18 @@ public:
     void exec_batch(const string_ref& q);
 
     ///
+    /// Set connection specific data
+    ///
+    template<typename T>
+    void set_specific(const T& data);
+    /// 
+    /// Get connection specific data, will throw bad_value_cast if type is differenet from original one
+    /// passed to set_specific
+    ///
+    template<typename T>
+    T& get_specific();
+
+    ///
     /// Begin a transaction. Don't use it directly for RAII reasons. Use transaction class instead.
     ///
     void begin();
@@ -190,6 +202,18 @@ inline void session::exec_batch(const string_ref& q)
 {
     conn_->exec_batch(q);
 }
+
+template<typename T>
+inline void session::set_specific(const T& data)
+{
+    conn_->set_specific(data);
+}
+template<typename T>
+T& get_specific()
+{
+    return conn_->get_specific<T>();
+}
+
 inline void session::begin()
 {
     conn_->begin();

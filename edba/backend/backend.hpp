@@ -9,6 +9,7 @@
 #include <edba/session_monitor.hpp>
 #include <edba/types.hpp>
 
+#include <boost/any.hpp>
 #include <boost/noncopyable.hpp>
 
 #include <iosfwd>
@@ -258,6 +259,18 @@ public:
     ///
     void exec_batch(const string_ref& q);
 
+    ///
+    /// Set connection specific data
+    ///
+    template<typename T>
+    void set_specific(const T& data);
+
+    /// 
+    /// Get connection specific data
+    ///
+    template<typename T>
+    T& get_specific();
+
     // API 
 
     ///
@@ -340,6 +353,7 @@ protected:
 
     stmt_map cache_;                                                                 // Statement cache
     session_monitor* sm_;                                                            // Session monitor
+    boost::any specific_data_;                                                       // Connection specific data
     unsigned expand_conditionals_ : 1;                                               // If true then process query as list of backend specific queries
     unsigned reserved_ : 30;
 
@@ -350,6 +364,25 @@ private:
     ///
     string_ref select_statement(const string_ref& q);
 };
+
+template<typename T>
+void connection::set_specific(const T& data)
+{
+    specific_data_ = data;
+}
+
+template<typename T>
+T& connection::get_specific()
+{
+    try 
+    {
+        return *boost::any_cast<T>(&data)
+    }
+    catch(boost::bad_any_cast&)
+    {
+        throw bad_value_cast();
+    }
+}
 
 }} // edba, backend
 
