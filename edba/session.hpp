@@ -1,8 +1,9 @@
 #ifndef EDBA_SESSION_HPP
 #define EDBA_SESSION_HPP
 
+#include <edba/backend/interfaces.hpp>
 #include <edba/statement.hpp>
-#include <edba/backend/backend.hpp>
+#include <edba/conn_info.hpp>
 
 namespace edba {
 
@@ -152,9 +153,9 @@ public:
 private:
     friend class session_pool;
 
-    session(const boost::intrusive_ptr<backend::connection>& conn);
+    session(const boost::intrusive_ptr<backend::connection_iface>& conn);
 
-    boost::intrusive_ptr<backend::connection> conn_;
+    boost::intrusive_ptr<backend::connection_iface> conn_;
 };
 
 // ------ session implementation ------
@@ -182,7 +183,7 @@ session::session(Driver driver, const string_ref& conn_string, session_monitor* 
 {
 }
 
-inline session::session(const boost::intrusive_ptr<backend::connection>& conn)
+inline session::session(const boost::intrusive_ptr<backend::connection_iface>& conn)
     : conn_(conn)
 {
 }
@@ -197,12 +198,12 @@ inline bool session::is_open()
 }
 inline statement session::prepare_statement(const string_ref& query)
 {
-    boost::intrusive_ptr<backend::statement> stmt(conn_->prepare_statement(query));
+    boost::intrusive_ptr<backend::statement_iface> stmt(conn_->prepare_statement(query));
     return statement(conn_, stmt);
 }
 inline statement session::create_statement(const string_ref& query)
 {
-    boost::intrusive_ptr<backend::statement> stmt(conn_->create_statement(query));
+    boost::intrusive_ptr<backend::statement_iface> stmt(conn_->create_statement(query));
     return statement(conn_, stmt);
 }
 inline session::once_type session::once()

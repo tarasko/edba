@@ -2,6 +2,7 @@
 #define EDBA_SESSION_POOL_HPP
 
 #include <edba/session.hpp>
+#include <edba/conn_info.hpp>
 
 #include <boost/function.hpp>
 #include <boost/thread/mutex.hpp>
@@ -15,7 +16,7 @@ namespace edba {
 class EDBA_API session_pool
 {
 public:
-    typedef boost::function<boost::intrusive_ptr<backend::connection>(const conn_info& ci, session_monitor* sm)> conn_create_callback;
+    typedef boost::function<boost::intrusive_ptr<backend::connection_iface>(const conn_info& ci, session_monitor* sm)> conn_create_callback;
     typedef boost::function<void(session&)> conn_init_callback;
 
     ///
@@ -52,7 +53,7 @@ private:
     ///
     /// Insert connection back to the pool.
     ///
-    void insert_to_pool(const boost::intrusive_ptr<backend::connection>& conn);
+    void insert_to_pool(const boost::intrusive_ptr<backend::connection_iface>& conn);
 
 private:
     class connection_proxy;
@@ -64,7 +65,7 @@ private:
 
     conn_init_callback conn_init_callback_;
 
-    std::vector< boost::intrusive_ptr<backend::connection> > pool_;
+    std::vector< boost::intrusive_ptr<backend::connection_iface> > pool_;
     boost::mutex pool_guard_;
     boost::condition_variable pool_max_cv_;
 };

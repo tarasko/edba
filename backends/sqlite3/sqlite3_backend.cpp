@@ -1,6 +1,4 @@
-#include <sqlite3.h>
-
-#include <edba/backend/backend.hpp>
+#include <edba/backend/implementation_base.hpp>
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/type_traits/is_signed.hpp>
@@ -11,6 +9,8 @@
 #include <limits>
 #include <iomanip>
 #include <map>
+
+#include <sqlite3.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -174,7 +174,7 @@ private:
     int fetch_col_;
 };
 
-class statement : public backend::statement, private backend::bindings, public boost::static_visitor<>
+class statement : public backend::statement, public boost::static_visitor<>
 {
 public:
     statement(const string_ref& query, sqlite3* conn, session_monitor* sm) : 
@@ -203,7 +203,7 @@ public:
         }
     }
     
-    virtual void reset_impl()
+    virtual void bindings_reset_impl()
     {
         reset_stat();
         sqlite3_clear_bindings(st_);
@@ -278,14 +278,9 @@ public:
 
     // backend::statement implementation
     
-    virtual const char* orig_sql() const
+    virtual const std::string& patched_query() const
     {
-        return orig_sql_.c_str();
-    }
-
-    virtual backend::bindings& bindings()
-    {
-        return *this;
+        return orig_sql_;
     }
 
     virtual long long sequence_last(std::string const &/*name*/)
@@ -389,11 +384,11 @@ public:
     {
         fast_exec("rollback");
     }
-    virtual boost::intrusive_ptr<backend::statement> prepare_statement_impl(const string_ref& q)
+    virtual boost::intrusive_ptr<backend::statement_iface> prepare_statement_impl(const string_ref& q)
     {
-        return boost::intrusive_ptr<backend::statement>(new statement(q, conn_, sm_));
+        return boost::intrusive_ptr<backend::statement_iface>(new statement(q, conn_, sm_));
     }
-    virtual boost::intrusive_ptr<backend::statement> create_statement_impl(const string_ref& q)
+    virtual boost::intrusive_ptr<backend::statement_iface> create_statement_impl(const string_ref& q)
     {
         return prepare_statement_impl(q);
     }

@@ -51,9 +51,10 @@ set(sources
   edba/types.hpp
   edba/transaction.hpp
   edba/rowset.hpp
-  edba/backend/backend.hpp
-  edba/backend/backend.cpp 
   edba/backend/bind_by_name_helper.hpp
+  edba/backend/interfaces.hpp
+  edba/backend/implementation_base.hpp
+  edba/backend/implementation_base.cpp
   edba/driver/odbc.hpp
   edba/driver/sqlite3.hpp
   edba/driver/mysql.hpp

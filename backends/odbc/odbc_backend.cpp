@@ -1,4 +1,3 @@
-#include <edba/backend/backend.hpp>
 #include <edba/backend/bind_by_name_helper.hpp>
 #include <edba/detail/utils.hpp>
 
@@ -47,7 +46,7 @@ string_ref to_string_ref(const column_info& ci)
     return string_ref(ci.name_);
 }
 
-namespace odbc_backend {
+namespace backend { namespace odbc {
 
 using boost::locale::conv::utf_to_utf;    
     
@@ -393,18 +392,27 @@ private:
     std::vector<char> column_char_buf_;  
 };
 
-class statement : public backend::statement, private backend::bind_by_name_helper, public boost::static_visitor<boost::shared_ptr<std::pair<SQLLEN, std::string> > >
+class statement : public backend::bind_by_name_helper, public boost::static_visitor<boost::shared_ptr<std::pair<SQLLEN, std::string> > >
 {
     typedef std::pair<SQLLEN, std::string> holder;
     typedef boost::shared_ptr<holder> holder_sp;
 
 public:
-    statement(const string_ref& q, SQLHDBC dbc, bool wide, bool prepared, session_monitor* sm) 
-        : backend::statement(sm)
-        , backend::bind_by_name_helper(q, backend::question_marker())
-        , dbc_(dbc)
-        , wide_(wide)
-        , prepared_(prepared)
+    statement(
+        session_monitor* sm
+      , const string_ref& q
+      , SQLHDBC dbc
+      , bool wide
+      , bool prepared
+      , const std::string& sequence_last
+      , const std::string& last_insert_id
+      ) 
+      : backend::bind_by_name_helper(sm, q, backend::question_marker())
+      , dbc_(dbc)
+      , wide_(wide)
+      , prepared_(prepared)
+      , sequence_last_(sequence_last)
+      , last_insert_id_(last_insert_id)
     {
         bool stmt_created = false;
         SQLRETURN r = SQLAllocHandle(SQL_HANDLE_STMT,dbc,&stmt_);
@@ -418,13 +426,13 @@ public:
                 {
                     r = SQLPrepareW(
                         stmt_,
-                        (SQLWCHAR*)utf_to_utf<SQLWCHAR>(sql()).c_str(),
+                        (SQLWCHAR*)utf_to_utf<SQLWCHAR>(patched_query()).c_str(),
                         SQL_NTS);
                 }
                 else {
                     r = SQLPrepareA(
                         stmt_,
-                        (SQLCHAR*)sql().c_str(),
+                        (SQLCHAR*)patched_query().c_str(),
                         SQL_NTS);
                 }
                 check_error(r);
@@ -444,7 +452,7 @@ public:
         SQLFreeHandle(SQL_HANDLE_STMT,stmt_);
     }
 
-    virtual void reset_impl()
+    virtual void bindings_reset_impl()
     {
         SQLFreeStmt(stmt_, SQL_UNBIND);
         SQLCloseCursor(stmt_);
@@ -528,27 +536,17 @@ public:
         return value;
     }
 
-
-    virtual const char* orig_sql() const
-    {
-        return sql().c_str();
-    }
-
-    virtual edba::backend::bindings& bindings()
-    {
-        return *this;
-    }
-
     virtual long long sequence_last(std::string const &sequence) 
     {
         // evaluate statement
-        boost::intrusive_ptr<statement> st;
+        boost::intrusive_ptr<statement_iface> st;
+
         if (sequence.empty() && !last_insert_id_.empty())
-            st.reset(new statement(last_insert_id_,dbc_,wide_,false, 0));
+            st.reset(new statement(0, last_insert_id_, dbc_, wide_, false, std::string(), std::string()));
         else if (!sequence.empty() && !sequence_last_.empty()) 
         {
-            st.reset(new statement(sequence_last_,dbc_,wide_,false, 0));
-            st->bindings().bind(1,sequence);
+            st.reset(new statement(0, sequence_last_, dbc_, wide_, false, std::string(), std::string()));
+            st->bind(1, sequence);
         }
         else         
         {
@@ -565,9 +563,10 @@ public:
         }
 
         // execute query
-        boost::intrusive_ptr<result> res = boost::static_pointer_cast<result>(st->query());
+        boost::intrusive_ptr<result> res = boost::static_pointer_cast<result>(st->run_query());
         long long last_id;
-        if(!res->next() || res->cols()!=1 || !res->fetch(0, fetch_types_variant(&last_id)))
+
+        if(!res->next() || res->cols() != 1 || !res->fetch(0, fetch_types_variant(&last_id)))
             throw edba_error("edba::odbc::sequence_last failed to fetch last value");
         
         return last_id;
@@ -594,9 +593,9 @@ public:
         }
         else {
             if(wide_)
-                r=SQLExecDirectW(stmt_,(SQLWCHAR*)utf_to_utf<SQLWCHAR>(sql()).c_str(),SQL_NTS);
+                r=SQLExecDirectW(stmt_,(SQLWCHAR*)utf_to_utf<SQLWCHAR>(patched_query()).c_str(),SQL_NTS);
             else
-                r=SQLExecDirectA(stmt_,(SQLCHAR*)sql().c_str(),SQL_NTS);
+                r=SQLExecDirectA(stmt_,(SQLCHAR*)patched_query().c_str(), SQL_NTS);
         }
         return r;
     }
@@ -657,8 +656,6 @@ private:
     }
 
 private:
-    friend class connection;
-
     SQLHDBC dbc_;
     SQLHSTMT stmt_;
     bool wide_;
@@ -670,7 +667,8 @@ private:
     std::vector<holder_sp> params_;
 };
 
-class connection : public backend::connection {
+class connection : public backend::connection 
+{
 public:
 
     connection(const conn_info& ci, session_monitor* sm) : backend::connection(ci, sm), ci_(ci)
@@ -820,23 +818,20 @@ public:
         } 
         catch(...){}
     }
-    boost::intrusive_ptr<backend::statement> real_prepare(const string_ref& q,bool prepared)
-    {
-        boost::intrusive_ptr<statement> st(new statement(q,dbc_,wide_,prepared, sm_));
-        st->sequence_last_ = sequence_last_;
-        st->last_insert_id_ = last_insert_id_;
 
-        return st;
+    boost::intrusive_ptr<statement_iface> real_prepare(const string_ref& q, bool prepared)
+    {
+        return boost::intrusive_ptr<statement>(new statement(sm_, q, dbc_, wide_, prepared, sequence_last_, last_insert_id_));
     }
 
-    virtual boost::intrusive_ptr<backend::statement> prepare_statement_impl(const string_ref& q)
+    virtual boost::intrusive_ptr<backend::statement_iface> prepare_statement_impl(const string_ref& q)
     {
-        return real_prepare(q,true);
+        return real_prepare(q, true);
     }
 
-    virtual boost::intrusive_ptr<backend::statement> create_statement_impl(const string_ref& q)
+    virtual boost::intrusive_ptr<backend::statement_iface> create_statement_impl(const string_ref& q)
     {
-        return real_prepare(q,false);
+        return real_prepare(q, false);
     }
 
     virtual void exec_batch_impl(const string_ref& q)
@@ -854,7 +849,7 @@ public:
             if (boost::empty(query))
                 continue;
 
-            create_statement_impl(*spl_iter)->exec();
+            create_statement_impl(*spl_iter)->run_exec();
         }
     }
 
@@ -913,11 +908,11 @@ private:
 };
 
 
-}} // edba, odbc_backend
+}}} // edba, backend, odbc
 
 extern "C" {
     EDBA_DRIVER_API edba::backend::connection *edba_odbc_get_connection(const edba::conn_info& cs, edba::session_monitor* sm)
     {
-        return new edba::odbc_backend::connection(cs, sm);
+        return new edba::backend::odbc::connection(cs, sm);
     }
 }

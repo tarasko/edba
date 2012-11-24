@@ -1,10 +1,11 @@
 #ifndef EDBA_ROWSET_HPP
 #define EDBA_ROWSET_HPP
 
+#include <edba/backend/interfaces.hpp>
+
 #include <edba/string_ref.hpp>
 #include <edba/types.hpp>
 
-#include <edba/backend/backend.hpp>
 #include <boost/logic/tribool.hpp>
 #include <boost/move/move.hpp>
 
@@ -23,9 +24,9 @@ class row
     template<typename T> friend class rowset;
 
     // Row doesn`t support construction by user, only by rowset
-    row(const boost::intrusive_ptr<backend::connection>& conn
-      , const boost::intrusive_ptr<backend::statement>& stmt
-      , const boost::intrusive_ptr<backend::result>& res
+    row(const boost::intrusive_ptr<backend::connection_iface>& conn
+      , const boost::intrusive_ptr<backend::statement_iface>& stmt
+      , const boost::intrusive_ptr<backend::result_iface>& res
       );
 
 public:
@@ -106,18 +107,18 @@ public:
     T get(int col);
 
 private:
-    boost::intrusive_ptr<backend::connection> conn_;
-    boost::intrusive_ptr<backend::statement> stmt_;
-    boost::intrusive_ptr<backend::result> res_;
+    boost::intrusive_ptr<backend::connection_iface> conn_;
+    boost::intrusive_ptr<backend::statement_iface> stmt_;
+    boost::intrusive_ptr<backend::result_iface> res_;
     int current_col_;
 };
 
 // -------- row implementation ---------
 
 inline row::row(
-    const boost::intrusive_ptr<backend::connection>& conn
-  , const boost::intrusive_ptr<backend::statement>& stmt
-  , const boost::intrusive_ptr<backend::result>& res
+    const boost::intrusive_ptr<backend::connection_iface>& conn
+  , const boost::intrusive_ptr<backend::statement_iface>& stmt
+  , const boost::intrusive_ptr<backend::result_iface>& res
   ) 
   : conn_(conn)
   , stmt_(stmt)
@@ -289,9 +290,9 @@ public:
     /// Construct rowset from backend result
     ///
     rowset(
-        const boost::intrusive_ptr<backend::connection>& conn
-      , const boost::intrusive_ptr<backend::statement>& stmt
-      , const boost::intrusive_ptr<backend::result>& res
+        const boost::intrusive_ptr<backend::connection_iface>& conn
+      , const boost::intrusive_ptr<backend::statement_iface>& stmt
+      , const boost::intrusive_ptr<backend::result_iface>& res
       );
     ///
     /// Open rowset for traversion and return begin iterator
@@ -330,10 +331,10 @@ rowset_iterator<T>::rowset_iterator(rowset<T>* rs) : rs_(rs)
 template<typename T>
 boost::tribool rowset_iterator<T>::has_next()
 {
-    backend::result::next_row nr = rs_->row_.res_->has_next();
-    if (backend::result::next_row_exists == nr)
+    backend::result_iface::next_row nr = rs_->row_.res_->has_next();
+    if (backend::result_iface::next_row_exists == nr)
         return true;
-    else if (backend::result::last_row_reached == nr) 
+    else if (backend::result_iface::last_row_reached == nr) 
         return false;
     else 
         return boost::tribool();
@@ -384,9 +385,9 @@ bool rowset_iterator<T>::equal(rowset_iterator<T> const& other) const
 
 template<typename T>
 rowset<T>::rowset(
-    const boost::intrusive_ptr<backend::connection>& conn
-  , const boost::intrusive_ptr<backend::statement>& stmt
-  , const boost::intrusive_ptr<backend::result>& res
+    const boost::intrusive_ptr<backend::connection_iface>& conn
+  , const boost::intrusive_ptr<backend::statement_iface>& stmt
+  , const boost::intrusive_ptr<backend::result_iface>& res
   ) 
   : row_(conn, stmt, res)
   , opened_(false) 

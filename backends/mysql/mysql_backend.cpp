@@ -1,7 +1,7 @@
-#include <edba/backend/backend.hpp>
+#include <edba/backend/bind_by_name_helper.hpp>
+
 #include <edba/errors.hpp>
 #include <edba/detail/utils.hpp>
-#include <edba/backend/bind_by_name_helper.hpp>
 
 #include <boost/scope_exit.hpp>
 
@@ -220,18 +220,17 @@ private:
     MYSQL_ROW row_;
 };
 
-class statement : public backend::statement, private backend::bind_by_name_helper, public boost::static_visitor<>
+class statement : public backend::bind_by_name_helper, public boost::static_visitor<>
 {
 public:
-    statement(const string_ref& q, MYSQL *conn, session_monitor* sm) :
-        backend::statement(sm)
-      , backend::bind_by_name_helper(q, backend::question_marker())
+    statement(const string_ref& q, MYSQL *conn, session_monitor* sm) 
+      : backend::bind_by_name_helper(sm, q, backend::question_marker())
       , conn_(conn)
       , params_no_(0)
     {
         fmt_.imbue(std::locale::classic());
         bool inside_text = false;
-        const std::string& patched_sql = sql();
+        std::string patched_sql = patched_query();
 
         for (size_t i = 0; i < patched_sql.size(); i++) 
         {
@@ -251,8 +250,7 @@ public:
         reset_params();
     }
 
-    // backend::bindings implementation
-    virtual void reset_impl()
+    virtual void bindings_reset_impl()
     {
     }
 
@@ -320,16 +318,6 @@ public:
         return mysql_affected_rows(conn_);
     }
 
-    virtual backend::bindings& bindings()
-    {
-        return *this;
-    }
-
-    virtual const char* orig_sql() const
-    {
-        return sql().c_str();
-    }
-
     virtual boost::intrusive_ptr<edba::backend::result> query_impl() 
     {
         std::string real_query;	
@@ -374,7 +362,9 @@ private:
 
     void bind_all(std::string& real_query)
     {
-        size_t total = sql().size();
+        std::string patched_sql = patched_query();
+
+        size_t total = patched_sql.size();
         for(unsigned i=0;i<params_.size();i++) 
             total+=params_[i].size();
 
@@ -384,11 +374,11 @@ private:
         for(unsigned i=0;i<params_.size();i++) 
         {
             size_t marker = binders_[i];
-            real_query.append(sql(), pos_, marker-pos_);
+            real_query.append(patched_sql, pos_, marker-pos_);
             pos_ = marker+1;
             real_query.append(params_[i]);
         }
-        real_query.append(sql(), pos_, std::string::npos);
+        real_query.append(patched_sql, pos_, std::string::npos);
     }
 
     std::ostringstream fmt_;
@@ -604,7 +594,7 @@ private:
     int fetch_col_;
 };
 
-class statement : public backend::statement, private backend::bind_by_name_helper, public boost::static_visitor<>
+class statement : public backend::bind_by_name_helper, public boost::static_visitor<>
 {
     struct param 
     {
@@ -656,8 +646,7 @@ class statement : public backend::statement, private backend::bind_by_name_helpe
 
 public:
     statement(const string_ref& q, MYSQL *conn, session_monitor* sm) :
-        backend::statement(sm)
-      , backend::bind_by_name_helper(q, backend::question_marker())
+        backend::bind_by_name_helper(sm, q, backend::question_marker())
       , stmt_(0)
       , params_count_(0)
     {
@@ -668,7 +657,10 @@ public:
             if(!stmt_) {
                 throw edba_myerror(" Failed to create a statement");
             }
-            if(mysql_stmt_prepare(stmt_, sql().c_str(), sql().size())) {
+
+            std::string query = patched_query();
+
+            if(mysql_stmt_prepare(stmt_, query.c_str(), query.size())) {
                 throw edba_myerror(mysql_stmt_error(stmt_));
             }
             params_count_ = mysql_stmt_param_count(stmt_);
@@ -685,8 +677,7 @@ public:
         mysql_stmt_close(stmt_);
     }
 
-    // ------------------ backend::binding implementation
-    virtual void reset_impl()
+    virtual void bindings_reset_impl()
     {
         reset_data();
         mysql_stmt_reset(stmt_);
@@ -754,16 +745,6 @@ public:
     virtual unsigned long long affected()
     {
         return mysql_stmt_affected_rows(stmt_);
-    }
-
-    virtual const char* orig_sql() const
-    {
-        return sql().c_str();
-    }
-
-    virtual backend::bindings& bindings()
-    {
-        return *this;
     }
 
     ///
@@ -1062,13 +1043,13 @@ public:
     /// Create a prepared statement \a q. May throw if preparation had failed.
     /// Should never return null value.
     ///
-    virtual boost::intrusive_ptr<backend::statement> prepare_statement_impl(const string_ref& q)
+    virtual boost::intrusive_ptr<backend::statement_iface> prepare_statement_impl(const string_ref& q)
     {
-        return boost::intrusive_ptr<backend::statement>(new prep::statement(q, conn_, sm_));
+        return boost::intrusive_ptr<backend::statement_iface>(new prep::statement(q, conn_, sm_));
     }
-    virtual boost::intrusive_ptr<backend::statement> create_statement_impl(const string_ref& q)
+    virtual boost::intrusive_ptr<backend::statement_iface> create_statement_impl(const string_ref& q)
     {
-        return boost::intrusive_ptr<backend::statement>(new unprep::statement(q, conn_, sm_));
+        return boost::intrusive_ptr<backend::statement_iface>(new unprep::statement(q, conn_, sm_));
     }
     ///
     /// Escape a string for inclusion in SQL query. May throw not_supported_by_backend() if not supported by backend.

@@ -1,8 +1,8 @@
 #ifndef EDBA_TRANSACTION_HPP
 #define EDBA_TRANSACTION_HPP
 
+#include <edba/backend/interfaces.hpp>
 #include <edba/string_ref.hpp>
-#include <edba/backend/backend.hpp>
 
 namespace edba {
 

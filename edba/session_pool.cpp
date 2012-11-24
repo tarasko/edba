@@ -22,7 +22,7 @@ session session_pool::open()
     }
     else if (pool_.empty() && conn_left_unopened_) // we can create new connection
     {
-        boost::intrusive_ptr<backend::connection> conn = conn_create_callback_(conn_info_, sm_);
+        boost::intrusive_ptr<backend::connection_iface> conn = conn_create_callback_(conn_info_, sm_);
         session sess(conn);
         if (conn_init_callback_)
             conn_init_callback_(sess);
@@ -54,7 +54,7 @@ bool session_pool::try_open(session& sess)
     }
     else if (pool_.empty() && conn_left_unopened_) // we can create new connection
     {
-        boost::intrusive_ptr<backend::connection> conn = conn_create_callback_(conn_info_, sm_);
+        boost::intrusive_ptr<backend::connection_iface> conn = conn_create_callback_(conn_info_, sm_);
         session tmp(conn);
         if (conn_init_callback_)
             conn_init_callback_(tmp);
@@ -69,7 +69,7 @@ bool session_pool::try_open(session& sess)
     return true;
 }
 
-void session_pool::insert_to_pool(const boost::intrusive_ptr<backend::connection>& conn)
+void session_pool::insert_to_pool(const boost::intrusive_ptr<backend::connection_iface>& conn)
 {
     boost::mutex::scoped_lock g(pool_guard_);
     pool_.push_back(conn);

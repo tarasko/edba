@@ -1,7 +1,7 @@
 #ifndef EDBA_BACKEND_BIND_BY_NAME_HELPER_HPP
 #define EDBA_BACKEND_BIND_BY_NAME_HELPER_HPP
 
-#include <edba/backend/backend.hpp>
+#include <edba/backend/implementation_base.hpp>
 
 #include <boost/function.hpp>
 #include <boost/unordered_map.hpp>
@@ -25,7 +25,7 @@ namespace edba { namespace backend {
 /// starting from 1. Use provided function to replace parameteres in the manner familiar for backend. 
 /// Prepare new query for backend.
 ///
-class bind_by_name_helper : public bindings
+class bind_by_name_helper : public statement
 {
     struct is_non_name_char;
     struct name_map_less;
@@ -33,13 +33,14 @@ class bind_by_name_helper : public bindings
     // Map from parameter name to parameter index
     typedef boost::container::vector< std::pair<boost::container::string, int> > name_map_type;
 
-    using bindings::bind_impl;
+    using statement::bind_impl;
 
 public:
     typedef boost::function<void(std::ostream& os, int col)> print_func_type;
 
-    bind_by_name_helper(const string_ref& sql, const print_func_type& print_func)
-        : sql_(sql.begin(), sql.end())
+    bind_by_name_helper(session_monitor* sm, const string_ref& sql, const print_func_type& print_func)
+      : statement(sm)
+      , sql_(sql.begin(), sql.end())
     {
         std::ostringstream patched_sql;
         
@@ -75,7 +76,7 @@ public:
     ///
     /// Backend should execute this statement instead of original.
     ///
-    const std::string& sql() const
+    const std::string& patched_query() const
     {
         return sql_;
     }

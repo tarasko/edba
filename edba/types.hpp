@@ -24,13 +24,13 @@ class row;
 
 namespace backend { 
 
-class result;
-class statement;
-class connection;
+struct result_iface;
+struct statement_iface;
+struct connection_iface;
 
-EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE(result);
-EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE(statement);
-EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE(connection);
+EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE(result_iface);
+EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE(statement_iface);
+EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE(connection_iface);
 
 }
 
@@ -106,6 +106,6 @@ struct fetch_conversion
 
 }
 
-typedef edba::backend::connection* (*connect_function_type)(const edba::conn_info& cs, edba::session_monitor* sm);
+typedef edba::backend::connection_iface* (*connect_function_type)(const edba::conn_info& cs, edba::session_monitor* sm);
 
 #endif // EDBA_TYPES_HPP

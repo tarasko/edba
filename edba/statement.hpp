@@ -1,8 +1,8 @@
 #ifndef EDBA_STATEMENT_HPP
 #define EDBA_STATEMENT_HPP
 
+#include <edba/backend/interfaces.hpp>
 #include <edba/rowset.hpp>
-#include <edba/backend/backend.hpp>
 
 #include <boost/type_traits/is_convertible.hpp>
 #include <boost/mpl/not.hpp>
@@ -156,13 +156,13 @@ public:
     }
 
 private:
-    statement(const boost::intrusive_ptr<backend::connection>& conn, const boost::intrusive_ptr<backend::statement>& stmt);
+    statement(const boost::intrusive_ptr<backend::connection_iface>& conn, const boost::intrusive_ptr<backend::statement_iface>& stmt);
 
     friend class session;
 
     int placeholder_;
-    boost::intrusive_ptr<backend::connection> conn_;
-    boost::intrusive_ptr<backend::statement> stmt_;
+    boost::intrusive_ptr<backend::connection_iface> conn_;
+    boost::intrusive_ptr<backend::statement_iface> stmt_;
 };
 
 // ------ statement implementation ------
@@ -170,7 +170,10 @@ private:
 inline statement::statement() : placeholder_(1) 
 {
 }
-inline statement::statement(const boost::intrusive_ptr<backend::connection>& conn, const boost::intrusive_ptr<backend::statement>& stmt) 
+inline statement::statement(
+    const boost::intrusive_ptr<backend::connection_iface>& conn
+  , const boost::intrusive_ptr<backend::statement_iface>& stmt
+  ) 
     : placeholder_(1)
     , conn_(conn)
     , stmt_(stmt)
@@ -179,7 +182,7 @@ inline statement::statement(const boost::intrusive_ptr<backend::connection>& con
 inline void statement::reset()
 {
     placeholder_ = 1;
-    stmt_->bindings().reset();
+    stmt_->bindings_reset();
 }
 template<typename T>
 statement& statement::bind(int col, const T& v)
@@ -189,7 +192,7 @@ statement& statement::bind(int col, const T& v)
 }
 inline statement& statement::bind(int col, const bind_types_variant& v)
 {
-    stmt_->bindings().bind(col, v);
+    stmt_->bind(col, v);
     return *this;
 }
 template<typename T>
@@ -200,7 +203,7 @@ statement& statement::bind(const string_ref& name, const T& v)
 }
 inline statement& statement::bind(const string_ref& name, const bind_types_variant& v)
 {
-    stmt_->bindings().bind(name, v);
+    stmt_->bind(name, v);
     return *this;
 }
 template<typename T>
@@ -232,7 +235,7 @@ inline unsigned long long statement::affected()
 }
 inline row statement::first_row()
 {
-    rowset<> rs(conn_, stmt_, stmt_->query());
+    rowset<> rs(conn_, stmt_, stmt_->run_query());
 
     rowset_iterator<row> ri = rs.begin();
 
@@ -249,7 +252,7 @@ inline rowset<> statement::query()
     if (!stmt_)
         throw empty_string_query();
 
-    return rowset<>(conn_, stmt_, stmt_->query());
+    return rowset<>(conn_, stmt_, stmt_->run_query());
 }
 template<typename T>
 statement::operator rowset<T>()
@@ -259,7 +262,7 @@ statement::operator rowset<T>()
 inline void statement::exec() 
 {
     if (stmt_)
-        stmt_->exec();
+        stmt_->run_exec();
 }
 
 // ------ free functions ------
