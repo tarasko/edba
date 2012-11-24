@@ -824,12 +824,12 @@ public:
         return boost::intrusive_ptr<statement>(new statement(sm_, q, dbc_, wide_, prepared, sequence_last_, last_insert_id_));
     }
 
-    virtual boost::intrusive_ptr<backend::statement_iface> prepare_statement_impl(const string_ref& q)
+    virtual backend::statement_ptr prepare_statement_impl(const string_ref& q)
     {
         return real_prepare(q, true);
     }
 
-    virtual boost::intrusive_ptr<backend::statement_iface> create_statement_impl(const string_ref& q)
+    virtual backend::statement_ptr create_statement_impl(const string_ref& q)
     {
         return real_prepare(q, false);
     }

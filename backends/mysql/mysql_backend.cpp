@@ -1043,13 +1043,13 @@ public:
     /// Create a prepared statement \a q. May throw if preparation had failed.
     /// Should never return null value.
     ///
-    virtual boost::intrusive_ptr<backend::statement_iface> prepare_statement_impl(const string_ref& q)
+    virtual backend::statement_ptr prepare_statement_impl(const string_ref& q)
     {
-        return boost::intrusive_ptr<backend::statement_iface>(new prep::statement(q, conn_, sm_));
+        return backend::statement_ptr(new prep::statement(q, conn_, sm_));
     }
-    virtual boost::intrusive_ptr<backend::statement_iface> create_statement_impl(const string_ref& q)
+    virtual backend::statement_ptr create_statement_impl(const string_ref& q)
     {
-        return boost::intrusive_ptr<backend::statement_iface>(new unprep::statement(q, conn_, sm_));
+        return backend::statement_ptr(new unprep::statement(q, conn_, sm_));
     }
     ///
     /// Escape a string for inclusion in SQL query. May throw not_supported_by_backend() if not supported by backend.

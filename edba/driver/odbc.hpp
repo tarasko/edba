@@ -9,18 +9,18 @@ namespace edba { namespace driver {
 
 struct odbc
 {
-    boost::intrusive_ptr<backend::connection_iface> operator()(const conn_info& ci, session_monitor* sm) const
+    backend::connection_ptr operator()(const conn_info& ci, session_monitor* sm) const
     {
         connect_function_type f = backend::get_connect_function("edba_odbc", "edba_odbc_get_connection");
-        return boost::intrusive_ptr<backend::connection_iface>(f(ci, sm));
+        return backend::connection_ptr(f(ci, sm));
     }
 };
 
 struct odbc_s 
 {
-    boost::intrusive_ptr<backend::connection_iface> operator()(const conn_info& ci, session_monitor* sm) const
+    backend::connection_ptr operator()(const conn_info& ci, session_monitor* sm) const
     {
-        return boost::intrusive_ptr<backend::connection_iface>(edba_odbc_get_connection(ci, sm));
+        return backend::connection_ptr(edba_odbc_get_connection(ci, sm));
     }
 };
 

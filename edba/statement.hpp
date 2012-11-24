@@ -156,13 +156,13 @@ public:
     }
 
 private:
-    statement(const boost::intrusive_ptr<backend::connection_iface>& conn, const boost::intrusive_ptr<backend::statement_iface>& stmt);
+    statement(const backend::connection_ptr& conn, const backend::statement_ptr& stmt);
 
     friend class session;
 
     int placeholder_;
-    boost::intrusive_ptr<backend::connection_iface> conn_;
-    boost::intrusive_ptr<backend::statement_iface> stmt_;
+    backend::connection_ptr conn_;
+    backend::statement_ptr stmt_;
 };
 
 // ------ statement implementation ------
@@ -171,8 +171,8 @@ inline statement::statement() : placeholder_(1)
 {
 }
 inline statement::statement(
-    const boost::intrusive_ptr<backend::connection_iface>& conn
-  , const boost::intrusive_ptr<backend::statement_iface>& stmt
+    const backend::connection_ptr& conn
+  , const backend::statement_ptr& stmt
   ) 
     : placeholder_(1)
     , conn_(conn)

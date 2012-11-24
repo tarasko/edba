@@ -153,9 +153,9 @@ public:
 private:
     friend class session_pool;
 
-    session(const boost::intrusive_ptr<backend::connection_iface>& conn);
+    session(const backend::connection_ptr& conn);
 
-    boost::intrusive_ptr<backend::connection_iface> conn_;
+    backend::connection_ptr conn_;
 };
 
 // ------ session implementation ------
@@ -183,7 +183,7 @@ session::session(Driver driver, const string_ref& conn_string, session_monitor* 
 {
 }
 
-inline session::session(const boost::intrusive_ptr<backend::connection_iface>& conn)
+inline session::session(const backend::connection_ptr& conn)
     : conn_(conn)
 {
 }
@@ -198,12 +198,12 @@ inline bool session::is_open()
 }
 inline statement session::prepare_statement(const string_ref& query)
 {
-    boost::intrusive_ptr<backend::statement_iface> stmt(conn_->prepare_statement(query));
+    backend::statement_ptr stmt(conn_->prepare_statement(query));
     return statement(conn_, stmt);
 }
 inline statement session::create_statement(const string_ref& query)
 {
-    boost::intrusive_ptr<backend::statement_iface> stmt(conn_->create_statement(query));
+    backend::statement_ptr stmt(conn_->create_statement(query));
     return statement(conn_, stmt);
 }
 inline session::once_type session::once()

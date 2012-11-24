@@ -16,7 +16,7 @@ namespace edba {
 class EDBA_API session_pool
 {
 public:
-    typedef boost::function<boost::intrusive_ptr<backend::connection_iface>(const conn_info& ci, session_monitor* sm)> conn_create_callback;
+    typedef boost::function<backend::connection_ptr(const conn_info& ci, session_monitor* sm)> conn_create_callback;
     typedef boost::function<void(session&)> conn_init_callback;
 
     ///
@@ -46,17 +46,13 @@ public:
     bool try_open(session& sess);
 
 private:
+    struct connection_proxy;
+
+    backend::connection_ptr create_proxy(const backend::connection_ptr& conn);
+
     // NONCOPYABLE
     session_pool(const session_pool&);
     session_pool& operator=(const session_pool&);
-
-    ///
-    /// Insert connection back to the pool.
-    ///
-    void insert_to_pool(const boost::intrusive_ptr<backend::connection_iface>& conn);
-
-private:
-    class connection_proxy;
 
     conn_create_callback conn_create_callback_;
     conn_info conn_info_;
@@ -65,7 +61,7 @@ private:
 
     conn_init_callback conn_init_callback_;
 
-    std::vector< boost::intrusive_ptr<backend::connection_iface> > pool_;
+    std::vector< backend::connection_ptr > pool_;
     boost::mutex pool_guard_;
     boost::condition_variable pool_max_cv_;
 };
@@ -79,7 +75,6 @@ session_pool::session_pool(Driver driver, const char* conn_string, int max_pool_
 {
     pool_.reserve(max_pool_size);
 }
-
 
 }                                                                               // namespace edba
 

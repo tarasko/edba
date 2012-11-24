@@ -32,6 +32,10 @@ EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE(result_iface);
 EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE(statement_iface);
 EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE(connection_iface);
 
+typedef boost::intrusive_ptr<result_iface> result_ptr;
+typedef boost::intrusive_ptr<statement_iface> statement_ptr;
+typedef boost::intrusive_ptr<connection_iface> connection_ptr;
+
 }
 
 /// Null type

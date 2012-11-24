@@ -24,9 +24,9 @@ class row
     template<typename T> friend class rowset;
 
     // Row doesn`t support construction by user, only by rowset
-    row(const boost::intrusive_ptr<backend::connection_iface>& conn
-      , const boost::intrusive_ptr<backend::statement_iface>& stmt
-      , const boost::intrusive_ptr<backend::result_iface>& res
+    row(const backend::connection_ptr& conn
+      , const backend::statement_ptr& stmt
+      , const backend::result_ptr& res
       );
 
 public:
@@ -107,18 +107,18 @@ public:
     T get(int col);
 
 private:
-    boost::intrusive_ptr<backend::connection_iface> conn_;
-    boost::intrusive_ptr<backend::statement_iface> stmt_;
-    boost::intrusive_ptr<backend::result_iface> res_;
+    backend::connection_ptr conn_;
+    backend::statement_ptr stmt_;
+    backend::result_ptr res_;
     int current_col_;
 };
 
 // -------- row implementation ---------
 
 inline row::row(
-    const boost::intrusive_ptr<backend::connection_iface>& conn
-  , const boost::intrusive_ptr<backend::statement_iface>& stmt
-  , const boost::intrusive_ptr<backend::result_iface>& res
+    const backend::connection_ptr& conn
+  , const backend::statement_ptr& stmt
+  , const backend::result_ptr& res
   ) 
   : conn_(conn)
   , stmt_(stmt)
@@ -290,9 +290,9 @@ public:
     /// Construct rowset from backend result
     ///
     rowset(
-        const boost::intrusive_ptr<backend::connection_iface>& conn
-      , const boost::intrusive_ptr<backend::statement_iface>& stmt
-      , const boost::intrusive_ptr<backend::result_iface>& res
+        const backend::connection_ptr& conn
+      , const backend::statement_ptr& stmt
+      , const backend::result_ptr& res
       );
     ///
     /// Open rowset for traversion and return begin iterator
@@ -385,9 +385,9 @@ bool rowset_iterator<T>::equal(rowset_iterator<T> const& other) const
 
 template<typename T>
 rowset<T>::rowset(
-    const boost::intrusive_ptr<backend::connection_iface>& conn
-  , const boost::intrusive_ptr<backend::statement_iface>& stmt
-  , const boost::intrusive_ptr<backend::result_iface>& res
+    const backend::connection_ptr& conn
+  , const backend::statement_ptr& stmt
+  , const backend::result_ptr& res
   ) 
   : row_(conn, stmt, res)
   , opened_(false) 

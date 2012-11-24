@@ -9,18 +9,18 @@ namespace edba { namespace driver {
 
 struct sqlite3
 {
-    boost::intrusive_ptr<backend::connection_iface> operator()(const conn_info& ci, session_monitor* sm) const
+    backend::connection_ptr operator()(const conn_info& ci, session_monitor* sm) const
     {
         connect_function_type f = backend::get_connect_function("edba_sqlite3", "edba_sqlite3_get_connection");
-        return boost::intrusive_ptr<backend::connection_iface>(f(ci, sm));
+        return backend::connection_ptr(f(ci, sm));
     }
 };
 
 struct sqlite3_s
 {
-    boost::intrusive_ptr<backend::connection_iface> operator()(const conn_info& ci, session_monitor* sm) const
+    backend::connection_ptr operator()(const conn_info& ci, session_monitor* sm) const
     {
-        return boost::intrusive_ptr<backend::connection_iface>(edba_sqlite3_get_connection(ci, sm));
+        return backend::connection_ptr(edba_sqlite3_get_connection(ci, sm));
     }
 };
 

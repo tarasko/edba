@@ -384,11 +384,11 @@ public:
     {
         fast_exec("rollback");
     }
-    virtual boost::intrusive_ptr<backend::statement_iface> prepare_statement_impl(const string_ref& q)
+    virtual backend::statement_ptr prepare_statement_impl(const string_ref& q)
     {
-        return boost::intrusive_ptr<backend::statement_iface>(new statement(q, conn_, sm_));
+        return backend::statement_ptr(new statement(q, conn_, sm_));
     }
-    virtual boost::intrusive_ptr<backend::statement_iface> create_statement_impl(const string_ref& q)
+    virtual backend::statement_ptr create_statement_impl(const string_ref& q)
     {
         return prepare_statement_impl(q);
     }
