@@ -83,7 +83,7 @@ struct session_pool::connection_proxy : backend::connection_iface
 
 private:
     session_pool& pool_;
-    const backend::connection_ptr& conn_;
+    backend::connection_ptr conn_;
 };
 
 void session_pool::invoke_on_connect(const conn_init_callback& callback)
@@ -115,7 +115,7 @@ session session_pool::open()
     }
     else // we must wait until someone will free connection for us
     {
-        pool_max_cv_.wait(g); 
+        pool_max_cv_.wait(g, !boost::bind(&pool_type::empty, &pool_)); 
         assert(!pool_.empty() && "pool_ is not empty");
 
         session sess(create_proxy(pool_.back()));
