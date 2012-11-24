@@ -2,6 +2,7 @@
 
 #include <edba/edba.hpp>
 
+#include <boost/format.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
 #include <boost/foreach.hpp>
 #include <boost/timer.hpp>
@@ -10,6 +11,42 @@
 #include <ctime>
 
 using namespace std;
+using namespace edba;
+
+void test_escaping(session sess)
+{
+    try 
+    {
+        sess.once() <<
+            "~Microsoft SQL Server~create table ##test_escaping(txt varchar(100))"
+            "~Sqlite3~create temp table test_escaping(txt varchar(100)) "
+            "~Mysql~create temporary table test_escaping(txt varchar(100))"
+            "~~"
+            << exec;
+
+        string bad_string = "\\''\\' insert into char'";
+        string good_string = sess.escape(bad_string);
+
+        string insert_query = boost::str(boost::format(
+            "~Microsoft SQL Server~insert into ##test_escaping(txt) values('%1%')"
+            "~~insert into test_escaping(txt) values('%2%')"
+            "~") % good_string % good_string);
+
+        sess.once() << insert_query << exec;
+
+        string result;
+        sess.once() << 
+            "~Microsoft SQL Server~select txt from ##test_escaping"
+            "~~select txt from test_escaping"
+            "~"
+            << first_row >> result;
+
+        assert(result == bad_string);
+    }
+    catch(edba::not_supported_by_backend&)
+    {
+    }
+}
 
 template<typename Driver>
 void test(const char* conn_string)
@@ -164,6 +201,8 @@ void test(const char* conn_string)
             << exec;
 
         sess.once() << drop_test1 << exec;
+
+        test_escaping(sess);
     }
 }
 
