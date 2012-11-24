@@ -539,7 +539,7 @@ public:
     virtual long long sequence_last(std::string const &sequence) 
     {
         // evaluate statement
-        boost::intrusive_ptr<statement_iface> st;
+        statement_ptr st;
 
         if (sequence.empty() && !last_insert_id_.empty())
             st.reset(new statement(0, last_insert_id_, dbc_, wide_, false, std::string(), std::string()));
@@ -819,7 +819,7 @@ public:
         catch(...){}
     }
 
-    boost::intrusive_ptr<statement_iface> real_prepare(const string_ref& q, bool prepared)
+    statement_ptr real_prepare(const string_ref& q, bool prepared)
     {
         return boost::intrusive_ptr<statement>(new statement(sm_, q, dbc_, wide_, prepared, sequence_last_, last_insert_id_));
     }
@@ -853,31 +853,27 @@ public:
         }
     }
 
-    virtual std::string escape(std::string const &s)
-    {
-        return escape(s.c_str(),s.c_str()+s.size());
-    }
-    virtual std::string escape(char const *s)
-    {
-        return escape(s,s+strlen(s));
-    }
-    virtual std::string escape(char const * /*b*/,char const * /*e*/)
+    virtual std::string escape(const string_ref&)
     {
         throw not_supported_by_backend("cppcms::odbc:: string escaping is not supported");
     }
+
     virtual const std::string& backend() 
     {
         return g_backend;
     }
+
     virtual const std::string& engine() 
     {
         return engine_;
     }
+
     virtual void version(int& major, int& minor)
     {
         major = ver_major_;
         minor = ver_minor_;
     }
+
     virtual const std::string& description()
     {
         return description_;

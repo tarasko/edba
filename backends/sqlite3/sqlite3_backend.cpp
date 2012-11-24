@@ -4,6 +4,7 @@
 #include <boost/type_traits/is_signed.hpp>
 #include <boost/type_traits/is_unsigned.hpp>
 #include <boost/type_traits/is_floating_point.hpp>
+#include <boost/foreach.hpp>
 
 #include <sstream>
 #include <limits>
@@ -403,25 +404,19 @@ public:
             fast_exec(tmp.c_str());
         }
     }
-    virtual std::string escape(std::string const &s)
-    {
-        return escape(s.c_str(),s.c_str()+s.size());
-    }
-    virtual std::string escape(char const *s)
-    {
-        return escape(s,s+strlen(s));
-    }
-    virtual std::string escape(char const *b,char const *e)
+    virtual std::string escape(const string_ref& str)
     {
         std::string result;
-        result.reserve(e-b);
-        for(;b!=e;b++) {
-            char c=*b;
+        result.reserve(str.size());
+
+        BOOST_FOREACH(char c, str)
+        {
             if(c=='\'')
-                result+="''";
+                result.append("''");
             else
-                result+=c;
+                result.push_back(c);
         }
+
         return result;
     }
 

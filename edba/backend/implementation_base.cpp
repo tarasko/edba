@@ -211,13 +211,13 @@ string_ref connection::select_statement(const string_ref& _q)
     return q;
 }
 
-boost::intrusive_ptr<statement_iface> connection::prepare_statement(const string_ref& _q)
+statement_ptr connection::prepare_statement(const string_ref& _q)
 {
     string_ref q = select_statement(_q);
     BOOST_AUTO(found, (boost::equal_range(cache_, q, string_ref_iless())));
     if (boost::empty(found))
     {
-        boost::intrusive_ptr<statement_iface> st = prepare_statement_impl(q);
+        statement_ptr st = prepare_statement_impl(q);
         cache_.resize(cache_.size() + 1);
         cache_.back().first.assign(q.begin(), q.end());
         cache_.back().second = st;
@@ -231,7 +231,7 @@ boost::intrusive_ptr<statement_iface> connection::prepare_statement(const string
     }
 }
 
-boost::intrusive_ptr<statement_iface> connection::create_statement(const string_ref& _q)
+statement_ptr connection::create_statement(const string_ref& _q)
 {
     string_ref q = select_statement(_q);
     return create_statement_impl(q);

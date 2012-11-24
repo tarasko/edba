@@ -142,13 +142,13 @@ struct connection_iface : public ref_cnt
     /// to create prepared statement. \a q. May throw if preparation had failed.
     /// Should never return null value.
     /// 
-    virtual boost::intrusive_ptr<statement_iface> prepare_statement(const string_ref& q) = 0;
+    virtual statement_ptr prepare_statement(const string_ref& q) = 0;
 
     ///
     /// Create a (unprepared) statement \a q. May throw if had failed.
     /// Should never return null value.
     ///    
-    virtual boost::intrusive_ptr<statement_iface> create_statement(const string_ref& q) = 0;
+    virtual statement_ptr create_statement(const string_ref& q) = 0;
     
     ///
     /// Executes commands batch in one shot
@@ -185,15 +185,7 @@ struct connection_iface : public ref_cnt
     ///
     /// Escape a string for inclusion in SQL query. May throw not_supported_by_backend() if not supported by backend.
     ///
-    virtual std::string escape(std::string const &) = 0;
-    ///
-    /// Escape a string for inclusion in SQL query. May throw not_supported_by_backend() if not supported by backend.
-    ///
-    virtual std::string escape(char const *s) = 0;
-    ///
-    /// Escape a string for inclusion in SQL query. May throw not_supported_by_backend() if not supported by backend.
-    ///
-    virtual std::string escape(char const *b,char const *e) = 0;
+    virtual std::string escape(const string_ref& str) = 0;
     ///
     /// Get the name of the edba backend, for example sqlite3, odbc
     ///

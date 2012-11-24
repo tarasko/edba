@@ -1054,26 +1054,12 @@ public:
     ///
     /// Escape a string for inclusion in SQL query. May throw not_supported_by_backend() if not supported by backend.
     ///
-    virtual std::string escape(std::string const &s) 
+    virtual std::string escape(const string_ref& str) 
     {
-        return escape(s.c_str(),s.c_str()+s.size());
-    }
-    ///
-    /// Escape a string for inclusion in SQL query. May throw not_supported_by_backend() if not supported by backend.
-    ///
-    virtual std::string escape(char const *s)
-    {
-        return escape(s,s+strlen(s));
-    }
-    ///
-    /// Escape a string for inclusion in SQL query. May throw not_supported_by_backend() if not supported by backend.
-    ///
-    virtual std::string escape(char const *b,char const *e) 
-    {
-        std::vector<char> buf(2*(e-b)+1);
-        size_t len = mysql_real_escape_string(conn_,&buf.front(),b,e-b);
+        std::vector<char> buf(2 * str.size() + 1);
+        size_t len = mysql_real_escape_string(conn_, &buf.front(), str.begin(), str.size());
         std::string result;
-        result.assign(&buf.front(),len);
+        result.assign(&buf.front(), len);
         return result;
     }
     ///

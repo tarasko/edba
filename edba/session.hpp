@@ -92,26 +92,12 @@ public:
     void rollback();
 
     ///
-    /// Escape a string in range [\a b,\a e) for inclusion in SQL statement. It does not add quotation marks at beginning and end.
-    /// It is designed to be used with text, don't use it with generic binary data.
-    ///
-    /// Some backends (odbc) may not support this.
-    ///
-    std::string escape(char const *b,char const *e);
-    ///
-    /// Escape a NULL terminated string \a s for inclusion in SQL statement. It does not add quotation marks at beginning and end.
-    /// It is designed to be used with text, don't use it with generic binary data.
-    ///
-    /// Some backends (odbc) may not support this.
-    ///
-    std::string escape(char const *s);
-    ///
     /// Escape a string \a s for inclusion in SQL statement. It does not add quotation marks at beginning and end.
     /// It is designed to be used with text, don't use it with generic binary data.
     ///
     /// Some backends (odbc) may not support this.
     ///
-    std::string escape(std::string const &s);
+    std::string escape(const string_ref& str);
     ///
     /// Get the backend name, as postgresql, odbc, sqlite3.
     /// Known backends are:
@@ -238,17 +224,9 @@ inline void session::rollback()
 {
     conn_->rollback();
 }
-inline std::string session::escape(char const *b,char const *e)
+inline std::string session::escape(const string_ref& str)
 {
-    return conn_->escape(b,e);
-}
-inline std::string session::escape(char const *s)
-{
-    return conn_->escape(s);
-}
-inline std::string session::escape(std::string const &s)
-{
-    return conn_->escape(s);
+    return conn_->escape(str);
 }
 inline const std::string& session::backend()
 {

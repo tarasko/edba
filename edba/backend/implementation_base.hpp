@@ -95,13 +95,13 @@ protected:
     /// Create a prepared statement \a q. May throw if preparation had failed.
     /// Should never return null value.
     ///
-    virtual boost::intrusive_ptr<statement_iface> prepare_statement_impl(const string_ref& q) = 0;
+    virtual statement_ptr prepare_statement_impl(const string_ref& q) = 0;
 
     ///
     /// Create a (unprepared) statement \a q. May throw if had failed.
     /// Should never return null value.
     ///
-    virtual boost::intrusive_ptr<statement_iface> create_statement_impl(const string_ref& q) = 0;
+    virtual statement_ptr create_statement_impl(const string_ref& q) = 0;
 
     ///
     /// Executes commands batch in one shot
@@ -133,13 +133,13 @@ public:
     /// to create prepared statement. \a q. May throw if preparation had failed.
     /// Should never return null value.
     /// 
-    boost::intrusive_ptr<statement_iface> prepare_statement(const string_ref& q);
+    statement_ptr prepare_statement(const string_ref& q);
 
     ///
     /// Create a (unprepared) statement \a q. May throw if had failed.
     /// Should never return null value.
     ///    
-    boost::intrusive_ptr<statement_iface> create_statement(const string_ref& q);
+    statement_ptr create_statement(const string_ref& q);
     
     ///
     /// Executes commands batch in one shot
@@ -174,7 +174,7 @@ public:
     void rollback();
 
 protected:
-    typedef std::vector< std::pair<std::string, boost::intrusive_ptr<statement_iface> > > stmt_map;
+    typedef std::vector< std::pair<std::string, statement_ptr > > stmt_map;
 
     string_ref select_statement(const string_ref& _q);
 

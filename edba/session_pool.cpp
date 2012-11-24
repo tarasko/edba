@@ -56,19 +56,9 @@ struct session_pool::connection_proxy : backend::connection_iface
         return conn_->rollback();
     }
 
-    virtual std::string escape(std::string const & str)
+    virtual std::string escape(const string_ref& str)
     {
         return conn_->escape(str);
-    }
-
-    virtual std::string escape(char const *s)
-    {
-        return conn_->escape(s);
-    }
-
-    virtual std::string escape(char const *b,char const *e)
-    {
-        return conn_->escape(b, e);
     }
 
     virtual const std::string& backend()
