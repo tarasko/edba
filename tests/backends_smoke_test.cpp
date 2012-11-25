@@ -82,6 +82,16 @@ void test(const char* conn_string)
         "   vbin20 varbinary(20), "
         "   vbinmax blob, "
         "   txt text ) "
+        "~PgSQL~create temp table test1( "
+        "   id serial primary key, "
+        "   num numeric(18, 3), "
+        "   dt timestamp, "
+        "   dt_small interval, "
+        "   vchar20 char(20), "
+        "   vcharmax varchar(15000), "
+        "   vbin20 bytea, "
+        "   vbinmax bytea, "
+        "   txt text ) "
         "~~";
 
     const char* insert_test1_data =
@@ -213,6 +223,7 @@ int main()
         test<edba::driver::odbc>("DSN=EDBA_TESTING_MSSQL");
         test<edba::driver::odbc_s>("DSN=EDBA_TESTING_MSSQL;@utf=wide");
         test<edba::driver::sqlite3>("db=test.db");
+        test<edba::driver::postgresql>("user=postgres; password=postgres; host=localhost; port=5433; dbname=test");
     }
     catch(std::exception& e)
     {

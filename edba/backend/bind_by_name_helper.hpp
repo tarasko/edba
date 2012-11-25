@@ -13,9 +13,6 @@
 #include <boost/typeof/typeof.hpp>
 #include <boost/foreach.hpp>
 
-#include <boost/container/vector.hpp>
-#include <boost/container/string.hpp>
-
 namespace edba { namespace backend {
 
 ///
@@ -27,11 +24,16 @@ namespace edba { namespace backend {
 ///
 class bind_by_name_helper : public statement
 {
-    struct is_non_name_char;
-    struct name_map_less;
+    struct is_non_name_char
+    {
+        bool operator()(char c) const
+        {
+            return !(isalnum(c) || c == '_');
+        }
+    };
 
     // Map from parameter name to parameter index
-    typedef boost::container::vector< std::pair<boost::container::string, int> > name_map_type;
+    typedef std::vector< std::pair<std::string, int> > name_map_type;
 
     using statement::bind_impl;
 
@@ -40,12 +42,11 @@ public:
 
     bind_by_name_helper(session_monitor* sm, const string_ref& sql, const print_func_type& print_func)
       : statement(sm)
-      , sql_(sql.begin(), sql.end())
     {
-        std::ostringstream patched_sql;
+        std::ostringstream patched_query;
         
         int idx = 1;
-        string_ref rest = skip_until_semicolon(sql, patched_sql);
+        string_ref rest = skip_until_semicolon(sql, patched_query);
 
         while (!rest.empty())
         {
@@ -58,17 +59,17 @@ public:
             name_map_.back().second = idx;
 
             // Append parameter into patched sql
-            print_func(patched_sql, idx++);
+            print_func(patched_query, idx++);
 
             // Evaluate rest of query
-            rest = skip_until_semicolon(boost::make_iterator_range(name.end(), sql.end()), patched_sql);
+            rest = skip_until_semicolon(boost::make_iterator_range(name.end(), sql.end()), patched_query);
         }
 
         // Sort entries in name map by name
         // We do this because we want to apply equal_range algorithm further
-        boost::sort(name_map_, name_map_less());
+        boost::sort(name_map_, string_ref_less());
 
-        sql_ = patched_sql.str();
+        patched_query_ = patched_query.str();
     }
 
     /// 
@@ -78,42 +79,21 @@ public:
     ///
     const std::string& patched_query() const
     {
-        return sql_;
+        return patched_query_;
+    }
+
+    ///
+    /// \brief Return total number of bind parameters in query
+    ///
+    size_t bindings_count() const
+    {
+        return name_map_.size();
     }
 
 private:
-    struct is_non_name_char
-    {
-        bool operator()(char c) const
-        {
-            return !(isalnum(c) || c == '_');
-        }
-    };
-
-    struct name_map_less
-    {
-        template<typename T1, typename T2>
-        const T1& get_str_range(const std::pair<T1, T2>& p) const
-        {
-            return p.first;
-        }
-
-        template<typename T>
-        const T& get_str_range(const T& v) const
-        {
-            return v;
-        }
-
-        template<typename Range1, typename Range2>
-        bool operator()(const Range1& r1, const Range2& r2) const
-        {
-            return boost::algorithm::lexicographical_compare(get_str_range(r1), get_str_range(r2));
-        }
-    };
-
     virtual void bind_impl(const string_ref& name, const bind_types_variant& v)
     {
-        BOOST_AUTO(iter_pair, boost::equal_range(name_map_, name, name_map_less()));
+        BOOST_AUTO(iter_pair, boost::equal_range(name_map_, name, string_ref_less()));
 
         if (boost::empty(iter_pair))
             throw invalid_placeholder();
@@ -133,9 +113,9 @@ private:
     }
 
 private:
+
     name_map_type name_map_;
-    std::string sql_;           //!< Sql built from original by replacing bind parameters with appropriate for backend
-    int count_;                 //!< Bindings count
+    std::string patched_query_;           //!< Sql built from original by replacing bind parameters with appropriate for backend
 };
 
 struct question_marker

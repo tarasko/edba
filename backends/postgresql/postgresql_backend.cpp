@@ -5,6 +5,7 @@
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/scope_exit.hpp>
+#include <boost/foreach.hpp>
 
 #include <sstream>
 #include <vector>
@@ -234,12 +235,15 @@ public:
         binary_param
     } param_type;
 
-    statement(PGconn *conn, const string_ref& src_query, blob_type b, unsigned long long prepared_id, session_monitor* sm) :
-        backend::bind_by_name_helper(sm, src_query, backend::postgresql_style_marker()),
-        res_(0),
-        conn_(conn),
-        params_(0),
-        blob_(b)
+    statement(PGconn *conn, const string_ref& src_query, blob_type b, unsigned long long prepared_id, session_monitor* sm) 
+      : backend::bind_by_name_helper(sm, src_query, backend::postgresql_style_marker())
+      , res_(0)
+      , conn_(conn)
+      , blob_(b)
+      , params_values_(bindings_count())
+      , params_pvalues_(bindings_count(), 0)
+      , params_plengths_(bindings_count(), 0)
+      , params_set_(bindings_count(), null_param)
     {
         std::ostringstream ss;
         ss.imbue(std::locale::classic());
@@ -298,14 +302,14 @@ public:
             PQclear(res_);
             res_ = 0;
         }
-        std::vector<std::string> vals(params_);
-        std::vector<size_t> lengths(params_,0);
-        std::vector<char const *> pvals(params_,0);
-        std::vector<param_type> flags(params_,null_param);
-        params_values_.swap(vals);
-        params_pvalues_.swap(pvals);
-        params_plengths_.swap(lengths);
-        params_set_.swap(flags);
+
+        params_values_.resize(bindings_count());
+        BOOST_FOREACH(std::string& s, params_values_)
+            s.clear();
+        
+        params_pvalues_.assign(bindings_count(), 0);
+        params_plengths_.assign(bindings_count(), 0);
+        params_set_.assign(bindings_count(), null_param);
     }
 
     virtual void bind_impl(int col, bind_types_variant const& v)
@@ -408,38 +412,46 @@ public:
         std::vector<char const *> values;
         std::vector<int> lengths;
         std::vector<int> formats;
-        if(params_>0) {
-            values.resize(params_,0);
-            lengths.resize(params_,0);
-            formats.resize(params_,0);
-            for(unsigned i=0;i<params_;i++) {
-                if(params_set_[i]!=null_param) {
-                    if(params_pvalues_[i]!=0) {
+        if(bindings_count() > 0) 
+        {
+            values.resize(bindings_count(),0);
+            lengths.resize(bindings_count(),0);
+            formats.resize(bindings_count(),0);
+            for(unsigned i=0; i<bindings_count(); i++) 
+            {
+                if(params_set_[i]!=null_param) 
+                {
+                    if(params_pvalues_[i]!=0) 
+                    {
                         values[i]=params_pvalues_[i];
                         lengths[i]=params_plengths_[i];
                     }
-                    else {
+                    else 
+                    {
                         values[i]=params_values_[i].c_str();
                         lengths[i]=params_values_[i].size();
                     }
-                    if(params_set_[i]==binary_param) {
+
+                    if(params_set_[i]==binary_param)
                         formats[i]=1;
-                    }
                 }
             }
             pvalues=&values.front();
             plengths=&lengths.front();
             pformats=&formats.front();
         }
-        if(res_) {
+
+        if(res_) 
+        {
             PQclear(res_);
             res_ = 0;
         }
+
         if(prepared_id_.empty()) {
             res_ = PQexecParams(
                 conn_,
-                query_.c_str(),
-                params_,
+                patched_query().c_str(),
+                bindings_count(),
                 0, // param types
                 pvalues,
                 plengths,
@@ -451,7 +463,7 @@ public:
             res_ = PQexecPrepared(
                 conn_,
                 prepared_id_.c_str(),
-                params_,
+                bindings_count(),
                 pvalues,
                 plengths,
                 pformats, // format - text
@@ -548,20 +560,18 @@ public:
 private:
     void check(int col)
     {
-        if(col < 1 || col > int(params_))
+        if(col < 1 || col > int(bindings_count()))
             throw invalid_placeholder();
     }
     PGresult *res_;
     PGconn *conn_;
+    std::string prepared_id_;
+    blob_type blob_;
 
-    std::string query_;
-    unsigned params_;
     std::vector<std::string> params_values_;
     std::vector<char const *> params_pvalues_;
     std::vector<size_t> params_plengths_;
     std::vector<param_type> params_set_;
-    std::string prepared_id_;
-    blob_type blob_;
     int bind_col_;
 };
 
@@ -692,7 +702,7 @@ private:
 
 
 extern "C" {
-    EDBA_DRIVER_API edba::backend::connection *edba_postgres_get_connection(const edba::conn_info& cs, edba::session_monitor* sm)
+    EDBA_DRIVER_API edba::backend::connection *edba_postgresql_get_connection(const edba::conn_info& cs, edba::session_monitor* sm)
     {
         return new edba::postgresql_backend::connection(cs, sm);
     }

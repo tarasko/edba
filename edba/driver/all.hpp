@@ -5,6 +5,6 @@
 #include <edba/driver/sqlite3.hpp>
 #include <edba/driver/mysql.hpp>
 #include <edba/driver/oracle.hpp>
-#include <edba/driver/postgres.hpp>
+#include <edba/driver/postgresql.hpp>
 
 #endif // EDBA_DRIVER_ALL_HPP

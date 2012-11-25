@@ -59,7 +59,7 @@ set(sources
   edba/driver/sqlite3.hpp
   edba/driver/mysql.hpp
   edba/driver/oracle.hpp
-  edba/driver/postgres.hpp
+  edba/driver/postgresql.hpp
   edba/driver/all.hpp
   edba/types_support/std_shared_ptr.hpp
   edba/types_support/std_unique_ptr.hpp
