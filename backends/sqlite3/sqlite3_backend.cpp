@@ -289,11 +289,11 @@ public:
         return sqlite3_last_insert_rowid(conn_);
     }
 
-    virtual boost::intrusive_ptr<edba::backend::result> query_impl()
+    virtual backend::result_ptr query_impl()
     {
         reset_stat();
         reset_ = false;
-        return boost::intrusive_ptr<result>(new result(st_,conn_));
+        return backend::result_ptr(new result(st_,conn_));
     }
 
     virtual void exec_impl()

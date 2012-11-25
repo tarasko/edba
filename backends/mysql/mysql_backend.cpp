@@ -318,7 +318,7 @@ public:
         return mysql_affected_rows(conn_);
     }
 
-    virtual boost::intrusive_ptr<edba::backend::result> query_impl() 
+    virtual backend::result_ptr query_impl() 
     {
         std::string real_query;	
         bind_all(real_query);
@@ -750,13 +750,13 @@ public:
     ///
     /// Return SQL Query result, MAY throw edba_error if the statement is not a query
     ///
-    virtual boost::intrusive_ptr<backend::result> query_impl() 
+    virtual backend::result_ptr query_impl() 
     {
         bind_all();
         if(mysql_stmt_execute(stmt_)) {
             throw edba_myerror(mysql_stmt_error(stmt_));
         }
-        return boost::intrusive_ptr<backend::result>(new result(stmt_));
+        return backend::result_ptr(new result(stmt_));
     }
     ///
     /// Execute a statement, MAY throw edba_error if the statement returns results.

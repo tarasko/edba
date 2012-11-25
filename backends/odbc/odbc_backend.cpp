@@ -578,11 +578,11 @@ public:
         check_error(r);
         return rows;
     }
-    virtual boost::intrusive_ptr<backend::result> query_impl()
+    virtual backend::result_ptr query_impl()
     {
         int r = real_exec();
         check_error(r);
-        return boost::intrusive_ptr<result>(new result(stmt_, wide_));
+        return backend::result_ptr(new result(stmt_, wide_));
     }
 
     int real_exec()

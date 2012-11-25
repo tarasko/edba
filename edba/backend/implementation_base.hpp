@@ -39,7 +39,7 @@ protected:
     ///
     /// Return SQL Query result, MAY throw edba_error if the statement is not a query
     ///
-    virtual boost::intrusive_ptr<result> query_impl() = 0;
+    virtual result_ptr query_impl() = 0;
 
     ///
     /// Execute a statement, MAY throw edba_error if the statement returns results.

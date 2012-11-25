@@ -105,6 +105,7 @@ public:
         fetch_col_ = col;
 
         v.apply_visitor(*this);
+        return true;
     }
 
     template<typename T>
@@ -351,16 +352,12 @@ public:
         }
         else 
         {
+            Oid id = InvalidOid;
             try 
             {
                 Oid id = lo_creat(conn_, INV_READ | INV_WRITE);
                 if(id == 0)
                     throw pqerror(conn_, "failed to create large object");
-
-                BOOST_SCOPE_EXIT((conn_)(id))
-                {
-                    lo_unlink(conn_, id);
-                } BOOST_SCOPE_EXIT_END
 
                 int fd = lo_open(conn_,id,INV_READ | INV_WRITE);
                 if(fd < 0)
@@ -374,39 +371,33 @@ public:
                 char buf[4096];
                 for(;;) 
                 {
-                    in.read(buf,sizeof(buf));
-                    std::streamsize bytes_read = in.gcount();
-                    if(bytes_read > 0) {
-                        int n = lo_write(conn_,fd,buf,(size_t)bytes_read);
-                        if(n < 0) {
+                    in->read(buf, sizeof(buf));
+                    std::streamsize bytes_read = in->gcount();
+                    if(bytes_read > 0) 
+                    {
+                        int n = lo_write(conn_, fd, buf, (size_t)bytes_read);
+                        if(n < 0) 
                             throw pqerror(conn_,"failed writing to large object");
-                        }
                     }
                     if(bytes_read < int(sizeof(buf)))
                         break;
                 }
-                int r = lo_close(conn_,fd);
-                fd=-1;
-                if(r < 0)
-                    throw pqerror(conn_,"error closing large object after write");
-                bind(col,id);
+
+                bind(bind_col_, id);
             }
             catch(...) {
-                if(fd<-1)
-                    lo_close(conn_,fd);
-                if(id!=0)
+                if(id != 0)
                     lo_unlink(conn_,id);
                 throw;
             }
         }
     }
-
-    virtual void bind_null_impl(int col)
+    
+    void operator()(null_type)
     {
-        check(col);
-        params_set_[col-1]=null_param;
+        params_set_[bind_col_ - 1] = null_param;
         std::string tmp;
-        params_values_[col-1].swap(tmp);
+        params_values_[bind_col_ - 1].swap(tmp);
     }
 
     void real_query()
@@ -614,11 +605,7 @@ public:
         int minor;
         version(major, minor);
         char buf[256];
-#ifdef _WIN32
-        _snprintf_s(buf, 256, "PostgreSQL version %d.%d, user is '%s'", major, minor, PQuser(conn_));
-#else
-        snprintf(buf, 256, "PostgreSQL version %d.%d, user is '%s'", major, minor, PQuser(conn_));
-#endif                
+        EDBA_SNPRINTF(buf, 256, "PostgreSQL version %d.%d, user is '%s'", major, minor, PQuser(conn_));
         description_ = buf;
 
     }
@@ -649,11 +636,11 @@ public:
         }
         catch(...) {}
     }
-    virtual backend::statement_ptr prepare_statement(const string_ref& q)
+    virtual backend::statement_ptr prepare_statement_impl(const string_ref& q)
     {
         return backend::statement_ptr(new statement(conn_,q,blob_,++prepared_id_, sm_));
     }
-    virtual backend::statement_ptr create_statement(const string_ref& q)
+    virtual backend::statement_ptr create_statement_impl(const string_ref& q)
     {
         return backend::statement_ptr(new statement(conn_,q,blob_,0, sm_));
     }

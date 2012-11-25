@@ -143,11 +143,11 @@ void statement::bindings_reset()
         bindings_.str("");
 }
 
-boost::intrusive_ptr<result_iface> statement::run_query()
+result_ptr statement::run_query()
 {
     if (sm_)
     {
-        boost::intrusive_ptr<result> r;
+        result_ptr r;
         std::string bindings = bindings_.str();
         boost::timer t;
         try 
