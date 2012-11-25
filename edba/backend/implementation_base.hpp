@@ -176,6 +176,7 @@ public:
 protected:
     typedef std::vector< std::pair<std::string, statement_ptr > > stmt_map;
 
+    void before_destroy();
     string_ref select_statement(const string_ref& _q);
 
     session_monitor* sm_;                         // Session monitor

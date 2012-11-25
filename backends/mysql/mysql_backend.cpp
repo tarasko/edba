@@ -966,11 +966,7 @@ public:
         int minor;
         version(major, minor);
         char buf[256];
-#ifdef _WIN32
-        _snprintf_s(buf, 256, "MySQL version %d.%d", major, minor);
-#else
-        snprintf(buf, 256, "MySQL version %d.%d", major, minor);
-#endif                
+        EDBA_SNPRINTF(buf, 256, "MySQL version %d.%d", major, minor);
         description_ = buf;
     }
     ~connection()

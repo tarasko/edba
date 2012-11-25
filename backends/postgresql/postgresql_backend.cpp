@@ -6,6 +6,7 @@
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/scope_exit.hpp>
 #include <boost/foreach.hpp>
+#include <boost/locale.hpp>
 
 #include <sstream>
 #include <vector>
@@ -22,15 +23,6 @@ namespace edba { namespace postgresql_backend {
 
 const std::string g_backend("PgSQL");
 const std::string g_engine("PgSQL");
-
-long long atoll(const char* val) 
-{
-#ifdef _WIN32 
-    return _strtoi64(val, 0, 10);
-#else
-    return ::atoll(val);
-#endif
-}
 
 typedef enum {
     lo_type,
@@ -54,6 +46,10 @@ public:
         m+=msg;
         m+=": ";
         m+=PQresultErrorMessage(r);
+
+        using namespace boost::locale::conv;
+        std::wstring wm = utf_to_utf<wchar_t>(m);
+
         return m;
     }
     static std::string message(char const *msg,PGconn *c)
@@ -62,6 +58,10 @@ public:
         m+=msg;
         m+=": ";
         m+=PQerrorMessage(c);
+
+        using namespace boost::locale::conv;
+        std::wstring wm = utf_to_utf<wchar_t>(m);
+
         return m;
     }
 };
@@ -148,7 +148,7 @@ public:
             int fd = lo_open(conn_, id, INV_READ | INV_WRITE);
 
             if(fd == InvalidOid)
-                throw pqerror(conn_,"Failed opening large object for read");
+                throw pqerror(conn_, "Failed opening large object for read");
 
             BOOST_SCOPE_EXIT((conn_)(fd)) {
                 lo_close(conn_, fd);
@@ -159,7 +159,7 @@ public:
             {
                 int n = lo_read(conn_, fd, buf, sizeof(buf));
                 if(n < 0)
-                    throw pqerror(conn_,"Failed reading large object");
+                    throw pqerror(conn_, "Failed reading large object");
 
                 if(n >= 0)
                     v->write(buf,n);
@@ -281,7 +281,7 @@ public:
             if(!prepared_id_.empty()) 
             {
                 std::string stmt = "DEALLOCATE " + prepared_id_;
-                res_ = PQexec(conn_,stmt.c_str());
+                res_ = PQexec(conn_, stmt.c_str());
                 
                 if(res_)  
                 {
@@ -359,11 +359,11 @@ public:
             Oid id = InvalidOid;
             try 
             {
-                Oid id = lo_creat(conn_, INV_READ | INV_WRITE);
-                if(id == 0)
+                id = lo_creat(conn_, INV_WRITE);
+                if(InvalidOid == id)
                     throw pqerror(conn_, "failed to create large object");
 
-                int fd = lo_open(conn_,id,INV_READ | INV_WRITE);
+                int fd = lo_open(conn_, id, INV_WRITE);
                 if(fd < 0)
                     throw pqerror(conn_, "failed to open large object for writing");
 
@@ -390,7 +390,7 @@ public:
                 bind(bind_col_, id);
             }
             catch(...) {
-                if(id != 0)
+                if(id != InvalidOid)
                     lo_unlink(conn_,id);
                 throw;
             }
@@ -532,12 +532,8 @@ public:
             char const *val = PQgetvalue(res,0,0);
             if(!val || *val==0)
                 throw pqerror("Failed to get value for sequecne id");
-#ifdef _WIN32
-            rowid = _strtoi64(val, 0, 10);
-#else
-            rowid = atoll(val);
-#endif
 
+            rowid = atoll(val);
         }
         catch(...) {
             if(res) PQclear(res);
@@ -548,7 +544,8 @@ public:
     }
     virtual unsigned long long affected() 
     {
-        if(res_) {
+        if(res_) 
+        {
             char const *s=PQcmdTuples(res_);
             if(!s || !*s)
                 return 0;

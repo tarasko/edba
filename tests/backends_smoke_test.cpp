@@ -21,6 +21,7 @@ void test_escaping(session sess)
             "~Microsoft SQL Server~create table ##test_escaping(txt varchar(100))"
             "~Sqlite3~create temp table test_escaping(txt varchar(100)) "
             "~Mysql~create temporary table test_escaping(txt varchar(100))"
+            "~PgSQL~create temp table test_escaping(txt varchar(100)) "
             "~~"
             << exec;
 
@@ -86,8 +87,8 @@ void test(const char* conn_string)
         "   id serial primary key, "
         "   num numeric(18, 3), "
         "   dt timestamp, "
-        "   dt_small interval, "
-        "   vchar20 char(20), "
+        "   dt_small date, "
+        "   vchar20 varchar(20), "
         "   vcharmax varchar(15000), "
         "   vbin20 bytea, "
         "   vbinmax bytea, "
@@ -219,11 +220,12 @@ void test(const char* conn_string)
 int main()
 {
     try {
+        // setlocale(LC_ALL, "Russian");
+        test<edba::driver::postgresql>("user=postgres; password=postgres; host=localhost; port=5433; dbname=test; @blob=bytea");
         test<edba::driver::mysql>("host=127.0.0.1;database=test;user=root;password=root;");
         test<edba::driver::odbc>("DSN=EDBA_TESTING_MSSQL");
         test<edba::driver::odbc_s>("DSN=EDBA_TESTING_MSSQL;@utf=wide");
         test<edba::driver::sqlite3>("db=test.db");
-        test<edba::driver::postgresql>("user=postgres; password=postgres; host=localhost; port=5433; dbname=test");
     }
     catch(std::exception& e)
     {

@@ -29,6 +29,15 @@ namespace edba {
 #  define EDBA_SNPRINTF snprintf
 #endif
 
+inline long long atoll(const char* val)
+{
+#ifdef _WIN32
+    return _strtoi64(val, 0, 10);
+#else
+    return atoll(val);
+#endif
+}
+    
 /// \cond INTERNAL
 namespace detail {
     /// Introduce new vocabulary type like std::pair<T1, T2> for use and into expressions
@@ -147,6 +156,10 @@ struct ref_cnt : boost::noncopyable
     ref_cnt() : cnt_(0) {}
     virtual ~ref_cnt() {}
 
+    virtual void before_destroy()
+    {
+    }
+
     void add_ref()
     {
         ++cnt_;
@@ -155,7 +168,10 @@ struct ref_cnt : boost::noncopyable
     void release()
     {
         if (0 == --cnt_)
+        {
+            before_destroy();
             delete this;
+        }
     }
 
 private:

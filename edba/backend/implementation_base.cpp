@@ -231,6 +231,11 @@ statement_ptr connection::prepare_statement(const string_ref& _q)
     }
 }
 
+void connection::before_destroy()
+{
+    cache_.clear();
+}
+
 statement_ptr connection::create_statement(const string_ref& _q)
 {
     string_ref q = select_statement(_q);
