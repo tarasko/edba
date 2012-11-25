@@ -6,7 +6,6 @@
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/scope_exit.hpp>
 #include <boost/foreach.hpp>
-#include <boost/locale.hpp>
 
 #include <sstream>
 #include <vector>
@@ -47,9 +46,6 @@ public:
         m+=": ";
         m+=PQresultErrorMessage(r);
 
-        using namespace boost::locale::conv;
-        std::wstring wm = utf_to_utf<wchar_t>(m);
-
         return m;
     }
     static std::string message(char const *msg,PGconn *c)
@@ -58,9 +54,6 @@ public:
         m+=msg;
         m+=": ";
         m+=PQerrorMessage(c);
-
-        using namespace boost::locale::conv;
-        std::wstring wm = utf_to_utf<wchar_t>(m);
 
         return m;
     }
@@ -147,7 +140,7 @@ public:
 
             int fd = lo_open(conn_, id, INV_READ | INV_WRITE);
 
-            if(fd == InvalidOid)
+            if(fd < 0)
                 throw pqerror(conn_, "Failed opening large object for read");
 
             BOOST_SCOPE_EXIT((conn_)(fd)) {
@@ -359,7 +352,7 @@ public:
             Oid id = InvalidOid;
             try 
             {
-                id = lo_creat(conn_, INV_WRITE);
+                id = lo_creat(conn_, INV_READ | INV_WRITE);
                 if(InvalidOid == id)
                     throw pqerror(conn_, "failed to create large object");
 

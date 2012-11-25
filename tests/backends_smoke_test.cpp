@@ -52,7 +52,17 @@ void test_escaping(session sess)
 template<typename Driver>
 void test(const char* conn_string)
 {
-    const char* create_test1_table = 
+    // Workaround for postgres lobs
+    conn_info ci(conn_string);
+    const char* postgres_lob_type;
+    if (ci.has("@blob") && boost::iequals(ci.get("@blob"), "bytea"))
+        postgres_lob_type = "bytea";
+    else
+        postgres_lob_type = "oid";
+
+        
+
+    std::string create_test1_table = boost::str(boost::format(
         "~Microsoft SQL Server~create table ##test1( "
         "   id int identity(1, 1) primary key clustered, "
         "   num numeric(18, 3), "
@@ -90,10 +100,10 @@ void test(const char* conn_string)
         "   dt_small date, "
         "   vchar20 varchar(20), "
         "   vcharmax varchar(15000), "
-        "   vbin20 bytea, "
-        "   vbinmax bytea, "
+        "   vbin20 %1%, "
+        "   vbinmax %1%, "
         "   txt text ) "
-        "~~";
+        "~~") % postgres_lob_type);
 
     const char* insert_test1_data =
         "~Microsoft SQL Server~insert into ##test1(num, dt, dt_small, vchar20, vcharmax, vbin20, vbinmax, txt) "
@@ -134,60 +144,74 @@ void test(const char* conn_string)
         // Create table
         sess.once() << create_test1_table << exec;
 
-        // Compile statement for inserting data 
-        statement st = sess << insert_test1_data;
+        // Transaction for inserting data. Postgresql backend require explicit transaction if you want to bind blobs.
+        long long id;
+        {
+            transaction tr(sess);
 
-        // Bind data to statement and execute two times
-        st 
-            << use("num", 10.10) 
-            << use("dt", *std::gmtime(&now)) 
-            << use("dt_small", *std::gmtime(&now)) 
-            << use("vchar20", "Hello!")
-            << use("vcharmax", "Hello! max")
-            << use("vbin20", &short_binary_stream)
-            << use("vbinmax", &long_binary_stream)
-            << use("txt", text)
-            << exec
-            << exec;
+            // Compile statement for inserting data 
+            statement st = sess << insert_test1_data;
 
-        long long id = st.last_insert_id();
+            // Bind data to statement and execute two times
+            st 
+                << use("num", 10.10) 
+                << use("dt", *std::gmtime(&now)) 
+                << use("dt_small", *std::gmtime(&now)) 
+                << use("vchar20", "Hello!")
+                << use("vcharmax", "Hello! max")
+                << use("vbin20", &short_binary_stream)
+                << use("vbinmax", &long_binary_stream)
+                << use("txt", text)
+                << exec
+                << exec;
 
-        // Exec with null types
-        st << reset
-           << null 
-           << null
-           << null
-           << null
-           << null
-           << null
-           << null
-           << null
-           << exec;
+            id = st.last_insert_id();
+
+            // Exec with null types
+            st << reset
+               << null 
+               << null
+               << null
+               << null
+               << null
+               << null
+               << null
+               << null
+               << exec;
+
+            tr.commit();
+
+            // Check that cache works as expected
+            statement st1 = sess << insert_test1_data;
+            assert(st == st1);
+        }
 
         // Query single row
         {
+            transaction tr(sess);
+
             row r = sess << select_test1_row << id << first_row;
     
-            {
-                long long id;
-                double num;
-                std::tm tm1, tm2;
-                std::string short_str;
-                std::string long_str;
-                std::ostringstream short_oss;
-                std::ostringstream long_oss;
-                std::string txt;
+            long long id;
+            double num;
+            std::tm tm1, tm2;
+            std::string short_str;
+            std::string long_str;
+            std::ostringstream short_oss;
+            std::ostringstream long_oss;
+            std::string txt;
 
-                r >> id >> num >> tm1 >> tm2 >> short_str >> long_str >> short_oss >> long_oss >> txt;
+            r >> id >> num >> tm1 >> tm2 >> short_str >> long_str >> short_oss >> long_oss >> txt;
 
-                assert(num == 10.10);
-                assert(!memcmp(std::gmtime(&now), &tm1, sizeof(tm1)));
-                assert(short_str == "Hello!");
-                assert(long_str == "Hello! max");
-                assert(short_oss.str() == short_binary);
-                assert(long_oss.str() == long_binary);
-                assert(text == txt);
-            }
+            assert(num == 10.10);
+            assert(!memcmp(std::gmtime(&now), &tm1, sizeof(tm1)));
+            assert(short_str == "Hello!");
+            assert(long_str == "Hello! max");
+            assert(short_oss.str() == short_binary);
+            assert(long_oss.str() == long_binary);
+            assert(text == txt);
+
+            tr.commit();
         }
 
         sess.exec_batch(
@@ -197,10 +221,6 @@ void test(const char* conn_string)
             "~Microsoft SQL Server~insert into ##test1(num) values(10.3)"
             "~~insert into test1(num) values(10.3)"
             "~");
-        
-        // Check that cache works as expected
-        statement st1 = sess << insert_test1_data;
-        assert(st == st1);
 
         // Try to bind non prepared statement
         // Test once helper 
@@ -222,6 +242,7 @@ int main()
     try {
         // setlocale(LC_ALL, "Russian");
         test<edba::driver::postgresql>("user=postgres; password=postgres; host=localhost; port=5433; dbname=test; @blob=bytea");
+        test<edba::driver::postgresql>("user=postgres; password=postgres; host=localhost; port=5433; dbname=test");
         test<edba::driver::mysql>("host=127.0.0.1;database=test;user=root;password=root;");
         test<edba::driver::odbc>("DSN=EDBA_TESTING_MSSQL");
         test<edba::driver::odbc_s>("DSN=EDBA_TESTING_MSSQL;@utf=wide");
