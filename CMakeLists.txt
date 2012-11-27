@@ -3,6 +3,17 @@ cmake_minimum_required(VERSION 2.8)
 option(EDBA_INSTALL "Install edba libraries and backend. In case of standalone build this would be done automatically" OFF)
 option(EDBA_ENABLE_TESTS "Add targets for test building. In case of standalone build this would be done automatically" OFF)
 
+set(edba_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" CACHE INTERNAL "edba include dirs")
+
+# Figure out if we are included from another cmake
+if(CMAKE_SOURCE_ROOT STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+	message("Easy database access library - STANDALONE mode")
+	set(EDBA_STANDALONE_BUILD 1)
+else()
+	message("Easy database access library - INCLUSIVE mode")
+	set(EDBA_STANDALONE_BUILD 0)
+endif()
+
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 
 function(edba_install_targets)
@@ -13,11 +24,6 @@ function(edba_install_targets)
       LIBRARY DESTINATION lib)
   endif()
 endfunction(edba_install_targets)
-
-# Figure out if we are included from another cmake
-if(CMAKE_PARENT_LIST_FILE STREQUAL CMAKE_CURRENT_LIST_FILE)
-	set(EDBA_STANDALONE_BUILD 1)
-endif()
 
 if(EDBA_STANDALONE_BUILD)
 	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/stage/bin)
@@ -83,6 +89,8 @@ foreach(src ${sources})
 endforeach(src ${sources})
 
 add_subdirectory(backends)
-add_subdirectory(tests)
+if(EDBA_STANDALONE_BUILD OR EDBA_ENABLE_TESTS)
+	add_subdirectory(tests)
+endif()
 
 edba_install_targets(edba)
