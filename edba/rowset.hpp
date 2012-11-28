@@ -99,12 +99,28 @@ public:
     T get(const string_ref& name) const;
 
     ///
+    /// Get a value of type \a T from column named \a name (starting from 0). If the column
+    /// is null throws null_value_fetch(), if the column \a name is invalid throws invalid_column,
+    /// if the column value cannot be converted to type T (see fetch functions) it throws bad_value_cast.
+    ///	
+    template<typename T>
+    void get(const string_ref& name, T& value) const;
+
+    ///
     /// Get a value of type \a T from column \a col (starting from 0). If the column
     /// is null throws null_value_fetch(), if the column index is invalid throws invalid_column,
     /// if the column value cannot be converted to type T (see fetch functions) it throws bad_value_cast.
     ///	
     template<typename T>
     T get(int col) const;
+
+    ///
+    /// Get a value of type \a T from column \a col (starting from 0). If the column
+    /// is null throws null_value_fetch(), if the column index is invalid throws invalid_column,
+    /// if the column value cannot be converted to type T (see fetch functions) it throws bad_value_cast.
+    ///	
+    template<typename T>
+    void get(int col, T& value) const;
 
 private:
     backend::connection_ptr conn_;
@@ -180,19 +196,31 @@ bool row::fetch(T& v) const
 template<typename T>
 T row::get(const string_ref& name) const
 {
-    T v=T();
-    if(!fetch(name,v))
-        throw null_value_fetch();
+    T v = T();
+    get(name, v);
     return v;
+}
+
+template<typename T>
+void row::get(const string_ref& name, T& v) const
+{
+    if(!fetch(name, v))
+        throw null_value_fetch();
 }
 
 template<typename T>
 T row::get(int col) const
 {
-    T v=T();
-    if(!fetch(col,v))
-        throw null_value_fetch();
+    T v = T();
+    get(col, v);
     return v;
+}
+
+template<typename T>
+void row::get(int col, T& v) const
+{
+    if(!fetch(col, v))
+        throw null_value_fetch();
 }
 
 // -------- free functions ---------
