@@ -163,6 +163,23 @@ int test_main(int, char* [])
         BOOST_CHECK(rng == case8_res);
     }
 
+    // Test mutable rowset
+    {
+        typedef boost::tuple<boost::gregorian::date, std::shared_ptr<string>> data_type;
+
+        rowset<data_type> rs = sess.once() << "select dt, txt from test"; 
+        std::vector<data_type> v(rs.begin(), rs.end());
+    }
+
+
+    // Test constant rowset
+    {
+        typedef boost::tuple<boost::gregorian::date, std::shared_ptr<string>> data_type;
+
+        const rowset<data_type> rs = sess.once() << "select dt, txt from test"; 
+        std::vector<data_type> v(rs.begin(), rs.end());
+    }
+
     // Dump data
     print_test_table(sess);
 

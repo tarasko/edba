@@ -285,15 +285,19 @@ class rowset_iterator
       , T
       , boost::single_pass_traversal_tag
       > base_type;
-  
-    typedef rowset<typename boost::remove_cv<T>::type> rowset_unqualified_type;
+
+    typedef typename boost::remove_cv<T>::type mutable_value_type;
+    typedef mutable_value_type& mutable_reference;
+
+    typedef rowset<mutable_value_type> mutable_rowset_type;
 
     // Type of rowset passed into constructor and stored in iterator
     typedef typename boost::mpl::if_< 
         boost::is_const<T>
-      , const rowset_unqualified_type
-      , rowset_unqualified_type
+      , const mutable_rowset_type
+      , mutable_rowset_type
       >::type rowset_type;
+
 
     template<typename> friend class rowset_iterator;
 
@@ -452,7 +456,7 @@ void rowset_iterator<T>::increment()
     if (rs_->row_.res_->next())
     {
         rs_->row_.rewind_column();
-        if (!fetch_conversion<T>::fetch(rs_->row_, 0, static_cast<T&>(*rs_)))
+        if (!fetch_conversion<mutable_value_type>::fetch(rs_->row_, 0, const_cast<mutable_reference>(static_cast<T&>(*rs_))))
             throw null_value_fetch();
     }
     else

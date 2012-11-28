@@ -102,7 +102,7 @@ template<typename T, typename Enable = void>
 struct fetch_conversion
 {
     template<typename ColOrName>
-    static bool fetch(row& res, ColOrName col_or_name, T& v)
+    static bool fetch(const row& res, ColOrName col_or_name, T& v)
     {
         BOOST_MPL_ASSERT_MSG(false, ADD_SPECIALIZATION_OF_FETCH_CONVERSION_FOR_TYPE, (T));
     }
