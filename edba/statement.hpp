@@ -237,7 +237,7 @@ inline row statement::first_row()
 {
     rowset<> rs(conn_, stmt_, stmt_->run_query());
 
-    rowset_iterator<row> ri = rs.begin();
+    rowset<>::const_iterator ri = rs.begin();
 
     if (rs.end() == ri)
         throw empty_row_access();

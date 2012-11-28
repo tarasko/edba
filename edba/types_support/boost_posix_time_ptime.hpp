@@ -23,7 +23,7 @@ template<>
 struct fetch_conversion<boost::posix_time::ptime, void>
 {
     template<typename ColOrName>
-    static bool fetch(row& res, ColOrName col_or_name, boost::posix_time::ptime& v)
+    static bool fetch(const row& res, ColOrName col_or_name, boost::posix_time::ptime& v)
     {
         std::tm tm_struct;
         bool ret = res.fetch(col_or_name, tm_struct);

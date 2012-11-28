@@ -39,8 +39,8 @@ struct fetch_conversion< T, typename boost::enable_if< boost::fusion::traits::is
 {
     struct helper
     {
-        mutable row& r_;
-        helper(row& r) : r_(r) {}
+        const row& r_;
+        helper(const row& r) : r_(r) {}
 
         template<typename T1>
         void operator()(T1& v) const
@@ -50,7 +50,7 @@ struct fetch_conversion< T, typename boost::enable_if< boost::fusion::traits::is
     };
 
     template<typename ColOrName>
-    static bool fetch(row& r, ColOrName, T& v)
+    static bool fetch(const row& r, ColOrName, T& v)
     {
         boost::fusion::for_each(v, helper(r));
         return true;

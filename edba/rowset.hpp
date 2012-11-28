@@ -33,16 +33,16 @@ public:
     ///
     /// Return true if the column number \a col (starting from 0) has NULL value
     ///
-    bool is_null(int col);
+    bool is_null(int col) const;
     ///
     /// Return true if the column named \a n has NULL value
     ///
-    bool is_null(const string_ref& n);
+    bool is_null(const string_ref& n) const;
 
     ///
     /// Reset current column index to 0
     ///
-    void rewind_column();
+    void rewind_column() const;
 
     ///
     /// Fetch a value from column \a col (starting from 0) into \a v. Returns false
@@ -51,7 +51,7 @@ public:
     /// If the data type is not same it tries to cast the data, if casting fails or the
     /// data is out of the type range, throws bad_value_cast().
     ///
-    bool fetch(int col, const fetch_types_variant& v);
+    bool fetch(int col, const fetch_types_variant& v) const;
 
     ///
     /// Fetch a value from column \a col (starting from 0) into \a v. Returns false
@@ -61,7 +61,7 @@ public:
     /// data is out of the type range, throws bad_value_cast().
     ///
     template<typename T>
-    bool fetch(int col, T& v);
+    bool fetch(int col, T& v) const;
 
     ///
     /// Fetch a value from column named \a n into \a v. Returns false
@@ -73,7 +73,7 @@ public:
     /// If the \a n value is invalid throws invalid_column exception
     ///
     template<typename T>
-    bool fetch(const string_ref& n, T& v);
+    bool fetch(const string_ref& n, T& v) const;
 
     ///
     /// Fetch a value from the next column in the row starting from the first one. Returns false
@@ -88,7 +88,7 @@ public:
     /// automatically.
     ///
     template<typename T>
-    bool fetch(T& v);
+    bool fetch(T& v) const;
 
     ///
     /// Get a value of type \a T from column named \a name (starting from 0). If the column
@@ -96,7 +96,7 @@ public:
     /// if the column value cannot be converted to type T (see fetch functions) it throws bad_value_cast.
     ///	
     template<typename T>
-    T get(const string_ref& name);
+    T get(const string_ref& name) const;
 
     ///
     /// Get a value of type \a T from column \a col (starting from 0). If the column
@@ -104,13 +104,13 @@ public:
     /// if the column value cannot be converted to type T (see fetch functions) it throws bad_value_cast.
     ///	
     template<typename T>
-    T get(int col);
+    T get(int col) const;
 
 private:
     backend::connection_ptr conn_;
     backend::statement_ptr stmt_;
     backend::result_ptr res_;
-    int current_col_;
+    mutable int current_col_;
 };
 
 // -------- row implementation ---------
@@ -127,12 +127,12 @@ inline row::row(
 {
 }
 
-inline bool row::is_null(int col)
+inline bool row::is_null(int col) const
 {
     return res_->is_null(col);
 }
 
-inline bool row::is_null(const string_ref& n)
+inline bool row::is_null(const string_ref& n) const
 {
     int c = res_->name_to_column(n);
     if (c < 0)
@@ -141,24 +141,24 @@ inline bool row::is_null(const string_ref& n)
     res_->is_null(c);
 }
 
-inline void row::rewind_column()
+inline void row::rewind_column() const
 {
     current_col_ = 0;
 }
 
-inline bool row::fetch(int col, const fetch_types_variant& v)
+inline bool row::fetch(int col, const fetch_types_variant& v) const
 {
     return res_->fetch(col, v);
 }
 
 template<typename T>
-bool row::fetch(int col, T& v)
+bool row::fetch(int col, T& v) const
 {
     return fetch_conversion<T>::fetch(*this, col, v);
 }
 
 template<typename T>
-bool row::fetch(const string_ref& n, T& v)
+bool row::fetch(const string_ref& n, T& v) const
 {
     int c = res_->name_to_column(n);
     if (c < 0)
@@ -167,7 +167,7 @@ bool row::fetch(const string_ref& n, T& v)
 }
 
 template<typename T>
-bool row::fetch(T& v)
+bool row::fetch(T& v) const
 {
     int old_current_col = current_col_;
     bool res = fetch(current_col_, v);
@@ -178,7 +178,7 @@ bool row::fetch(T& v)
 }
 
 template<typename T>
-T row::get(const string_ref& name)
+T row::get(const string_ref& name) const
 {
     T v=T();
     if(!fetch(name,v))
@@ -187,7 +187,7 @@ T row::get(const string_ref& name)
 }
 
 template<typename T>
-T row::get(int col)
+T row::get(int col) const
 {
     T v=T();
     if(!fetch(col,v))
@@ -219,7 +219,7 @@ detail::tag<int, T&> into(int index, T& v)
 /// Syntactic sugar, used together with into() function.
 ///
 template<typename T1, typename T2>
-row& operator>>(row& r, detail::tag<T1, T2> tag)
+const row& operator>>(const row& r, detail::tag<T1, T2> tag)
 {
     if(!r.fetch(tag.first_, tag.second_))
         throw null_value_fetch();
@@ -233,7 +233,7 @@ row& operator>>(row& r, detail::tag<T1, T2> tag)
 /// v = row.get();
 /// \endcode
 template<typename T>
-row& operator>>(row& r, T& v)
+const row& operator>>(const row& r, T& v)
 {
     if(!r.fetch(v))
         throw null_value_fetch();
@@ -258,10 +258,27 @@ class rowset_iterator
       , boost::single_pass_traversal_tag
       > base_type;
   
-public:
-    rowset_iterator(rowset<T>* rs = 0);
+    typedef rowset<typename boost::remove_cv<T>::type> rowset_unqualified_type;
 
-    boost::tribool has_next();
+    // Type of rowset passed into constructor and stored in iterator
+    typedef typename boost::mpl::if_< 
+        boost::is_const<T>
+      , const rowset_unqualified_type
+      , rowset_unqualified_type
+      >::type rowset_type;
+
+    template<typename> friend class rowset_iterator;
+
+public:
+    rowset_iterator(rowset_type* rs = 0);
+
+    ///
+    /// Copy construction and conversion from mutable to const iterator
+    ///
+    template<typename T1>
+    rowset_iterator(rowset_iterator<T1> other, typename boost::enable_if< boost::is_convertible<T1*, T*> >::type* = 0);
+
+    boost::tribool has_next() const;
 
 private:
     friend class boost::iterator_core_access;
@@ -270,12 +287,12 @@ private:
     void increment();
     bool equal(rowset_iterator const& other) const;
 
-    rowset<T>* rs_;
+    rowset_type* rs_;
 };
 
 ///
 /// Represent select query result set. Has range interface, implements Single Pass Range concept. rowset can be iterated
-/// only once. That means when begin has been called once, all subsequent calls to begin will give undefined behavior
+/// only once. That means when begin has been called once, all subsequent calls to begin will give undefined behavior.
 ///
 template<typename T = row>
 class rowset : private boost::mpl::if_<boost::is_same<T, row>, null_type, T>::type
@@ -284,7 +301,7 @@ class rowset : private boost::mpl::if_<boost::is_same<T, row>, null_type, T>::ty
 
 public:
     typedef rowset_iterator<T> iterator;
-    typedef rowset_iterator<T> const_iterator;
+    typedef rowset_iterator<T const> const_iterator;
 
     /// 
     /// Construct rowset from backend result
@@ -294,14 +311,23 @@ public:
       , const backend::statement_ptr& stmt
       , const backend::result_ptr& res
       );
+
     ///
     /// Open rowset for traversion and return begin iterator
     ///
-    rowset_iterator<T> begin();
+    iterator begin();
+    ///
+    /// Open rowset for traversion and return begin iterator
+    ///
+    const_iterator begin() const;
     ///
     /// Return end iterator for rowset
     ///
-    rowset_iterator<T> end();
+    iterator end();
+    ///
+    /// Return end iterator for rowset
+    ///
+    const_iterator end() const;
 
     ///
     /// Provide conversion between rowset`s of different types.
@@ -309,27 +335,53 @@ public:
     template<typename T1>
     operator rowset<T1>() const;
 
-    unsigned long long rows();
-    int columns();
-    std::string column_name(int col);
-    int column_index(const string_ref& n);
-    int find_column(const string_ref& name);
+    ///
+    /// Return total number of rows in rowset, or -1 if backend doesn`t provide this information
+    ///
+    unsigned long long rows() const;
+    
+    ///
+    /// Return number of columns in rowset
+    ///
+    int columns() const;
+
+    /// 
+    /// Get column name by index. Throw invalid_column or error
+    ///
+    std::string column_name(int col) const;
+
+    /// 
+    /// Get column index by name. Throw invalid_column or error
+    ///
+    int column_index(const string_ref& n) const;
+
+    ///
+    /// Return column index by name or -1 if column with provided name doesn`t exists
+    ///
+    int find_column(const string_ref& name) const;
 
 private:
     row row_;
-    bool opened_;                                   //!< User have already called begin method
+    mutable bool opened_;                                   //!< User have already called begin method
 };
 
 // -------- rowset_iterator<T> implementation ---------
 
 template<typename T>
-rowset_iterator<T>::rowset_iterator(rowset<T>* rs) : rs_(rs) 
+rowset_iterator<T>::rowset_iterator(rowset_type* rs) : rs_(rs) 
 {
     increment();
 }
 
 template<typename T>
-boost::tribool rowset_iterator<T>::has_next()
+template<typename T1>
+rowset_iterator<T>::rowset_iterator(rowset_iterator<T1> other, typename boost::enable_if< boost::is_convertible<T1*, T*> >::type*)
+    : rs_(other.rs_)
+{
+}
+
+template<typename T>
+boost::tribool rowset_iterator<T>::has_next() const
 {
     backend::result_iface::next_row nr = rs_->row_.res_->has_next();
     if (backend::result_iface::next_row_exists == nr)
@@ -343,8 +395,24 @@ boost::tribool rowset_iterator<T>::has_next()
 template<typename T>
 typename rowset_iterator<T>::reference rowset_iterator<T>::dereference() const
 {
-    assert(rs_ && "Attempt to dereference end rowset_iterator");
+    BOOST_ASSERT(rs_ && "Attempt to dereference end rowset_iterator");
     return static_cast<T&>(*rs_);
+}
+
+// row_iterator::dereference specialization for row. We should not call fetch, instead we just return stored row object;
+template<>
+inline rowset_iterator<row>::reference rowset_iterator<row>::dereference() const
+{
+    BOOST_ASSERT(rs_ && "Attempt to dereference end rowset_iterator");
+    return rs_->row_;
+}
+
+// row_iterator::dereference specialization for row. We should not call fetch, instead we just return stored row object;
+template<>
+inline rowset_iterator<const row>::reference rowset_iterator<const row>::dereference() const
+{
+    BOOST_ASSERT(rs_ && "Attempt to dereference end rowset_iterator");
+    return rs_->row_;
 }
 
 template<typename T>
@@ -375,6 +443,18 @@ void rowset_iterator<row>::increment()
         rs_ = 0;
 }
 
+template<>
+void rowset_iterator<const row>::increment()
+{
+    if (!rs_)
+        return;
+
+    if (rs_->row_.res_->next())
+        rs_->row_.rewind_column();
+    else
+        rs_ = 0;
+}
+
 template<typename T>
 bool rowset_iterator<T>::equal(rowset_iterator<T> const& other) const
 {
@@ -395,20 +475,38 @@ rowset<T>::rowset(
 }
 
 template<typename T>
-rowset_iterator<T> rowset<T>::begin()
+typename rowset<T>::iterator rowset<T>::begin()
 {
     if (opened_)
         throw multiple_rowset_traverse("Impossible to open rowset_iterator twice");
 
-    rowset_iterator<T> iter(this);
+    iterator iter(this);
     opened_ = true;
     return iter;
 }
 
 template<typename T>
-rowset_iterator<T> rowset<T>::end()
+typename rowset<T>::const_iterator rowset<T>::begin() const
 {
-    return rowset_iterator<T>();
+    if (opened_)
+        throw multiple_rowset_traverse("Impossible to open rowset_iterator twice");
+
+    const_iterator iter(this);
+    opened_ = true;
+    return iter;
+}
+
+
+template<typename T>
+typename rowset<T>::iterator rowset<T>::end()
+{
+    return iterator();
+}
+
+template<typename T>
+typename rowset<T>::const_iterator rowset<T>::end() const
+{
+    return const_iterator();
 }
 
 template<typename T>
@@ -419,19 +517,19 @@ rowset<T>::operator rowset<T1>() const
 }
 
 template<typename T>
-unsigned long long rowset<T>::rows()
+unsigned long long rowset<T>::rows() const
 {
     return row_.res_->rows();
 }
 
 template<typename T>
-int rowset<T>::columns()
+int rowset<T>::columns() const
 {
     return row_.res_->cols();
 }
 
 template<typename T>
-std::string rowset<T>::column_name(int col)
+std::string rowset<T>::column_name(int col) const
 {
     if (col < 0 || col >= columns())
         throw invalid_column();
@@ -440,7 +538,7 @@ std::string rowset<T>::column_name(int col)
 }
 
 template<typename T>
-int rowset<T>::column_index(const string_ref& n)
+int rowset<T>::column_index(const string_ref& n) const
 {
     int c = row_.res_->name_to_column(n);
     if (c < 0)
@@ -450,7 +548,7 @@ int rowset<T>::column_index(const string_ref& n)
 }
 
 template<typename T>
-int rowset<T>::find_column(const string_ref& name)
+int rowset<T>::find_column(const string_ref& name) const
 {
     int c = row_.res_->name_to_column(name);
     if (c < 0)
@@ -458,20 +556,11 @@ int rowset<T>::find_column(const string_ref& name)
     return c;
 }
 
-
-// row_iterator::dereference specialization for row. We should not call fetch, instead we just return stored row object;
-template<>
-inline rowset_iterator<row>::reference rowset_iterator<row>::dereference() const
-{
-    assert(rs_ && "Attempt to dereference end rowset_iterator");
-    return rs_->row_;
-}
-
 /// Specialization of fetch_conversion for native types. 
 template<typename T>
 struct fetch_conversion<T, typename boost::enable_if< boost::mpl::contains<fetch_types, T*> >::type >
 {
-    static bool fetch(row& r, int col, T& v)
+    static bool fetch(const row& r, int col, T& v)
     {
         return r.fetch(col, fetch_types_variant(&v));
     }
@@ -489,7 +578,7 @@ struct fetch_conversion<
       >::type
   >
 {
-    static bool fetch(row& r, int col, T& v)
+    static bool fetch(const row& r, int col, T& v)
     {
         return r.fetch(col, fetch_types_variant(&v));
     }

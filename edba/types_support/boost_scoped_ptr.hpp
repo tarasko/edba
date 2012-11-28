@@ -4,6 +4,7 @@
 #include <edba/types.hpp>
 
 #include <boost/scoped_ptr.hpp>
+#include <boost/move/move.hpp>
 
 namespace edba 
 {
@@ -25,16 +26,11 @@ template<typename T>
 struct fetch_conversion<boost::scoped_ptr<T>, typename boost::disable_if< boost::is_const<T> >::type>
 {
     template<typename ColOrName>
-    static bool fetch(row& res, ColOrName col_or_name, boost::scoped_ptr<T>& v)
+    static bool fetch(const row& res, ColOrName col_or_name, boost::scoped_ptr<T>& v)
     {
-        if (!res.is_null(col_or_name))
-        {
-            boost::scoped_ptr<T> tmp(new T());
-            res.fetch(col_or_name, *tmp);
-            v.swap(tmp);
-        }
-        else
-            v.reset();
+        T tmp;
+        if (res.fetch(col_or_name, tmp))
+            v.reset(new T(boost::move(tmp)));
 
         return true;
     }

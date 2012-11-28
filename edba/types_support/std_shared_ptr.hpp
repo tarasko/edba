@@ -25,16 +25,11 @@ template<typename T>
 struct fetch_conversion<std::shared_ptr<T>, typename boost::disable_if< boost::is_const<T> >::type>
 {
     template<typename ColOrName>
-    static bool fetch(row& res, ColOrName col_or_name, std::shared_ptr<T>& v)
+    static bool fetch(const row& res, ColOrName col_or_name, std::shared_ptr<T>& v)
     {
-        if (!res.is_null(col_or_name))
-        {
-            std::shared_ptr<T> tmp = std::make_shared<T>();
-            res.fetch(col_or_name, *tmp);
-            v = std::move(tmp);
-        }
-        else
-            v.reset();
+        T tmp;
+        if (res.fetch(col_or_name, tmp))
+            v = std::make_shared<T>(std::move(tmp));
 
         return true;
     }

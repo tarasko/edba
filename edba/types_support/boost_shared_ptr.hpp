@@ -5,6 +5,7 @@
 
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
+#include <boost/move/move.hpp>
 
 namespace edba 
 {
@@ -26,16 +27,11 @@ template<typename T>
 struct fetch_conversion<boost::shared_ptr<T>, typename boost::disable_if< boost::is_const<T> >::type>
 {
     template<typename ColOrName>
-    static bool fetch(row& res, ColOrName col_or_name, boost::shared_ptr<T>& v)
+    static bool fetch(const row& res, ColOrName col_or_name, boost::shared_ptr<T>& v)
     {
-        if (!res.is_null(col_or_name))
-        {
-            boost::shared_ptr<T> tmp = boost::make_shared<T>();
-            res.fetch(col_or_name, *tmp);
-            v.swap(tmp);
-        }
-        else
-            v.reset();
+        T tmp;
+        if (res.fetch(col_or_name, tmp))
+            v = boost::make_shared<T>(boost::move(tmp));
 
         return true;
     }

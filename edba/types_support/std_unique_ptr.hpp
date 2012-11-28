@@ -25,16 +25,11 @@ template<typename T>
 struct fetch_conversion<std::unique_ptr<T>, typename boost::disable_if< boost::is_const<T> >::type>
 {
     template<typename ColOrName>
-    static bool fetch(row& res, ColOrName col_or_name, std::unique_ptr<T>& v)
+    static bool fetch(const row& res, ColOrName col_or_name, std::unique_ptr<T>& v)
     {
-        if (!res.is_null(col_or_name))
-        {
-            std::unique_ptr<T> tmp(new T());
-            res.fetch(col_or_name, *tmp);
-            v = std::move(tmp);
-        }
-        else
-            v.reset();
+        T tmp;
+        if (res.fetch(col_or_name, tmp))
+            v.reset(new T(std::move(tmp)));
 
         return true;
     }

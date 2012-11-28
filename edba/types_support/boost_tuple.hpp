@@ -44,7 +44,7 @@ struct fetch_conversion< boost::tuple<BOOST_PP_ENUM_PARAMS(BOOST_PP_ITERATION(),
     typedef boost::tuple<BOOST_PP_ENUM_PARAMS(BOOST_PP_ITERATION(), T)> tuple_type;
 
     template<typename ColOrName>
-    static bool fetch(row& res, ColOrName, tuple_type& v)
+    static bool fetch(const row& res, ColOrName, tuple_type& v)
     {
 
 #  define BOOST_PP_LOCAL_MACRO(n) res >> boost::get<n>(v);

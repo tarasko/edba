@@ -26,7 +26,7 @@ template<typename T>
 struct fetch_conversion<boost::optional<T>, void>
 {
     template<typename ColOrName>
-    static bool fetch(row& res, ColOrName col_or_name, boost::optional<T>& v)
+    static bool fetch(const row& res, ColOrName col_or_name, boost::optional<T>& v)
     {
         T object;
         if (res.fetch(col_or_name, object))

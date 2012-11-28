@@ -6,11 +6,13 @@ option(EDBA_ENABLE_TESTS "Add targets for test building. In case of standalone b
 set(edba_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" CACHE INTERNAL "edba include dirs")
 
 # Figure out if we are included from another cmake
-if(CMAKE_SOURCE_ROOT STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 	message("Easy database access library - STANDALONE mode")
 	set(EDBA_STANDALONE_BUILD 1)
 else()
 	message("Easy database access library - INCLUSIVE mode")
+	message("${CMAKE_SOURCE_DIR}")
+	message("${CMAKE_CURRENT_SOURCE_DIR}")
 	set(EDBA_STANDALONE_BUILD 0)
 endif()
 
