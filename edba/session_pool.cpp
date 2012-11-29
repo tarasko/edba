@@ -1,4 +1,5 @@
 #include <edba/session_pool.hpp>
+#include <boost/bind.hpp>
 
 namespace edba {
 
