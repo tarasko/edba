@@ -88,6 +88,9 @@ typedef boost::mpl::vector<
 typedef boost::make_variant_over<bind_types>::type bind_types_variant;
 typedef boost::make_variant_over<fetch_types>::type fetch_types_variant;
 
+///
+/// Extendable mechanism for binding arbitrary user type into statement.
+/// 
 template<typename T, typename Enable = void>
 struct bind_conversion
 {
@@ -98,6 +101,9 @@ struct bind_conversion
     }
 };
 
+///
+/// Extendable mechanism for fetching arbitrary user type from row.
+/// 
 template<typename T, typename Enable = void>
 struct fetch_conversion
 {
