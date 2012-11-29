@@ -11,8 +11,6 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 	set(EDBA_STANDALONE_BUILD 1)
 else()
 	message("Easy database access library - INCLUSIVE mode")
-	message("${CMAKE_SOURCE_DIR}")
-	message("${CMAKE_CURRENT_SOURCE_DIR}")
 	set(EDBA_STANDALONE_BUILD 0)
 endif()
 
