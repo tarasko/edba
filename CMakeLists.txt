@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
 
-option(EDBA_INSTALL "Install edba libraries and backend. In case of standalone build this would be done automatically" OFF)
 option(EDBA_ENABLE_TESTS "Add targets for test building. In case of standalone build this would be done automatically" OFF)
 
 set(edba_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" CACHE INTERNAL "edba include dirs")
@@ -17,11 +16,18 @@ endif()
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 
 function(edba_install_targets)
-  if(EDBA_STANDALONE_BUILD OR EDBA_INSTALL)
+  if(EDBA_STANDALONE_BUILD)
     install(TARGETS ${ARGV} 
       RUNTIME DESTINATION bin
       ARCHIVE DESTINATION lib
       LIBRARY DESTINATION lib)
+  else()
+    foreach(var ${ARGV})
+      list(FIND PROJECTS_INSTALL_LIST ${var} found)
+      if(NOT found EQUAL -1)
+        install(TARGETS ${var} RUNTIME DESTINATION .)
+      endif()
+	endforeach(var)
   endif()
 endfunction(edba_install_targets)
 
