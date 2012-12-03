@@ -1,8 +1,6 @@
-#define EDBA_DRIVER_SOURCE
+#include <edba/backend/implementation_base.hpp>
 
-#include <edba/backend.hpp>
 #include <edba/errors.hpp>
-#include <edba/utils.hpp>
 
 #include <oci.h>
 
@@ -10,6 +8,11 @@
 #include <boost/algorithm/string/find_iterator.hpp>
 #include <boost/typeof/typeof.hpp>
 #include <boost/scoped_array.hpp>
+#include <boost/type_traits/is_signed.hpp>
+#include <boost/type_traits/is_unsigned.hpp>
+#include <boost/type_traits/is_floating_point.hpp>
+#include <boost/move/move.hpp>
+#include <boost/container/vector.hpp>
 
 #include <boost/foreach.hpp>
 
@@ -60,13 +63,28 @@ static std::string g_engine_name("oracle");
 typedef sword (*deallocator_type)( void *hndlp, ub4 type );
   
 template <class T, ub4 HandleType, deallocator_type Deallocator = &OCIHandleFree> 
-class oci_handle : boost::noncopyable
+class oci_handle 
 {
     struct proxy;
+
+    BOOST_MOVABLE_BUT_NOT_COPYABLE(oci_handle)
 
 public:
     oci_handle() : handle_(0) {}
     explicit oci_handle(T* handle) : handle_(handle) {}
+
+    // move constructor
+    oci_handle(BOOST_RV_REF(oci_handle) x) : handle_(x.handle_)
+    {
+        x.handle_ = 0;
+    }
+
+    oci_handle& operator=(BOOST_RV_REF(oci_handle) x) 
+    {
+        handle_ = x.handle_;
+        x.handle_ = 0;
+        return *this;
+    }
 
     ~oci_handle() 
     {
@@ -152,7 +170,7 @@ struct error_checker
             error_message << errbuf;
         }
         else if( OCI_INVALID_HANDLE == code )
-            error_message << "invalid handle provided to OCI(possibly internal program bug)";
+            error_message << "invalid handle provided to OCI(probably internal backend bug)";
         else
             error_message << "unknown error ";
     
@@ -265,7 +283,8 @@ private:
     }    
 };
 
-class result : public backend::result {
+class result : public backend::result, public boost::static_visitor<>
+{
 public:
     result(OCIEnv* envhp, OCISvcCtx* svchp, OCIError* errhp, OCIStmt* stmtp)
       : envhp_(envhp)
@@ -326,86 +345,38 @@ public:
         return status != OCI_NO_DATA;
     }
 
-    bool fetch_numeric(int col, void *v, size_t len, ub2 type) 
+    bool fetch(int col, const fetch_types_variant& v)
     {
         if (is_null(col)) 
             return false;
+        
+        fetch_col_ = col;
 
-        switch(columns_[col].type_)
+        v.apply_visitor(*this);
+        return true;
+    }
+
+    template<typename T>
+    void operator()(T* v, typename boost::enable_if< boost::is_integral<T> >::type* = 0)
+    {
+    }
+
+    template<typename T>
+    void operator()(T* v, typename boost::enable_if< boost::is_floating_point<T> >::type* = 0)
+    {
+        switch(columns_[fetch_col_].type_)
         {
             case SQLT_VNU: 
-                convert_number_to_type(&columns_[col].data_[0], type, v, len);
-                return true;
+                convert_number_to_type(&columns_[fetch_col_].data_[0], SQLT_FLT, v, sizeof(v));
+                break;
         }
-        return false;
     }
 
-    virtual bool fetch(int col,short &v) 
+    void operator()(std::string* v)
     {
-        return fetch_numeric(col, &v, sizeof(v), SQLT_INT);
-    }
-    virtual bool fetch(int col,unsigned short &v)
-    {
-        return fetch_numeric(col, &v, sizeof(v), SQLT_UIN);
-    }
-    virtual bool fetch(int col,int &v)
-    {
-        return fetch_numeric(col, &v, sizeof(v), SQLT_INT);
-    }
-    virtual bool fetch(int col,unsigned &v)
-    {
-        return fetch_numeric(col, &v, sizeof(v), SQLT_UIN);
-    }
-    virtual bool fetch(int col,long &v)
-    {
-        int tmp;
-        bool ret = fetch_numeric(col, &tmp, sizeof(tmp), SQLT_INT);
-        if(ret) 
-            v = tmp;
-        return ret;
-    }
-    virtual bool fetch(int col,unsigned long &v)
-    {
-        unsigned int tmp;
-        bool ret = fetch_numeric(col, &tmp, sizeof(tmp), SQLT_UIN);
-        if(ret) 
-            v = tmp;
-        return ret;
-    }
-    virtual bool fetch(int col,long long &v)
-    {
-        int tmp;
-        bool ret = fetch_numeric(col, &tmp, sizeof(tmp), SQLT_INT);
-        if(ret) 
-            v = tmp;
-        return ret;
-    }
-    virtual bool fetch(int col,unsigned long long &v)
-    {
-        unsigned int tmp;
-        bool ret = fetch_numeric(col, &tmp, sizeof(tmp), SQLT_UIN);
-        if(ret) 
-            v = tmp;
-        return ret;
-    }
-    virtual bool fetch(int col,float &v) 
-    {
-        return fetch_numeric(col, &v, sizeof(v), SQLT_FLT);
-    }
-    virtual bool fetch(int col,double &v)
-    {
-        return fetch_numeric(col, &v, sizeof(v), SQLT_FLT);
-    }
-    virtual bool fetch(int col,long double &v)
-    {
-        return fetch_numeric(col, &v, sizeof(v), SQLT_FLT);
-    }
-    virtual bool fetch(int col,std::string &v)
-    {
-        column& c = columns_[col];
+        column& c = columns_[fetch_col_];
 
-        if (c.is_null())
-            return false;
+        // TODO: Read by portion 
 
         if (c.is_lob())
         {
@@ -413,28 +384,27 @@ public:
             throw_on_error_ = OCILobGetLength(svchp_, throw_on_error_.errhp_, c.lob_.get(), &lob_len);
 
             if (!lob_len) 
-                return true;
+            {
+                v->clear();
+                return;
+            }
 
-            v.resize(lob_len);
+            v->resize(lob_len);
             throw_on_error_ = OCILobRead(
                 svchp_, throw_on_error_.errhp_, c.lob_.get(), &lob_len, 
                 1,
-                &v[0], v.size(),
+                &v->front(), v->size(),
                 0, 0,
                 0, 0
               );
         }
         else 
-            v.assign(&c.data_[0], c.col_fetch_size_);
-
-        return true;
+            v->assign(&c.data_[0], c.col_fetch_size_);
     }
-    virtual bool fetch(int col,std::ostream &v)
-    {
-        column& c = columns_[col];
 
-        if (c.is_null())
-            return false;
+    void operator()(std::ostream* v)
+    {
+        column& c = columns_[fetch_col_];
 
         if (c.is_lob())
         {
@@ -442,8 +412,9 @@ public:
             throw_on_error_ = OCILobGetLength(svchp_, throw_on_error_.errhp_, c.lob_.get(), &lob_len);
 
             if (!lob_len) 
-                return true;
+                return;
 
+            // TODO: Read by portion 
             std::vector<char> tmp(lob_len);
 
             throw_on_error_ = OCILobRead(
@@ -454,19 +425,15 @@ public:
                 0, 0
               );
 
-            v.write(&tmp[0], tmp.size());
+            v->write(&tmp[0], tmp.size());
         }
         else 
-            v.write(&columns_[col].data_[0], columns_[col].col_fetch_size_);
-
-        return true;
+            v->write(&columns_[fetch_col_].data_[0], columns_[fetch_col_].col_fetch_size_);
     }
-    virtual bool fetch(int col,std::tm &v)
-    {
-        if (is_null(col))
-            return false;
 
-        if (SQLT_DAT != columns_[col].type_)
+    void operator()(std::tm* v)
+    {
+        if (SQLT_DAT != columns_[fetch_col_].type_)
             throw invalid_placeholder();
 
         oci_descriptor_datetime dt;
@@ -475,10 +442,10 @@ public:
         oci_descriptor_interval_ds iv;
         throw_on_error_ = OCIDescriptorAlloc(envhp_, iv.ptr(), OCI_DTYPE_INTERVAL_DS, 0, 0);
 
-        ub4 data_len = columns_[col].col_fetch_size_;
+        ub4 data_len = columns_[fetch_col_].col_fetch_size_;
         throw_on_error_ = OCIDateTimeFromArray(
             envhp_, throw_on_error_.errhp_, 
-            (ub1*)&columns_[col].data_[0], data_len, SQLT_TIMESTAMP,
+            (ub1*)&columns_[fetch_col_].data_[0], data_len, SQLT_TIMESTAMP,
             dt.get(), iv.get(), 0
           );
 
@@ -498,27 +465,88 @@ public:
             envhp_, throw_on_error_.errhp_, dt.get(), &hour, &min, &sec, &sec_frac
           );
 
-	    v.tm_year  = year - 1900;
-	    v.tm_mon   = month - 1;
-        v.tm_mday  = day;
-        v.tm_hour  = hour;
-        v.tm_min   = min;
-	    v.tm_sec   = static_cast<int>(sec);
-	    v.tm_isdst = -1;
+	    v->tm_year  = year - 1900;
+	    v->tm_mon   = month - 1;
+        v->tm_mday  = day;
+        v->tm_hour  = hour;
+        v->tm_min   = min;
+	    v->tm_sec   = static_cast<int>(sec);
+	    v->tm_isdst = -1;
 
-	    if (mktime(&v) == -1)
+	    if (mktime(v) == -1)
 		    throw bad_value_cast();
-
-        return true;
     }
+
+    //virtual bool fetch(int col,short &v) 
+    //{
+    //    return fetch_numeric(col, &v, sizeof(v), SQLT_INT);
+    //}
+    //virtual bool fetch(int col,unsigned short &v)
+    //{
+    //    return fetch_numeric(col, &v, sizeof(v), SQLT_UIN);
+    //}
+    //virtual bool fetch(int col,int &v)
+    //{
+    //    return fetch_numeric(col, &v, sizeof(v), SQLT_INT);
+    //}
+    //virtual bool fetch(int col,unsigned &v)
+    //{
+    //    return fetch_numeric(col, &v, sizeof(v), SQLT_UIN);
+    //}
+    //virtual bool fetch(int col,long &v)
+    //{
+    //    int tmp;
+    //    bool ret = fetch_numeric(col, &tmp, sizeof(tmp), SQLT_INT);
+    //    if(ret) 
+    //        v = tmp;
+    //    return ret;
+    //}
+    //virtual bool fetch(int col,unsigned long &v)
+    //{
+    //    unsigned int tmp;
+    //    bool ret = fetch_numeric(col, &tmp, sizeof(tmp), SQLT_UIN);
+    //    if(ret) 
+    //        v = tmp;
+    //    return ret;
+    //}
+    //virtual bool fetch(int col,long long &v)
+    //{
+    //    int tmp;
+    //    bool ret = fetch_numeric(col, &tmp, sizeof(tmp), SQLT_INT);
+    //    if(ret) 
+    //        v = tmp;
+    //    return ret;
+    //}
+    //virtual bool fetch(int col,unsigned long long &v)
+    //{
+    //    unsigned int tmp;
+    //    bool ret = fetch_numeric(col, &tmp, sizeof(tmp), SQLT_UIN);
+    //    if(ret) 
+    //        v = tmp;
+    //    return ret;
+    //}
+    //virtual bool fetch(int col,float &v) 
+    //{
+    //    return fetch_numeric(col, &v, sizeof(v), SQLT_FLT);
+    //}
+    //virtual bool fetch(int col,double &v)
+    //{
+    //    return fetch_numeric(col, &v, sizeof(v), SQLT_FLT);
+    //}
+    //virtual bool fetch(int col,long double &v)
+    //{
+    //    return fetch_numeric(col, &v, sizeof(v), SQLT_FLT);
+    //}
     virtual bool is_null(int col)
     {
         return -1 == columns_[col].col_fetch_ind_;
     }
+
     virtual int cols() 
     {
         return columns_size_;
     }
+
     virtual unsigned long long rows() 
     {
         throw_on_error_ = OCIStmtFetch2(
@@ -534,7 +562,7 @@ public:
 
         return rows_count;
     }
-    virtual int name_to_column(const chptr_range& n)
+    virtual int name_to_column(const string_ref& n)
     {
         for(size_t i = 0; i < columns_size_; ++i)
         {
@@ -587,107 +615,84 @@ private:
     boost::scoped_array<column> columns_;  //!< Columns and defines
     ub4 columns_size_;                     //!< Number of columns in result
     bool just_initialized_;                //!< True before first fetch attempt
+    int fetch_col_;
 };
 
-class statement : public backend::statement {
+class statement : public backend::statement, public boost::static_visitor<>
+{
 public:
-    statement(const chptr_range& query, OCIEnv* envhp, OCIError* errhp, OCISvcCtx* svchp, session_monitor* sm)
-      : backend::statement(sm, query)
+    statement(const string_ref& query, OCIEnv* envhp, OCIError* errhp, OCISvcCtx* svchp, session_monitor* sm)
+      : backend::statement(sm)
       , envhp_(envhp)
       , svchp_(svchp)
       , throw_on_error_(errhp)
+      , query_(query.begin(), query.end())
     {
-        // replace '?' with proper bindings
-
-        std::ostringstream ss;
-        ss.imbue(std::locale::classic());
-
-        bool inside_string = false;
-        int bind_cnt = 0;
-        BOOST_FOREACH(char c, query)
-        {
-            if ('\\' == c)
-                inside_string = !inside_string;
-
-            if (!inside_string && '?' == c)
-                ss << ':' << bind_cnt++;
-            else
-                ss << c;
-        }
-
-        const std::string& modified_query = ss.str();
-
         throw_on_error_ = OCIStmtPrepare2(
             svchp_
           , stmtp_.ptr()
           , throw_on_error_.errhp_
-          , (const OraText*)modified_query.c_str()
-          , (ub4) modified_query.length()
+          , (const OraText*)query.begin()
+          , (ub4) query.size()
           , 0
           , 0
           , OCI_NTV_SYNTAX, OCI_DEFAULT
           );
 
         stmt_type_ = stmt_attr_get<ub2>(OCI_ATTR_STMT_TYPE);
-
-        // prepare binding buffer and binding bounds
-        bind_bounds_.resize(stmt_attr_get<ub4>(OCI_ATTR_BIND_COUNT));
-        // reserve space for OCIDateTime pointers
-        dt_holder_.reserve(bind_bounds_.size());
-
-        if (!bind_bounds_.empty()) 
-            bind_buf_.reserve(256);
     }
-    virtual ~statement()
+
+    virtual void bind_impl(int col, bind_types_variant const& v)
     {
-        BOOST_FOREACH(OCIDateTime* dt, dt_holder_) OCIDescriptorFree(dt, OCI_DTYPE_TIMESTAMP);
+        v.apply_visitor(*this);
+        bind_bounds_.back().col_ = col;
     }
 
-    virtual void reset_impl()
+    virtual void bind_impl(const string_ref& name, bind_types_variant const& v)
+    {
+        v.apply_visitor(*this);
+        bind_bounds_.back().name_.assign(name.begin(), name.end());
+    }
+
+    virtual void bindings_reset_impl()
     {
         bind_buf_.clear();
-
-        // cleanup dt_holder
-        BOOST_FOREACH(OCIDateTime* dt, dt_holder_) OCIDescriptorFree(dt, OCI_DTYPE_TIMESTAMP);
         dt_holder_.clear();
-        dt_holder_.reserve(bind_bounds_.size());
-    }
-    void do_bind(int col, const void *v, size_t len, ub2 type) 
-    {        
-        // remember data to bind it later
-        bind_bounds_[col-1].idx_ = bind_buf_.size();
-        bind_bounds_[col-1].size_ = len;
-        bind_bounds_[col-1].type_ = type;
-
-        bind_buf_.insert(bind_buf_.end(), (const char*)v, (const char*)v + len);
     }
     
-    virtual void bind_impl(int col,std::string const &v) 
+    template<typename T>
+    void operator()(T v, typename boost::enable_if< boost::is_signed<T> >::type* = 0)
     {
-        do_bind(col, v.c_str(), v.length() + 1, SQLT_STR);
+        do_bind(&v, sizeof(v), SQLT_INT);
     }
-    virtual void bind_impl(int col,char const *s)
+
+    template<typename T>
+    void operator()(T v, typename boost::enable_if< boost::is_unsigned<T> >::type* = 0)
     {
-        do_bind(col, s, strlen(s) + 1, SQLT_STR);
+        do_bind(&v, sizeof(v), SQLT_UIN);
     }
-    virtual void bind_impl(int col, const chptr_range& rng) 
+
+    template<typename T>
+    void operator()(T v, typename boost::enable_if< boost::is_floating_point<T> > ::type* = 0)
     {
-        do_bind(col, rng.begin(), rng.size(), SQLT_CHR);
+        do_bind(&v, sizeof(v), SQLT_FLT);
     }
-    virtual void bind_impl(int col,char const *b,char const *e) 
+
+    void operator()(const string_ref& v)
     {
-        do_bind(col, b, e-b, SQLT_CHR);
+        do_bind(v.begin(), v.size(), SQLT_STR);
     }
-    virtual void bind_impl(int col,std::tm const &v)
+
+    void operator()(const std::tm& v)
     {
-        OCIDateTime* dt = 0;
-        throw_on_error_ = OCIDescriptorAlloc(envhp_, (void**)&dt, OCI_DTYPE_TIMESTAMP, 0, 0);
-        dt_holder_.push_back(dt);
+        oci_descriptor_datetime dt;
+        throw_on_error_ = OCIDescriptorAlloc(envhp_, dt.ptr(), OCI_DTYPE_TIMESTAMP, 0, 0);
+        dt_holder_.push_back(boost::move(dt));
 
         throw_on_error_ = OCIDateTimeConstruct(
             envhp_
           , throw_on_error_.errhp_
-          , dt
+          , dt_holder_.back().get()
           , v.tm_year + 1900
           , v.tm_mon + 1
           , v.tm_mday
@@ -698,54 +703,28 @@ public:
           , 0, 0
           );
 
-        do_bind(col, &dt_holder_.back(), sizeof(OCIDateTime*), SQLT_TIMESTAMP);
+        do_bind(&dt_holder_.back(), sizeof(OCIDateTime*), SQLT_TIMESTAMP);
     }
-    virtual void bind_impl(int col,std::istream &v) 
+
+    void operator()(std::istream* v) 
     {
         std::ostringstream ss;
-        ss << v.rdbuf();
+        ss << v->rdbuf();
         size_t len = ss.str().length();
-        do_bind(col, ss.str().c_str(), len, SQLT_CHR);
+        do_bind(ss.str().c_str(), len, SQLT_CHR);
     }
-    virtual void bind_impl(int col,int v) 
+
+    void operator()(null_type)
     {
-        do_bind(col, &v, sizeof(v), SQLT_INT);
+        do_bind(0, 0, SQLT_STR);
     }
-    virtual void bind_impl(int col,unsigned v) 
+
+    virtual const std::string& patched_query() const
     {
-        do_bind(col, &v, sizeof(v), SQLT_UIN);
+        return query_;
     }
-    virtual void bind_impl(int col,long v)
-    {
-        do_bind(col, &v, sizeof(v), SQLT_INT);
-    }
-    virtual void bind_impl(int col,unsigned long v)
-    {
-        do_bind(col, &v, sizeof(v), SQLT_UIN);
-    }
-    virtual void bind_impl(int col,long long v)
-    {
-        long tmp = static_cast<long>(v);
-        do_bind(col, &tmp, sizeof(tmp), SQLT_INT);
-    }
-    virtual void bind_impl(int col,unsigned long long v)
-    {
-        unsigned long tmp = static_cast<unsigned long>(v);
-        do_bind(col, &tmp, sizeof(tmp), SQLT_UIN);
-    }
-    virtual void bind_impl(int col,double v)
-    {
-        do_bind(col, &v, sizeof(v), SQLT_FLT);
-    }
-    virtual void bind_impl(int col,long double v) 
-    {
-        do_bind(col, &v, sizeof(v), SQLT_FLT);
-    }
-    virtual void bind_null_impl(int col)
-    {
-        do_bind(col, 0, 0, SQLT_STR);
-    }
-    virtual boost::intrusive_ptr<edba::backend::result> query_impl()
+
+    virtual backend::result_ptr query_impl()
     {
         if (stmt_type_ != OCI_STMT_SELECT) 
             throw edba_error(std::string("oracle: query from not query statement"));
@@ -754,7 +733,7 @@ public:
 
         throw_on_error_ = OCIStmtExecute(svchp_, stmtp_.get(), throw_on_error_.errhp_, 0, 0, 0, 0, OCI_STMT_SCROLLABLE_READONLY);
         
-        return boost::intrusive_ptr<edba::backend::result>(new result(envhp_, svchp_, throw_on_error_.errhp_, stmtp_.get()));
+        return backend::result_ptr(new result(envhp_, svchp_, throw_on_error_.errhp_, stmtp_.get()));
     }
     virtual long long sequence_last(std::string const &/*name*/)
     {
@@ -781,6 +760,18 @@ public:
     }
 
 private:    
+    void do_bind(const void *v, size_t len, ub2 type) 
+    {        
+        // remember data to bind it later
+        bind_bound b;
+        b.idx_ = bind_buf_.size();
+        b.size_ = len;
+        b.type_ = type;
+        bind_bounds_.push_back(b);
+
+        bind_buf_.insert(bind_buf_.end(), (const char*)v, (const char*)v + len);
+    }
+
     template<typename AttrType>
     AttrType stmt_attr_get(ub4 attr)
     {
@@ -835,12 +826,15 @@ private:
     OCISvcCtx* svchp_;
     oci_handle_statement stmtp_;
     error_checker throw_on_error_;
+    std::string query_;
     ub2 stmt_type_;
 
     struct bind_bound
     {
-        bind_bound() : idx_(0), size_(0), type_(SQLT_NON) {}
+        bind_bound() : col_(0), idx_(0), size_(0), type_(SQLT_NON) {}
 
+        std::string name_;
+        int col_;
         size_t idx_;
         size_t size_;
         ub2 type_;
@@ -848,18 +842,20 @@ private:
 
     std::vector<char> bind_buf_;           //!< Bindings serialized in one buffer
     std::vector<bind_bound> bind_bounds_;  //!< Bindings bounds from bind_buf_
-    std::vector<OCIDateTime*> dt_holder_;
+    boost::container::vector<oci_descriptor_datetime> dt_holder_;
+    int bind_col_;
 };
 
-class connection : public backend::connection {
+class connection : public backend::connection 
+{
 public:
     connection(const conn_info& ci, session_monitor* si) : backend::connection(ci, si)
     {
-        chptr_range username = ci.get("User");
-        chptr_range password = ci.get("Password"); 
-        chptr_range conn_string = ci.get("ConnectionString");
+        string_ref username = ci.get("User");
+        string_ref password = ci.get("Password"); 
+        string_ref conn_string = ci.get("ConnectionString");
         
-        throw_on_error_ = OCIEnvCreate(envhp_.ptr(), OCI_THREADED | OCI_OBJECT, 0, 0, 0, 0, 0, 0);
+        throw_on_error_ = OCIEnvCreate(envhp_.ptr(), OCI_THREADED, 0, 0, 0, 0, 0, 0);
         throw_on_error_ = OCIHandleAlloc(envhp_.get(), errhp_.ptr(), OCI_HTYPE_ERROR, 0, 0);
 
         throw_on_error_.errhp_ = errhp_.get();
@@ -882,27 +878,33 @@ public:
         ver_major_ = version >> 24;
         ver_minor_ = (version << 8) >> 28;
     }
+
     virtual void begin_impl()
     {
         // throw_on_error_ = OCITransStart(svcp_.get(), errhp_.get(), 0, OCI_TRANS_NEW);
     }
+
     virtual void commit_impl() 
     {
         throw_on_error_ = OCITransCommit(svcp_.get(), errhp_.get(), OCI_DEFAULT);
     }
+
     virtual void rollback_impl()
     {
         OCITransRollback(svcp_.get(), errhp_.get(), OCI_DEFAULT); // do not throw exception on error
     }
-    virtual boost::intrusive_ptr<backend::statement> prepare_statement(const chptr_range& q)
+
+    virtual backend::statement_ptr prepare_statement_impl(const string_ref& q)
     {
-        return boost::intrusive_ptr<backend::statement>(new statement(q, envhp_.get(), errhp_.get(), svcp_.get(), sm_));
+        return backend::statement_ptr(new statement(q, envhp_.get(), errhp_.get(), svcp_.get(), sm_));
     }
-    virtual boost::intrusive_ptr<backend::statement> create_statement(const chptr_range& q)
+
+    virtual backend::statement_ptr create_statement_impl(const string_ref& q)
     {
         return prepare_statement(q);
     }
-    virtual void exec_batch_impl(const chptr_range& q)
+
+    virtual void exec_batch_impl(const string_ref& q)
     {
         using namespace boost::algorithm;
 
@@ -911,57 +913,50 @@ public:
 
         for (;spl_iter != spl_iter_end; ++spl_iter)
         {
-            if (spl_iter->empty()) 
+            BOOST_AUTO(query, *spl_iter);
+
+            trim(query);
+            if (query.empty()) 
                 continue;
 
-            create_statement(*spl_iter)->exec();    
+            create_statement(*spl_iter)->run_exec();    
         }
         
         commit();
     }
-    virtual std::string escape(std::string const &s)
-    {
-        return escape(s.c_str(),s.c_str()+s.size());
-    }
-    virtual std::string escape(char const *s)
-    {
-        return escape(s,s+strlen(s));
-    }
-    virtual std::string escape(char const *b,char const *e)
+
+    virtual std::string escape(const string_ref& s)
     {
         std::string result;
-        result.reserve((e-b)*2);
-        for (;b!=e;b++) 
+        result.reserve(s.size()*2);
+        BOOST_FOREACH(char c, s)
         {
-            char c=*b;
             if (c=='\'') 
-            {
                 result+="''";
-            }
             else if (c=='\"') 
-            {
                 result+="\"\"";
-            }
             else 
-            {
                 result+=c;
-            }
         }
         return result;
     }
+
     virtual const std::string& backend()
     {
         return g_backend_name;
     }
+
     virtual const std::string& engine()
     {
         return g_engine_name;
     }
+
     virtual void version(int& major, int& minor)
     {
         major = ver_major_;
         minor = ver_minor_;
     }
+
     virtual const std::string& description()
     {
         return description_;

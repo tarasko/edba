@@ -24,7 +24,6 @@
 
 # If ORACLE_HOME not defined, assume Oracle libraries not available
 if(DEFINED ENV{ORACLE_HOME})
-
   set(ORACLE_HOME $ENV{ORACLE_HOME})
 
   find_path(ORACLE_INCLUDE_DIR
@@ -41,6 +40,7 @@ if(DEFINED ENV{ORACLE_HOME})
 
   set(ORACLE_LIB_DIR 
     ${ORACLE_HOME}/lib
+    ${ORACLE_HOME}/sdk/lib/msvc
     ${ORACLE_HOME}/OCI/lib/MSVC) # Oracle XE on Windows
 
   find_library(ORACLE_OCI_LIBRARY  NAMES ${ORACLE_OCI_NAMES} PATHS ${ORACLE_LIB_DIR})
@@ -48,7 +48,7 @@ if(DEFINED ENV{ORACLE_HOME})
   find_library(ORACLE_NNZ_LIBRARY NAMES ${ORACLE_NNZ_NAMES} PATHS ${ORACLE_LIB_DIR})
 
   set(ORACLE_LIBRARY ${ORACLE_OCI_LIBRARY} ${ORACLE_OCCI_LIBRARY} ${ORACLE_NNZ_LIBRARY})
-
+  
   if(APPLE)
     set(ORACLE_OCIEI_NAMES libociei ociei)
 
@@ -63,6 +63,8 @@ if(DEFINED ENV{ORACLE_HOME})
         "libociei.dylib is not found. It may cause crash if you are building BUNDLE")
     endif()
   endif()
+
+  message("${ORACLE_LIBRARY}")
 
   set(ORACLE_LIBRARIES ${ORACLE_LIBRARY})
 
