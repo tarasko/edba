@@ -61,8 +61,9 @@ void test(const char* conn_string)
         postgres_lob_type = "oid";
 
     std::string create_test1_table = boost::str(boost::format(
-        "~Oracle~create sequence test1_seq_id~;"
         "~Oracle~drop sequence test1_seq_id~;"
+        "~Oracle~drop table test1~;"
+        "~Oracle~create sequence test1_seq_id~;"
         "~Microsoft SQL Server~create table ##test1( "
         "   id int identity(1, 1) primary key clustered, "
         "   num numeric(18, 3), "
@@ -103,22 +104,23 @@ void test(const char* conn_string)
         "   vbin20 %1%, "
         "   vbinmax %1%, "
         "   txt text ) "
-        "~Oracle~create global temporary table test1( "
+        "~Oracle~create table test1( "
         "   id number primary key, "
         "   num number(18, 3), "
         "   dt timestamp, "
         "   dt_small date, "
         "   vchar20 varchar2(20),  "
         "   vcharmax varchar2(4000), " 
-        "   vbin20 raw(20), "
+        "   vbin20 blob, "
         "   vbinmax blob, "
         "   txt clob ) "
-        " on commit preserve rows"
         "~") % postgres_lob_type);
 
     const char* insert_test1_data =
         "~Microsoft SQL Server~insert into ##test1(num, dt, dt_small, vchar20, vcharmax, vbin20, vbinmax, txt) "
         "   values(:num, :dt, :dt_small, :vchar20, :vcharmax, :vbin20, :vbinmax, :txt)"
+        "~Oracle~insert into test1(id, num, dt, dt_small, vchar20, vcharmax, vbin20, vbinmax, txt)"
+        "   values(test1_seq_id.nextval, :num, :dt, :dt_small, :vchar20, :vcharmax, :vbin20, :vbinmax, :txt)"
         "~~insert into test1(num, dt, dt_small, vchar20, vcharmax, vbin20, vbinmax, txt)"
         "   values(:num, :dt, :dt_small, :vchar20, :vcharmax, :vbin20, :vbinmax, :txt)"
         "~";
@@ -134,7 +136,7 @@ void test(const char* conn_string)
         "~";
 
     std::string short_binary("binary");
-    std::string long_binary(7000, 't');
+    std::string long_binary(10000, 't');
 
     std::istringstream long_binary_stream;
     std::istringstream short_binary_stream;
@@ -256,7 +258,6 @@ int main()
         test<edba::driver::postgresql>("user=postgres; password=postgres; host=localhost; port=5433; dbname=test; @blob=bytea");
         test<edba::driver::postgresql>("user=postgres; password=postgres; host=localhost; port=5433; dbname=test");
         test<edba::driver::mysql>("host=127.0.0.1;database=test;user=root;password=root;");
-        test<edba::driver::odbc>("DSN=EDBA_TESTING_MSSQL");
         test<edba::driver::odbc_s>("DSN=EDBA_TESTING_MSSQL;@utf=wide");
         test<edba::driver::sqlite3>("db=test.db");
     }

@@ -6,6 +6,7 @@
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/find_iterator.hpp>
+#include <boost/foreach.hpp>
 #include <boost/typeof/typeof.hpp>
 #include <boost/scoped_array.hpp>
 #include <boost/type_traits/is_signed.hpp>
@@ -656,8 +657,10 @@ public:
 
     virtual void bindings_reset_impl()
     {
+        bind_bounds_.clear();
         bind_buf_.clear();
         dt_holder_.clear();
+        lob_holder_.clear();
     }
     
     template<typename T>
@@ -680,7 +683,7 @@ public:
 
     void operator()(const string_ref& v)
     {
-        do_bind(v.begin(), v.size(), SQLT_STR);
+        do_bind(v.begin(), v.size(), SQLT_CHR);
     }
 
     void operator()(const std::tm& v)
@@ -708,10 +711,28 @@ public:
 
     void operator()(std::istream* v) 
     {
-        std::ostringstream ss;
-        ss << v->rdbuf();
-        size_t len = ss.str().length();
-        do_bind(ss.str().c_str(), len, SQLT_CHR);
+        oci_lob lob;
+        throw_on_error_ = OCIDescriptorAlloc(envhp_, lob.ptr(), OCI_DTYPE_LOB, 0, 0);
+        throw_on_error_ = OCILobCreateTemporary(svchp_, throw_on_error_.errhp_, lob.get(), OCI_DEFAULT, OCI_DEFAULT, OCI_TEMP_BLOB, FALSE, OCI_DURATION_STATEMENT);
+        
+        ub4 chunk_size;
+        throw_on_error_ = OCILobGetChunkSize(svchp_, throw_on_error_.errhp_, lob.get(), &chunk_size);
+
+        std::vector<char> buf(chunk_size);
+        for(;;) 
+        {
+            v->read(&buf[0], buf.size());
+            oraub8 bytes_read = static_cast<oraub8>(v->gcount());
+            if(bytes_read > 0)
+                throw_on_error_ = OCILobWriteAppend2(svchp_, throw_on_error_.errhp_, lob.get(), &bytes_read, 0, &buf[0], bytes_read, OCI_ONE_PIECE, 0, 0, OCI_DEFAULT, SQLCS_IMPLICIT);
+            
+            if(bytes_read < buf.size())
+                break;
+        }
+
+        lob_holder_.push_back(boost::move(lob));
+
+        do_bind(&lob_holder_.back(), sizeof(OCILobLocator*), SQLT_BLOB);
     }
 
     void operator()(null_type)
@@ -770,6 +791,13 @@ private:
         bind_bounds_.push_back(b);
 
         bind_buf_.insert(bind_buf_.end(), (const char*)v, (const char*)v + len);
+
+        // Strings must be null-terminated
+        if (len && SQLT_STR == type)
+        {
+            bind_buf_.push_back(0);
+            bind_bounds_.back().size_ += 1;
+        }
     }
 
     template<typename AttrType>
@@ -788,37 +816,57 @@ private:
         return result;
     }
 
-    void stmt_bind(int col, ub2 type, void* ptr, size_t len, void* indicator = 0)
-    {
-        OCIBind* tmp_binding = 0;
-
-        throw_on_error_ = OCIBindByPos(
-            stmtp_.get()
-          , &tmp_binding
-          , throw_on_error_.errhp_
-          , (ub4) col
-          , ptr
-          , (sb4) len
-          , type
-          , indicator
-          , 0, 0, 0, 0, OCI_DEFAULT
-          );
-    }
-
     void bind_unbinded_params()
     {
-        for (size_t i = 0; i<bind_bounds_.size(); ++i)
+        BOOST_FOREACH(const bind_bound& bound, bind_bounds_)
         {
-            int oci_ind_null = OCI_IND_NULL;
-            void* poci_ind_null = !bind_bounds_[i].size_ ? &oci_ind_null : 0;
+            int oci_ind_null;
+            void* poci_ind_null;
+            void* buf;
 
-            stmt_bind(
-                i + 1
-              , bind_bounds_[i].type_
-              , &bind_buf_[bind_bounds_[i].idx_]
-              , bind_bounds_[i].size_
-              , poci_ind_null
-              );
+            if (bound.size_)
+            {
+                poci_ind_null = 0;
+                buf = &bind_buf_[bound.idx_];
+            }
+            else
+            {
+                oci_ind_null = OCI_IND_NULL;
+                poci_ind_null = &oci_ind_null;
+                buf = 0;
+            }
+
+            OCIBind* tmp_binding = 0;
+
+            if (bound.name_.empty())
+            {
+                throw_on_error_ = OCIBindByPos(
+                    stmtp_.get()
+                  , &tmp_binding
+                  , throw_on_error_.errhp_
+                  , (ub4) bound.col_
+                  , buf
+                  , (sb4) bound.size_
+                  , bound.type_
+                  , poci_ind_null
+                  , 0, 0, 0, 0, OCI_DEFAULT
+                  );
+            }
+            else
+            {
+                throw_on_error_ = OCIBindByName(
+                    stmtp_.get()
+                  , &tmp_binding
+                  , throw_on_error_.errhp_
+                  , (const OraText*)&bound.name_[0]
+                  , bound.name_.size()
+                  , buf
+                  , (sb4) bound.size_
+                  , bound.type_
+                  , poci_ind_null
+                  , 0, 0, 0, 0, OCI_DEFAULT
+                  );
+            }
         }
     }
 
@@ -843,6 +891,7 @@ private:
     std::vector<char> bind_buf_;           //!< Bindings serialized in one buffer
     std::vector<bind_bound> bind_bounds_;  //!< Bindings bounds from bind_buf_
     boost::container::vector<oci_descriptor_datetime> dt_holder_;
+    boost::container::vector<oci_lob> lob_holder_;
     int bind_col_;
 };
 
@@ -911,15 +960,13 @@ public:
         BOOST_AUTO(spl_iter, (make_split_iterator(q, first_finder(";"))));
         BOOST_TYPEOF(spl_iter) spl_iter_end;
 
-        for (;spl_iter != spl_iter_end; ++spl_iter)
+        BOOST_FOREACH(string_ref item, (boost::make_iterator_range(spl_iter, spl_iter_end)))
         {
-            BOOST_AUTO(query, *spl_iter);
-
-            trim(query);
-            if (query.empty()) 
+            trim(item);
+            if (item.empty()) 
                 continue;
 
-            create_statement(*spl_iter)->run_exec();    
+            create_statement(item)->run_exec();    
         }
         
         commit();
