@@ -14,6 +14,7 @@
 #include <boost/type_traits/is_floating_point.hpp>
 #include <boost/move/move.hpp>
 #include <boost/container/vector.hpp>
+#include <boost/mpl/switch.hpp>
 
 #include <boost/foreach.hpp>
 
@@ -286,12 +287,17 @@ private:
 
 class result : public backend::result, public boost::static_visitor<>
 {
+    typedef boost::integral_constant<int, SQLT_FLT> sqlt_flt_tag;
+    typedef boost::integral_constant<int, SQLT_INT> sqlt_int_tag;
+    typedef boost::integral_constant<int, SQLT_UIN> sqlt_uin_tag;
+
 public:
     result(OCIEnv* envhp, OCISvcCtx* svchp, OCIError* errhp, OCIStmt* stmtp)
       : envhp_(envhp)
       , svchp_(svchp)
       , stmtp_(stmtp)
       , throw_on_error_(errhp)
+      , total_rows_(-1)
       , just_initialized_(true)
     {   
         // Get number of columns in result
@@ -309,12 +315,33 @@ public:
         columns_.reset(new column[columns_size_]);
         for (ub4 i = 0; i < columns_size_; ++i)
             columns_[i].init(envhp, stmtp, errhp, i);
+
+        // Evaluate total number of rows
+        throw_on_error_ = OCIStmtFetch2(
+            stmtp_, throw_on_error_.errhp_, 1, OCI_FETCH_LAST, 0, OCI_DEFAULT
+          );
+
+        ub4 rows_count;
+        throw_on_error_ =  OCIAttrGet( 
+            stmtp_, OCI_HTYPE_STMT, &rows_count, 0, OCI_ATTR_ROW_COUNT, throw_on_error_.errhp_
+          );
+
+        total_rows_ = rows_count;
     }
 
     virtual next_row has_next()
     {
-        return next_row_unknown;
+        if (total_rows_ == (unsigned long long)-1)
+            return next_row_unknown;
+
+        ub4 rows_processed;
+        throw_on_error_ =  OCIAttrGet( 
+            stmtp_, OCI_HTYPE_STMT, &rows_processed, 0, OCI_ATTR_ROW_COUNT, throw_on_error_.errhp_
+          );
+
+        return rows_processed == total_rows_ ? last_row_reached : next_row_exists;
     }
+
     virtual bool next() 
     {
         sword status;
@@ -358,18 +385,28 @@ public:
     }
 
     template<typename T>
-    void operator()(T* v, typename boost::enable_if< boost::is_integral<T> >::type* = 0)
+    void operator()(T* v, typename boost::enable_if< boost::is_arithmetic<T> >::type* = 0)
     {
-    }
+        using namespace boost::mpl;
+        using namespace boost;
 
-    template<typename T>
-    void operator()(T* v, typename boost::enable_if< boost::is_floating_point<T> >::type* = 0)
-    {
+        typedef typename if_<
+            is_floating_point<T>
+          , sqlt_flt_tag
+          , typename if_<
+                is_signed<T>
+              , sqlt_int_tag
+              , sqlt_uin_tag
+              >::type  
+          >::type type_tag;
+
         switch(columns_[fetch_col_].type_)
         {
-            case SQLT_VNU: 
-                convert_number_to_type(&columns_[fetch_col_].data_[0], SQLT_FLT, v, sizeof(v));
-                break;
+        case SQLT_VNU:
+            convert_number_to_type(&columns_[fetch_col_].data_[0], type_tag(), v, sizeof(T));
+            break;
+        default:
+            throw edba_error("unsupported conversion");
         }
     }
 
@@ -478,66 +515,6 @@ public:
 		    throw bad_value_cast();
     }
 
-    //virtual bool fetch(int col,short &v) 
-    //{
-    //    return fetch_numeric(col, &v, sizeof(v), SQLT_INT);
-    //}
-    //virtual bool fetch(int col,unsigned short &v)
-    //{
-    //    return fetch_numeric(col, &v, sizeof(v), SQLT_UIN);
-    //}
-    //virtual bool fetch(int col,int &v)
-    //{
-    //    return fetch_numeric(col, &v, sizeof(v), SQLT_INT);
-    //}
-    //virtual bool fetch(int col,unsigned &v)
-    //{
-    //    return fetch_numeric(col, &v, sizeof(v), SQLT_UIN);
-    //}
-    //virtual bool fetch(int col,long &v)
-    //{
-    //    int tmp;
-    //    bool ret = fetch_numeric(col, &tmp, sizeof(tmp), SQLT_INT);
-    //    if(ret) 
-    //        v = tmp;
-    //    return ret;
-    //}
-    //virtual bool fetch(int col,unsigned long &v)
-    //{
-    //    unsigned int tmp;
-    //    bool ret = fetch_numeric(col, &tmp, sizeof(tmp), SQLT_UIN);
-    //    if(ret) 
-    //        v = tmp;
-    //    return ret;
-    //}
-    //virtual bool fetch(int col,long long &v)
-    //{
-    //    int tmp;
-    //    bool ret = fetch_numeric(col, &tmp, sizeof(tmp), SQLT_INT);
-    //    if(ret) 
-    //        v = tmp;
-    //    return ret;
-    //}
-    //virtual bool fetch(int col,unsigned long long &v)
-    //{
-    //    unsigned int tmp;
-    //    bool ret = fetch_numeric(col, &tmp, sizeof(tmp), SQLT_UIN);
-    //    if(ret) 
-    //        v = tmp;
-    //    return ret;
-    //}
-    //virtual bool fetch(int col,float &v) 
-    //{
-    //    return fetch_numeric(col, &v, sizeof(v), SQLT_FLT);
-    //}
-    //virtual bool fetch(int col,double &v)
-    //{
-    //    return fetch_numeric(col, &v, sizeof(v), SQLT_FLT);
-    //}
-    //virtual bool fetch(int col,long double &v)
-    //{
-    //    return fetch_numeric(col, &v, sizeof(v), SQLT_FLT);
-    //}
     virtual bool is_null(int col)
     {
         return -1 == columns_[col].col_fetch_ind_;
@@ -550,19 +527,9 @@ public:
 
     virtual unsigned long long rows() 
     {
-        throw_on_error_ = OCIStmtFetch2(
-            stmtp_, throw_on_error_.errhp_, 1, OCI_FETCH_LAST, 0, OCI_DEFAULT
-          );
-
-        just_initialized_ = true;
-
-        ub4 rows_count;
-        throw_on_error_ =  OCIAttrGet( 
-            stmtp_, OCI_HTYPE_STMT, &rows_count, 0, OCI_ATTR_ROW_COUNT, throw_on_error_.errhp_
-          );
-
-        return rows_count;
+        return total_rows_;
     }
+
     virtual int name_to_column(const string_ref& n)
     {
         for(size_t i = 0; i < columns_size_; ++i)
@@ -582,30 +549,22 @@ public:
     }
 
 private:
-    void convert_number_to_type(const void* number, ub2 type, void* out, size_t out_len)
+    void convert_number_to_type(const void* number, sqlt_flt_tag, void* out, size_t out_len)
     {
         const OCINumber* n = reinterpret_cast<const OCINumber*>(number);
+        throw_on_error_ = OCINumberToReal(throw_on_error_.errhp_, n, out_len, out);
+    }
 
-        switch(type)
-        {
-            case SQLT_INT:
-                throw_on_error_ = OCINumberToInt(
-                    throw_on_error_.errhp_, n, out_len, OCI_NUMBER_SIGNED, out
-                  );
-                break;  
-            case SQLT_UIN:
-                throw_on_error_ = OCINumberToInt(
-                    throw_on_error_.errhp_, n, out_len, OCI_NUMBER_UNSIGNED, out
-                  );
-                break;
-            case SQLT_FLT:
-                throw_on_error_ = OCINumberToReal(
-                    throw_on_error_.errhp_, n, out_len, out
-                  );
-                break;
-            default:
-                throw edba_error("unsupported conversion for oracle NUMBER type");
-        }
+    void convert_number_to_type(const void* number, sqlt_int_tag, void* out, size_t out_len)
+    {
+        const OCINumber* n = reinterpret_cast<const OCINumber*>(number);
+        throw_on_error_ = OCINumberToInt(throw_on_error_.errhp_, n, out_len, OCI_NUMBER_SIGNED, out);
+    }
+
+    void convert_number_to_type(const void* number, sqlt_uin_tag, void* out, size_t out_len)
+    {
+        const OCINumber* n = reinterpret_cast<const OCINumber*>(number);
+        throw_on_error_ = OCINumberToInt(throw_on_error_.errhp_, n, out_len, OCI_NUMBER_UNSIGNED, out);
     }
 
     OCIEnv*           envhp_;
@@ -615,7 +574,8 @@ private:
     error_checker throw_on_error_;         //!< Error checker
     boost::scoped_array<column> columns_;  //!< Columns and defines
     ub4 columns_size_;                     //!< Number of columns in result
-    bool just_initialized_;                //!< True before first fetch attempt
+    unsigned long long total_rows_;        //!< Total number of rows
+    bool just_initialized_;                //!< True before first next call
     int fetch_col_;
 };
 
@@ -756,16 +716,22 @@ public:
         
         return backend::result_ptr(new result(envhp_, svchp_, throw_on_error_.errhp_, stmtp_.get()));
     }
-    virtual long long sequence_last(std::string const &/*name*/)
+
+    virtual long long sequence_last(std::string const &name)
     {
-        OCIRowid *rowid;
-        throw_on_error_ = OCIDescriptorAlloc (envhp_, (dvoid **) &rowid, OCI_DTYPE_ROWID, 0, 0);
-        throw_on_error_ = OCIAttrGet (stmtp_.get(), OCI_HTYPE_STMT, rowid, 0, OCI_ATTR_ROWID, throw_on_error_.errhp_);
+        std::string query("select ");
+        query += name;
+        query += ".currval from dual";
 
-        // TODO: Implement it
+        statement st(query, envhp_, throw_on_error_.errhp_, svchp_, 0);
+        backend::result_ptr res = st.run_query();
+        res->next();
+        long long id;
+        res->fetch(0, &id); 
 
-        return 0;
+        return id;
     }
+
     virtual void exec_impl()
     {
         if (OCI_STMT_SELECT == stmt_type_) 
@@ -775,6 +741,7 @@ public:
 
         throw_on_error_ = OCIStmtExecute(svchp_, stmtp_.get(), throw_on_error_.errhp_, 1, 0, 0, 0, OCI_DEFAULT);
     }
+
     virtual unsigned long long affected()
     {
         return stmt_attr_get<ub4>(OCI_ATTR_ROW_COUNT);

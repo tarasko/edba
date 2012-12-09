@@ -111,7 +111,7 @@ void test(const char* conn_string)
         "   dt_small date, "
         "   vchar20 varchar2(20),  "
         "   vcharmax varchar2(4000), " 
-        "   vbin20 blob, "
+        "   vbin20 raw(20), "
         "   vbinmax blob, "
         "   txt clob ) "
         "~") % postgres_lob_type);
@@ -178,7 +178,10 @@ void test(const char* conn_string)
                 << exec
                 << exec;
 
-            id = st.last_insert_id();
+            if (sess.backend() == "oracle")
+                id = st.sequence_last("test1_seq_id");
+            else
+                id = st.last_insert_id();
 
             // Exec with null types
             st << reset
@@ -205,7 +208,7 @@ void test(const char* conn_string)
 
             row r = sess << select_test1_row << id << first_row;
     
-            long long id;
+            int id;
             double num;
             std::tm tm1, tm2;
             std::string short_str;

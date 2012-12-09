@@ -769,7 +769,7 @@ public:
             else if(boost::iequals(eng, "pgsql"))
             {
                 last_insert_id_ = "select lastval()";
-                sequence_last_ = "select currval(?)";
+                sequence_last_ = "select currval(:seqname)";
             }
             else if(boost::iequals(eng, "Microsoft SQL Server"))
                 last_insert_id_ = "select @@identity";
