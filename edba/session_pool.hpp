@@ -11,7 +11,7 @@
 namespace edba {
 
 ///
-/// Thread-safe pool of sessions with max limit.
+/// Thread-safe pool of sessions with maximum number limit
 ///
 class EDBA_API session_pool
 {

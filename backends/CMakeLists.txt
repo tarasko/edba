@@ -7,14 +7,17 @@ function(edba_add_backend backend_name)
 
 	include_directories(${${upper_backend_name}_INCLUDE_DIR})
 
-	add_library(edba_${lower_backend_name} SHARED ${source})
-	add_library(edba_${lower_backend_name}_s STATIC ${source})
-
-	target_link_libraries(edba_${lower_backend_name} ${${upper_backend_name}_LIBRARIES} edba)
-	target_link_libraries(edba_${lower_backend_name}_s ${${upper_backend_name}_LIBRARIES} edba)
-
-	set_target_properties(edba_${lower_backend_name} PROPERTIES COMPILE_DEFINITIONS "edba_DRIVER_EXPORTS")
-  set_target_properties(edba_${lower_backend_name}_s PROPERTIES COMPILE_DEFINITIONS "edba_DRIVER_STATIC")
+  if(EDBA_SHARED_LIBS)
+	  add_library(edba_${lower_backend_name} SHARED ${source})
+    target_link_libraries(edba_${lower_backend_name} ${${upper_backend_name}_LIBRARIES} edba)
+    set_target_properties(edba_${lower_backend_name} PROPERTIES COMPILE_DEFINITIONS "edba_DRIVER_EXPORTS")
+  endif()
+  
+  if(EDBA_STATIC_LIBS)
+	  add_library(edba_${lower_backend_name}_s STATIC ${source})
+	  target_link_libraries(edba_${lower_backend_name}_s ${${upper_backend_name}_LIBRARIES} edba_s)
+    set_target_properties(edba_${lower_backend_name}_s PROPERTIES COMPILE_DEFINITIONS "edba_STATIC;edba_DRIVER_STATIC")
+  endif()
   
   edba_install_targets(edba_${lower_backend_name} edba_${lower_backend_name}_s)
 endfunction(edba_add_backend)

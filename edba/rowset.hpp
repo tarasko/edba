@@ -464,7 +464,7 @@ void rowset_iterator<T>::increment()
 }
 
 template<>
-void rowset_iterator<row>::increment()
+inline void rowset_iterator<row>::increment()
 {
     if (!rs_)
         return;
@@ -476,7 +476,7 @@ void rowset_iterator<row>::increment()
 }
 
 template<>
-void rowset_iterator<const row>::increment()
+inline void rowset_iterator<const row>::increment()
 {
     if (!rs_)
         return;

@@ -132,7 +132,7 @@ void check_odbc_error(SQLRETURN error,SQLHANDLE h,SQLSMALLINT type,bool wide)
 
 class result : public backend::result, public boost::static_visitor<bool>
 {
-    static const SQLUINTEGER MAX_READ_BUFFER_SIZE = 4096;
+    static const SQLULEN MAX_READ_BUFFER_SIZE = 4096;
 
     typedef std::vector<column_info> columns_set;
 

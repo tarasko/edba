@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8)
 
 option(EDBA_ENABLE_TESTS "Add targets for test building. In case of standalone build this would be done automatically" OFF)
+option(EDBA_STATIC_LIBS "Enable static versions of core and backend libraries" ON)
+option(EDBA_SHARED_LIBS "Enable shared version of core and backend libraries" ON)
 
 set(edba_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" CACHE INTERNAL "edba include dirs")
 
@@ -85,8 +87,15 @@ set(sources
   edba/types_support/boost_posix_time_ptime.hpp 
 )
 
-add_library(edba SHARED ${sources})
-target_link_libraries(edba ${Boost_LIBRARIES})
+if(EDBA_SHARED_LIBS)
+    add_library(edba SHARED ${sources})
+    target_link_libraries(edba ${Boost_LIBRARIES})
+endif()
+
+if(EDBA_STATIC_LIBS)
+    add_library(edba_s STATIC ${sources})
+    set_target_properties(edba_s PROPERTIES COMPILE_DEFINITIONS "edba_STATIC")
+endif()
 
 foreach(src ${sources})
 	string(REGEX REPLACE "(.*)/.*" "\\1" dir ${src})
