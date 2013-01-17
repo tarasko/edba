@@ -48,11 +48,16 @@ string_ref to_string_ref(const std::pair<std::string, T>& obj)
 
 struct string_ref_iless
 {
+    string_ref_iless() : loc_(std::locale::classic()) {}
+
     template<typename T1, typename T2>
     bool operator()(const T1& r1, const T2& r2) const
     {
-        return boost::algorithm::ilexicographical_compare(to_string_ref(r1), to_string_ref(r2));
+        return boost::algorithm::ilexicographical_compare(to_string_ref(r1), to_string_ref(r2), loc_);
     }
+
+private:
+    const std::locale& loc_;
 };
 
 struct string_ref_less

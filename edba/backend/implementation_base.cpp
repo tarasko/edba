@@ -214,14 +214,14 @@ string_ref connection::select_statement(const string_ref& _q)
 statement_ptr connection::prepare_statement(const string_ref& _q)
 {
     string_ref q = select_statement(_q);
-    BOOST_AUTO(found, (boost::equal_range(cache_, q, string_ref_iless())));
+    BOOST_AUTO(found, (boost::equal_range(cache_, q, string_ref_less())));
     if (boost::empty(found))
     {
         statement_ptr st = prepare_statement_impl(q);
         cache_.resize(cache_.size() + 1);
         cache_.back().first.assign(q.begin(), q.end());
         cache_.back().second = st;
-        boost::sort(cache_, string_ref_iless());
+        boost::sort(cache_, string_ref_less());
         return st;
     }
     else
