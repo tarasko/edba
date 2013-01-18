@@ -115,6 +115,8 @@ string_ref select_statement(
   , int ver_minor
   )
 {
+    const std::locale& loc = std::locale::classic();
+
     string_ref rng = trim(_rng);
     if (rng.empty()) 
         throw edba_error("edba::select_statement empty sql provided");
@@ -139,7 +141,7 @@ string_ref select_statement(
         BOOST_AUTO(eng_iter, (make_split_iterator(engine_with_version, first_finder("/."))));
         string_ref eng_name = *eng_iter++;
 
-        if (!eng_name.empty() && !boost::iequals(engine, eng_name))
+        if (!eng_name.empty() && !boost::iequals(engine, eng_name, loc))
             continue;
 
         // ok we have same engine

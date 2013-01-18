@@ -52,10 +52,12 @@ void test_escaping(session sess)
 template<typename Driver>
 void test(const char* conn_string)
 {
+    const std::locale& loc = std::locale::classic();
+
     // Workaround for postgres lobs
     conn_info ci(conn_string);
     const char* postgres_lob_type;
-    if (ci.has("@blob") && boost::iequals(ci.get("@blob"), "bytea"))
+    if (ci.has("@blob") && boost::iequals(ci.get("@blob"), "bytea", loc))
         postgres_lob_type = "bytea";
     else
         postgres_lob_type = "oid";

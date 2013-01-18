@@ -674,9 +674,11 @@ public:
     connection(const conn_info& ci, session_monitor* sm) : backend::connection(ci, sm), ci_(ci)
     {
         string_ref utf = ci.get("@utf", "narrow");
-        if(boost::iequals(utf, "narrow"))
+        const std::locale& loc = std::locale::classic();
+
+        if(boost::iequals(utf, "narrow", loc))
             wide_ = false;
-        else if(boost::iequals(utf, "wide"))
+        else if(boost::iequals(utf, "wide", loc))
             wide_ = true;
         else
             throw edba_error("edba::odbc:: @utf property can be either 'narrow' or 'wide'");
@@ -728,7 +730,7 @@ public:
 
         if( SQL_SUCCESS == rc || SQL_SUCCESS_WITH_INFO == rc ) 
         {
-            if (boost::iequals(buf, "Postgresql")) 
+            if (boost::iequals(buf, "Postgresql", loc)) 
                 engine_ = "PgSQL";
             else
                 engine_ = buf;
@@ -762,16 +764,16 @@ public:
         if(seq.empty()) 
         {
             const std::string& eng=engine();
-            if(boost::iequals(eng, "sqlite3"))
+            if(boost::iequals(eng, "sqlite3", loc))
                 last_insert_id_ = "select last_insert_rowid()";
-            else if(boost::iequals(eng, "mysql"))
+            else if(boost::iequals(eng, "mysql", loc))
                 last_insert_id_ = "select last_insert_id()";
-            else if(boost::iequals(eng, "pgsql"))
+            else if(boost::iequals(eng, "pgsql", loc))
             {
                 last_insert_id_ = "select lastval()";
                 sequence_last_ = "select currval(:seqname)";
             }
-            else if(boost::iequals(eng, "Microsoft SQL Server"))
+            else if(boost::iequals(eng, "Microsoft SQL Server", loc))
                 last_insert_id_ = "select @@identity";
         }
         else 

@@ -301,10 +301,11 @@ void connection::rollback()
 
 connection::connection(conn_info const &info, session_monitor* sm) : sm_(sm)
 {
+    const std::locale& loc = std::locale::classic();
     string_ref exp_cond = info.get("@expand_conditionals", "on");
-    if(boost::algorithm::iequals(exp_cond, "on"))
+    if(boost::algorithm::iequals(exp_cond, "on", loc))
         expand_conditionals_ = 1;
-    else if(boost::algorithm::iequals(exp_cond, "off"))
+    else if(boost::algorithm::iequals(exp_cond, "off", loc))
         expand_conditionals_ = 0;
     else
         throw edba_error("edba::backend::connection: @expand_conditionals should be either 'on' or 'off'");

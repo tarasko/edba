@@ -4,6 +4,7 @@
 
 #include <boost/test/minimal.hpp>
 #include <boost/foreach.hpp>
+#include <boost/thread/thread.hpp>
 
 using namespace std;
 using namespace edba;
