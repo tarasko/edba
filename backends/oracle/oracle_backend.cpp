@@ -414,12 +414,10 @@ public:
     {
         column& c = columns_[fetch_col_];
 
-        // TODO: Read by portion 
-
         if (c.is_lob())
         {
-            ub4 lob_len = 0;
-            throw_on_error_ = OCILobGetLength(svchp_, throw_on_error_.errhp_, c.lob_.get(), &lob_len);
+            oraub8 lob_len = 0;
+            throw_on_error_ = OCILobGetLength2(svchp_, throw_on_error_.errhp_, c.lob_.get(), &lob_len);
 
             if (!lob_len) 
             {
@@ -427,13 +425,18 @@ public:
                 return;
             }
 
-            v->resize(lob_len);
-            throw_on_error_ = OCILobRead(
-                svchp_, throw_on_error_.errhp_, c.lob_.get(), &lob_len, 
-                1,
-                &v->front(), v->size(),
-                0, 0,
-                0, 0
+            v->resize((size_t)lob_len);
+            throw_on_error_ = OCILobRead2(
+                svchp_
+              , throw_on_error_.errhp_
+              , c.lob_.get()
+              , &lob_len
+              , 0
+              , 1
+              , &v[0]
+              , v->size()
+              , OCI_ONE_PIECE 
+              , 0, 0, 0, 0
               );
         }
         else 
@@ -446,6 +449,8 @@ public:
 
         if (c.is_lob())
         {
+            // TODO: Read by chunk size
+        
             ub4 lob_len = 0;
             throw_on_error_ = OCILobGetLength(svchp_, throw_on_error_.errhp_, c.lob_.get(), &lob_len);
 
