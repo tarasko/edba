@@ -13,7 +13,7 @@ namespace edba {
 #  include <boost/preprocessor/iteration/local.hpp>
 #  include <boost/preprocessor/repetition/enum_params.hpp>
 
-#  define BOOST_PP_ITERATION_PARAMS_1 (3, (1, 10, "std_tuple.hpp"))
+#  define BOOST_PP_ITERATION_PARAMS_1 (3, (1, 5, "std_tuple.hpp"))
 #  include BOOST_PP_ITERATE()
 
 }
