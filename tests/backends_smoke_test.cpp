@@ -167,6 +167,18 @@ void test(const char* conn_string)
             // Compile statement for inserting data 
             statement st = sess << insert_test1_data;
 
+            // Exec when part of parameters are nulls
+            st << reset
+                << 10.10 
+                << null
+                << *std::gmtime(&now)
+                << null
+                << null
+                << null
+                << null
+                << null
+                << exec;
+
             // Bind data to statement and execute two times
             st 
                 << use("num", 10.10) 
@@ -185,7 +197,7 @@ void test(const char* conn_string)
             else
                 id = st.last_insert_id();
 
-            // Exec with null types
+            // Exec with all null types
             st << reset
                << null 
                << null
@@ -249,6 +261,16 @@ void test(const char* conn_string)
             << use("num", 10.5) 
             << exec;
 
+        // Exec when part of parameters are nulls
+        sess.once() << 
+            "~Microsoft SQL Server~insert into ##test1(num) values(:num)"
+            "~~insert into test1(num, dt, dt_small) values(:num, :dt, :dt_small)"
+            "~"
+            << 10.5
+            << *std::gmtime(&now)
+            << null
+            << exec;
+
         sess.once() << drop_test1 << exec;
 
         test_escaping(sess);
@@ -259,11 +281,11 @@ int main()
 {
     try {
         // setlocale(LC_ALL, "Russian");
+        test<edba::driver::odbc>("DSN=EDBA_TESTING_MSSQL;@utf=wide");
         test<edba::driver::oracle>("user=system; password=root; ConnectionString=localhost:1521/xe");
         test<edba::driver::postgresql>("user=postgres; password=postgres; host=localhost; port=5433; dbname=test; @blob=bytea");
         test<edba::driver::postgresql>("user=postgres; password=postgres; host=localhost; port=5433; dbname=test");
         test<edba::driver::mysql>("host=127.0.0.1;database=test;user=root;password=root;");
-        test<edba::driver::odbc_s>("DSN=EDBA_TESTING_MSSQL;@utf=wide");
         test<edba::driver::sqlite3>("db=test.db");
     }
     catch(std::exception& e)

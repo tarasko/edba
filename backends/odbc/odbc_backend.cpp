@@ -414,10 +414,10 @@ public:
       , sequence_last_(sequence_last)
       , last_insert_id_(last_insert_id)
     {
-        bool stmt_created = false;
-        SQLRETURN r = SQLAllocHandle(SQL_HANDLE_STMT,dbc,&stmt_);
-        check_odbc_error(r,dbc,SQL_HANDLE_DBC,wide_);
-        stmt_created = true;
+        // Allocate statement handle
+        SQLRETURN r = SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt_);
+        check_odbc_error(r, dbc, SQL_HANDLE_DBC, wide_);
+
         if(prepared_) 
         {
             try 
@@ -445,6 +445,22 @@ public:
             SQLSMALLINT params_no;
             r = SQLNumParams(stmt_,&params_no);
             check_error(r);
+
+            if (params_no)
+            {
+                // Workaround for null binding trouble in the SQL Server. (Checked for 2005 Express and 2008 Express)
+                // Following code cause exception
+                // sql << "CREATE TABLE test_n (aa, bb) VALUES (?, ?) << 0 << edba::null << edba::exec;
+                // sql << "INSERT INTO test_n (aa, bb) VALUES (?, ?) << 0 << edba::null << edba::exec;
+                //
+                // SQLDescribeParams will return error if it will be called after SQLBindParameter for the first time.
+                // Thanks to a.sitnikov (http://vk.com/typename) for report and workaround :)
+                SQLSMALLINT data_type;
+                SQLULEN param_size;
+                SQLSMALLINT digits;
+                SQLSMALLINT nullable;
+                check_error(SQLDescribeParam(stmt_, 1, &data_type, &param_size, &digits, &nullable));
+            }
         }
     }
     ~statement()

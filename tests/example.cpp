@@ -176,8 +176,11 @@ void test_var()
     monitor m;
     edba::session sess1(edba::driver::odbc_s(), "DSN=VAR_DATA", &m);
     edba::session sess(edba::driver::odbc(), "DSN=VAR_DATA", &m);
-
-    boost::timer t;
+	
+	sess << "CREATE TABLE ##test_n (aa INT NULL, bb INT NULL)" << edba::exec;
+	sess << "insert int ##test_n(aa, bb) values(:aa, :bb)" << 1 << edba::null << edba::exec;
+    
+	boost::timer t;
 
     edba::rowset<> rs = sess << "SELECT TOP 200000 ID, CURVE_ID, TIMESTAMP, VALUE, TERM FROM CURVE_QUOTE";
 
