@@ -31,6 +31,8 @@ struct fetch_conversion<boost::optional<T>, void>
         T object;
         if (res.fetch(col_or_name, object))
             v = boost::move(object);
+        else
+            v.reset();
 
         return true;
     }

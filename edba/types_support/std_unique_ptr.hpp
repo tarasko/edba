@@ -30,6 +30,8 @@ struct fetch_conversion<std::unique_ptr<T>, typename boost::disable_if< boost::i
         T tmp;
         if (res.fetch(col_or_name, tmp))
             v.reset(new T(std::move(tmp)));
+        else
+            v.reset();
 
         return true;
     }

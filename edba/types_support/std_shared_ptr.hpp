@@ -30,6 +30,8 @@ struct fetch_conversion<std::shared_ptr<T>, typename boost::disable_if< boost::i
         T tmp;
         if (res.fetch(col_or_name, tmp))
             v = std::make_shared<T>(std::move(tmp));
+        else
+            v.reset();
 
         return true;
     }
