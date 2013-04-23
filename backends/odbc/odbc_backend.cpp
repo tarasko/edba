@@ -459,7 +459,7 @@ public:
                 SQLULEN param_size;
                 SQLSMALLINT digits;
                 SQLSMALLINT nullable;
-                check_error(SQLDescribeParam(stmt_, 1, &data_type, &param_size, &digits, &nullable));
+                SQLDescribeParam(stmt_, 1, &data_type, &param_size, &digits, &nullable);
             }
         }
     }
