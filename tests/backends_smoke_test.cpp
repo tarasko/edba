@@ -271,6 +271,17 @@ void test(const char* conn_string)
             << null
             << exec;
 
+        {
+            // Regression case: rowset doesn`t support non class types
+            rowset<int> rs = sess << 
+                "~Microsoft SQL Server~select id from ##test1"
+                "~~select id from test1"
+                "~";
+
+            copy(rs.begin(), rs.end(), ostream_iterator<int>(cout, " "));
+            cout << endl;
+        }
+
         sess.once() << drop_test1 << exec;
 
         test_escaping(sess);

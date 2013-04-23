@@ -11,6 +11,11 @@
 
 namespace edba { 
 
+namespace detail {
+    template<typename T>
+    struct value_holder { T value_; };
+}
+
 class row;
 template<typename Row> class rowset_iterator;
 template<typename Row> class rowset;
@@ -327,7 +332,7 @@ private:
 /// only once. That means when begin has been called once, all subsequent calls to begin will give undefined behavior.
 ///
 template<typename T = row>
-class rowset : private boost::mpl::if_<boost::is_same<T, row>, null_type, T>::type
+class rowset : private boost::mpl::if_<boost::is_same<T, row>, null_type, detail::value_holder<T> >::type
 {
     template<typename T1> friend class rowset_iterator;
 
@@ -428,7 +433,7 @@ template<typename T>
 typename rowset_iterator<T>::reference rowset_iterator<T>::dereference() const
 {
     BOOST_ASSERT(rs_ && "Attempt to dereference end rowset_iterator");
-    return static_cast<T&>(*rs_);
+    return static_cast<T&>(rs_->value_);
 }
 
 // row_iterator::dereference specialization for row. We should not call fetch, instead we just return stored row object;
@@ -456,7 +461,7 @@ void rowset_iterator<T>::increment()
     if (rs_->row_.res_->next())
     {
         rs_->row_.rewind_column();
-        if (!fetch_conversion<mutable_value_type>::fetch(rs_->row_, 0, const_cast<mutable_reference>(static_cast<T&>(*rs_))))
+        if (!fetch_conversion<mutable_value_type>::fetch(rs_->row_, 0, const_cast<mutable_reference>(rs_->value_)))
             throw null_value_fetch();
     }
     else
