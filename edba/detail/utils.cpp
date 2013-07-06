@@ -182,16 +182,21 @@ std::string select_statements_in_batch(
             continue;
 
         const char* mark = std::find(st.begin(), st.end(), '~');
-        if (st.end() == mark) 
-            result.append(st.begin(), st.end());
-        else
+
+        size_t result_initial_size = result.size();
+
+        string_ref front(st.begin(), mark);
+        trim(front);
+        result.append(front.begin(), front.end());
+
+        if (st.end() != mark)
         {
-            result.append(st.begin(), mark);
             string_ref selected_st = select_statement(string_ref(mark, st.end()), engine, ver_major, ver_minor);
             result.append(selected_st.begin(), selected_st.end());
         }
 
-        result.append(";\n\n");
+        if (result_initial_size != result.size())
+            result.append(";\n\n");
     }
 
     return result;

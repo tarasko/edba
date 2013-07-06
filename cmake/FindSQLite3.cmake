@@ -34,22 +34,24 @@ find_path(SQLITE3_INCLUDE_DIR
   PATHS
   /usr/include
   /usr/local/include
-  $ENV{LIB_DIR}/include
-  $ENV{LIB_DIR}/include/sqlite
-  $ENV{LIB_DIR}/include/sqlite3
+  $ENV{SQLITE3_HOME}
+  $ENV{SQLITE3_HOME}/include
+  $ENV{SQLITE3_HOME}/include/sqlite
+  $ENV{SQLITE3_HOME}/include/sqlite3
   $ENV{ProgramFiles}/SQLite/*/include
   $ENV{ProgramFiles}/SQLite3/*/include
   $ENV{SystemDrive}/SQLite/*/include
   $ENV{SystemDrive}/SQLite3/*/include
   ${OSGEO4W_ROOT_DIR}/include)
 
-set(SQLITE3_NAMES ${OSGEO4W_IMPORT_LIBRARY} sqlite3)
+set(SQLITE3_NAMES ${OSGEO4W_IMPORT_LIBRARY} sqlite3 sqlite3_s)
 find_library(SQLITE3_LIBRARY
   NAMES ${SQLITE3_NAMES}
   PATHS
   /usr/lib
   /usr/local/lib
-  $ENV{LIB_DIR}/lib
+  $ENV{SQLITE3_HOME}
+  $ENV{SQLITE3_HOME}/lib
   $ENV{ProgramFiles}/SQLite/*/lib
   $ENV{ProgramFiles}/SQLite3/*/lib
   $ENV{SystemDrive}/SQLite/*/lib

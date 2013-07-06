@@ -21,46 +21,11 @@
 #include <sstream>
 #include <vector>
 
-namespace {
-  
-#if defined( _WIN32 )
-  
-struct oracle_driver_initializer_t 
-{
-    oracle_driver_initializer_t() 
-    {
-        _putenv( "NLS_LANG=.AL32UTF8" );
-    }
+namespace edba { namespace oracle_backend { namespace {
 
-    ~oracle_driver_initializer_t() 
-    {
-        _putenv( "NLS_LANG=" );
-    }
-} oracle_driver_initializer;
-  
-#else 
-  
-struct oracle_driver_initializer_t 
-{
-    oracle_driver_initializer_t() 
-    {
-        setenv( "NLS_LANG", ".AL32UTF8", 1 );
-    }
-
-    ~oracle_driver_initializer_t() 
-    {
-        unsetenv( "NLS_LANG" );
-    }
-} oracle_driver_initializer;
-  
-#endif
-  
-}
-
-namespace edba { namespace oracle_backend {
-
-static std::string g_backend_name("oracle");
-static std::string g_engine_name("oracle");
+const std::string g_backend_name("oracle");
+const std::string g_engine_name("oracle");
+const int g_utf8_charset_id = 871;
 
 typedef sword (*deallocator_type)( void *hndlp, ub4 type );
   
@@ -413,10 +378,10 @@ public:
     void operator()(std::string* v)
     {
         column& c = columns_[fetch_col_];
+        oraub8 lob_len = 0;
 
         if (c.is_lob())
         {
-            oraub8 lob_len = 0;
             throw_on_error_ = OCILobGetLength2(svchp_, throw_on_error_.errhp_, c.lob_.get(), &lob_len);
 
             if (!lob_len) 
@@ -425,19 +390,22 @@ public:
                 return;
             }
 
-            v->resize((size_t)lob_len);
+            c.data_.resize((size_t)lob_len);
+
             throw_on_error_ = OCILobRead2(
                 svchp_
               , throw_on_error_.errhp_
               , c.lob_.get()
               , &lob_len
-              , 0
+              , &lob_len
               , 1
-              , &v[0]
-              , v->size()
-              , OCI_ONE_PIECE 
+              , &c.data_[0]
+              , c.data_.size() * 4
+              , OCI_ONE_PIECE
               , 0, 0, 0, 0
               );
+
+              v->assign(&c.data_[0], c.data_.size());
         }
         else 
             v->assign(&c.data_[0], c.col_fetch_size_);
@@ -451,24 +419,29 @@ public:
         {
             // TODO: Read by chunk size
         
-            ub4 lob_len = 0;
-            throw_on_error_ = OCILobGetLength(svchp_, throw_on_error_.errhp_, c.lob_.get(), &lob_len);
+            oraub8 lob_len = 0;
+            throw_on_error_ = OCILobGetLength2(svchp_, throw_on_error_.errhp_, c.lob_.get(), &lob_len);
 
             if (!lob_len) 
                 return;
 
             // TODO: Read by portion 
-            std::vector<char> tmp(lob_len);
+            c.data_.resize((size_t)lob_len);
 
-            throw_on_error_ = OCILobRead(
-                svchp_, throw_on_error_.errhp_, c.lob_.get(), &lob_len, 
-                1,
-                &tmp[0], tmp.size(),
-                0, 0,
-                0, 0
+            throw_on_error_ = OCILobRead2(
+                svchp_
+              , throw_on_error_.errhp_
+              , c.lob_.get()
+              , &lob_len
+              , &lob_len
+              , 1
+              , &c.data_[0]
+              , c.data_.size()
+              , OCI_ONE_PIECE
+              , 0, 0, 0, 0
               );
 
-            v->write(&tmp[0], tmp.size());
+            v->write(&c.data_[0], c.data_.size());
         }
         else 
             v->write(&columns_[fetch_col_].data_[0], columns_[fetch_col_].col_fetch_size_);
@@ -876,7 +849,7 @@ public:
         string_ref password = ci.get("Password"); 
         string_ref conn_string = ci.get("ConnectionString");
         
-        throw_on_error_ = OCIEnvCreate(envhp_.ptr(), OCI_THREADED, 0, 0, 0, 0, 0, 0);
+        throw_on_error_ = OCIEnvNlsCreate(envhp_.ptr(), OCI_THREADED, 0, 0, 0, 0, 0, 0, g_utf8_charset_id, g_utf8_charset_id);
         throw_on_error_ = OCIHandleAlloc(envhp_.get(), errhp_.ptr(), OCI_HTYPE_ERROR, 0, 0);
 
         throw_on_error_.errhp_ = errhp_.get();
@@ -993,7 +966,7 @@ private:
     int ver_minor_;
 };
 
-}} // oracle_backend, edba
+}}} // anonymous, oracle_backend, edba
 
 extern "C" {
     EDBA_DRIVER_API edba::backend::connection *edba_oracle_get_connection(const edba::conn_info& ci, edba::session_monitor* sm)

@@ -6,6 +6,7 @@
 #include <boost/iostreams/device/mapped_file.hpp>
 #include <boost/foreach.hpp>
 #include <boost/timer.hpp>
+#include <boost/scope_exit.hpp>
 
 #include <iostream>
 #include <ctime>
@@ -62,9 +63,10 @@ void test(const char* conn_string)
     else
         postgres_lob_type = "oid";
 
+    std::string oracle_cleanup_seq = "~Oracle~drop sequence test1_seq_id~;";
+    std::string oracle_cleanup_tbl = "~Oracle~drop table test1~;";
+
     std::string create_test1_table = boost::str(boost::format(
-        "~Oracle~drop sequence test1_seq_id~;"
-        "~Oracle~drop table test1~;"
         "~Oracle~create sequence test1_seq_id~;"
         "~Microsoft SQL Server~create table ##test1( "
         "   id int identity(1, 1) primary key clustered, "
@@ -132,7 +134,9 @@ void test(const char* conn_string)
         "~~select id, num, dt, dt_small, vchar20, vcharmax, vbin20, vbinmax, txt from test1 where id=:id"
         "~";
 
-    const char* drop_test1 = 
+    const char* drop_test1 =
+        "~Oracle~drop sequence test1_seq_id~;"
+        "~Oracle~drop table test1~;"
         "~Microsoft SQL Server~drop table ##test1"
         "~~drop table test1"
         "~";
@@ -155,6 +159,9 @@ void test(const char* conn_string)
 
         monitor sm;
         session sess(Driver(), conn_string, &sm);
+
+        try {sess.exec_batch(oracle_cleanup_seq);} catch(...) {}
+        try {sess.exec_batch(oracle_cleanup_tbl);} catch(...) {}
 
         // Create table
         sess.exec_batch(create_test1_table);
@@ -246,9 +253,11 @@ void test(const char* conn_string)
 
         sess.exec_batch(
             "~Microsoft SQL Server~insert into ##test1(num) values(10.2)"
+            "~Oracle~insert into test1(id, num) values(test1_seq_id.nextval, 10.2)"
             "~~insert into test1(num) values(10.2)"
             "~;"
             "~Microsoft SQL Server~insert into ##test1(num) values(10.3)"
+            "~Oracle~insert into test1(id, num) values(test1_seq_id.nextval, 10.3)"
             "~~insert into test1(num) values(10.3)"
             "~");
 
@@ -256,6 +265,7 @@ void test(const char* conn_string)
         // Test once helper 
         sess.once() << 
             "~Microsoft SQL Server~insert into ##test1(num) values(:num)"
+            "~Oracle~insert into test1(id, num) values(test1_seq_id.nextval, :num)"
             "~~insert into test1(num) values(:num)"
             "~"
             << use("num", 10.5) 
@@ -264,6 +274,7 @@ void test(const char* conn_string)
         // Exec when part of parameters are nulls
         sess.once() << 
             "~Microsoft SQL Server~insert into ##test1(num) values(:num)"
+            "~Oracle~insert into test1(id, num, dt, dt_small) values(test1_seq_id.nextval, :num, :dt, :dt_small)"
             "~~insert into test1(num, dt, dt_small) values(:num, :dt, :dt_small)"
             "~"
             << 10.5
@@ -282,9 +293,9 @@ void test(const char* conn_string)
             cout << endl;
         }
 
-        sess.once() << drop_test1 << exec;
-
         test_escaping(sess);
+
+        sess.exec_batch(drop_test1);
     }
 }
 
@@ -292,12 +303,13 @@ int main()
 {
     try {
         // setlocale(LC_ALL, "Russian");
-        test<edba::driver::odbc>("DSN=EDBA_TESTING_MSSQL;@utf=wide");
-        test<edba::driver::oracle>("user=system; password=root; ConnectionString=localhost:1521/xe");
-        test<edba::driver::postgresql>("user=postgres; password=postgres; host=localhost; port=5433; dbname=test; @blob=bytea");
-        test<edba::driver::postgresql>("user=postgres; password=postgres; host=localhost; port=5433; dbname=test");
-        test<edba::driver::mysql>("host=127.0.0.1;database=test;user=root;password=root;");
-        test<edba::driver::sqlite3>("db=test.db");
+        test<edba::driver::oracle>("user=system; password=1; ConnectionString=192.168.1.103:1521/xe");
+        test<edba::driver::mysql>("host=192.168.1.103;database=edba;user=root;password=1111;");
+
+        //test<edba::driver::odbc>("DSN=EDBA_TESTING_MSSQL;@utf=wide");
+        //test<edba::driver::postgresql>("user=postgres; password=postgres; host=localhost; port=5433; dbname=test; @blob=bytea");
+        //test<edba::driver::postgresql>("user=postgres; password=postgres; host=localhost; port=5433; dbname=test");
+        //test<edba::driver::sqlite3>("db=test.db");
     }
     catch(std::exception& e)
     {

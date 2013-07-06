@@ -1,9 +1,11 @@
 # TODO: Change to use mysqlconfig
 # TODO: Check library version
 
+# MYSQL_HOME should point to MySQL connector root
+
 find_path(MYSQL_INCLUDE_DIR mysql.h
   $ENV{MYSQL_INCLUDE_DIR}
-  $ENV{MYSQL_DIR}/include
+  $ENV{MYSQL_HOME}/include
   /usr/include/mysql
   /usr/local/include/mysql
   /opt/mysql/mysql/include
@@ -29,11 +31,12 @@ if(WIN32)
   # On Windows, link against dynamic library libmysql, not static mysqlclient
   find_library(MYSQL_LIBRARY NAMES libmysql
     PATHS
-    $ENV{MYSQL_DIR}/lib/${libsuffixDist}
-    $ENV{MYSQL_DIR}/libmysql
-    $ENV{MYSQL_DIR}/libmysql/${libsuffixBuild}
-    $ENV{MYSQL_DIR}/client/${libsuffixBuild}
-    $ENV{MYSQL_DIR}/libmysql/${libsuffixBuild}
+    $ENV{MYSQL_HOME}/lib/${libsuffixDist}
+    $ENV{MYSQL_HOME}/lib/
+    $ENV{MYSQL_HOME}/libmysql/${libsuffixBuild}
+    $ENV{MYSQL_HOME}/libmysql
+    $ENV{MYSQL_HOME}/client/${libsuffixBuild}
+    $ENV{MYSQL_HOME}/libmysql/${libsuffixBuild}
     $ENV{ProgramFiles}/MySQL/*/lib/${libsuffixDist}
     $ENV{SystemDrive}/MySQL/*/lib/${libsuffixDist})
 
@@ -41,9 +44,9 @@ else()
 
   find_library(MYSQL_LIBRARY NAMES mysqlclient_r
     PATHS
-    $ENV{MYSQL_DIR}/libmysql_r/.libs
-    $ENV{MYSQL_DIR}/lib
-    $ENV{MYSQL_DIR}/lib/mysql
+    $ENV{MYSQL_HOME}/libmysql_r/.libs
+    $ENV{MYSQL_HOME}/lib
+    $ENV{MYSQL_HOME}/lib/mysql
     /usr/lib/mysql
     /usr/local/lib/mysql
     /usr/local/mysql/lib
