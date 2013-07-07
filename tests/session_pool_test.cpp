@@ -2,9 +2,10 @@
 
 #include <edba/edba.hpp>
 
-#include <boost/test/minimal.hpp>
 #include <boost/foreach.hpp>
 #include <boost/thread/thread.hpp>
+
+#include <boost/test/unit_test.hpp>
 
 using namespace std;
 using namespace edba;
@@ -31,14 +32,14 @@ void thread_proc(session_pool& pool)
         session sess = pool.open();
         rowset<string> rs = sess << "select txt from test";
         BOOST_FOREACH(const string& s, rs)
-            BOOST_CHECK(s == test_string);
+            BOOST_ASSERT(s == test_string);
     }
 }
 
-int test_main(int, char* [])
+BOOST_AUTO_TEST_CASE(SessionPool)
 {
     monitor m;
-    session_pool pool(driver::sqlite3_s(), "db=test.db", 2);
+    session_pool pool(driver::sqlite3(), "db=test.db", 2);
     pool.invoke_on_connect(&init_session);
 
     // Create 4 worker threads and let them concurrently read from database
@@ -47,7 +48,5 @@ int test_main(int, char* [])
         tg.create_thread(boost::bind(thread_proc, boost::ref(pool)));
 
     tg.join_all();
-
-    return 0;
 }
 

@@ -8,11 +8,17 @@
 #include <boost/timer.hpp>
 #include <boost/scope_exit.hpp>
 
+#define BOOST_TEST_MAIN
+#include <boost/test/unit_test.hpp>
+
 #include <iostream>
 #include <ctime>
 
 using namespace std;
 using namespace edba;
+
+// Set global locale to system default
+locale::global(locale(""));
 
 void test_escaping(session sess)
 {
@@ -316,23 +322,14 @@ void test(const char* conn_string)
     }
 }
 
-int main()
+BOOST_AUTO_TEST_CASE(BackendSmoke)
 {
-    try {
-        //setlocale(LC_ALL, "Russian");
-        test<edba::driver::odbc>("Server=192.168.1.103\\SQLEXPRESS; Database=edba; User Id=sa;Password=1;@utf=wide");
-        test<edba::driver::mysql>("host=192.168.1.103;database=edba;user=edba;password=1111;");
-        test<edba::driver::oracle>("user=system; password=1; ConnectionString=192.168.1.103:1521/xe");
-        test<edba::driver::sqlite3>("db=test.db");
+    test<edba::driver::odbc>("Server=192.168.1.103\\SQLEXPRESS; Database=edba; User Id=sa;Password=1;@utf=wide");
+    test<edba::driver::mysql>("host=192.168.1.103;database=edba;user=edba;password=1111;");
+    test<edba::driver::oracle>("user=system; password=1; ConnectionString=192.168.1.103:1521/xe");
+    test<edba::driver::sqlite3>("db=test.db");
 
-        //test<edba::driver::odbc>("DSN=EDBA");
-        //test<edba::driver::postgresql>("user=postgres; password=postgres; host=localhost; port=5433; dbname=test; @blob=bytea");
-        //test<edba::driver::postgresql>("user=postgres; password=postgres; host=localhost; port=5433; dbname=test");
-    }
-    catch(std::exception& e)
-    {
-        cout << e.what() << endl;
-    }
-
-    return 0;
+    //test<edba::driver::odbc>("DSN=EDBA");
+    //test<edba::driver::postgresql>("user=postgres; password=postgres; host=localhost; port=5433; dbname=test; @blob=bytea");
+    //test<edba::driver::postgresql>("user=postgres; password=postgres; host=localhost; port=5433; dbname=test");
 }

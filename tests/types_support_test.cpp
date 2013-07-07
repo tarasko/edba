@@ -17,7 +17,7 @@
 #include <boost/tuple/tuple_io.hpp>
 #include <boost/date_time/posix_time/posix_time_io.hpp>
 
-#include <boost/test/minimal.hpp>
+#include <boost/test/unit_test.hpp>
 
 using namespace edba;
 using namespace std;
@@ -47,7 +47,7 @@ void print_test_table(session sess)
         cout << t << endl;
 }
 
-int test_main(int, char* [])
+BOOST_AUTO_TEST_CASE(TypesSupport)
 {
     session sess(driver::sqlite3(), "db=test.db");
     sess.once() << "create temp table test(id integer, dt datetime, txt text)" << exec;
@@ -182,7 +182,4 @@ int test_main(int, char* [])
 
     // Dump data
     print_test_table(sess);
-
-
-    return 0;
 }

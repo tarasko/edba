@@ -3,8 +3,6 @@
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/find_iterator.hpp>
-#include <boost/locale/encoding.hpp>
-#include <boost/locale/encoding_utf.hpp>
 #include <boost/locale.hpp>
 #include <boost/typeof/typeof.hpp>
 #include <boost/static_assert.hpp>
@@ -50,7 +48,8 @@ string_ref to_string_ref(const column_info& ci)
 
 namespace backend { namespace odbc {
 
-using namespace boost::locale::conv;    
+using namespace boost::locale::conv;   
+using namespace boost::locale;
     
 const std::string g_backend("odbc");
 
@@ -66,8 +65,11 @@ void check_odbc_errorW(SQLRETURN error,SQLHANDLE h,SQLSMALLINT type)
 {
     if(SQL_SUCCEEDED(error))
         return;
+
     std::basic_string<SQLWCHAR> error_message;
-    int rec=1,r;
+    int rec=1;
+    int r;
+
     for(;;)
     {
         SQLWCHAR msg[SQL_MAX_MESSAGE_LENGTH + 2] = {0};
@@ -76,8 +78,10 @@ void check_odbc_errorW(SQLRETURN error,SQLHANDLE h,SQLSMALLINT type)
         SQLSMALLINT len;
         r = SQLGetDiagRecW(type,h,rec,stat,&err,msg,sizeof(msg)/sizeof(SQLWCHAR),&len);
         rec++;
-        if(r==SQL_SUCCESS || r==SQL_SUCCESS_WITH_INFO) {
-            if(!error_message.empty()) {
+        if(r==SQL_SUCCESS || r==SQL_SUCCESS_WITH_INFO) 
+        {
+            if(!error_message.empty())
+            {
                 SQLWCHAR nl = '\n';
                 error_message+=nl;
             }
@@ -87,13 +91,12 @@ void check_odbc_errorW(SQLRETURN error,SQLHANDLE h,SQLSMALLINT type)
             break;
 
     }
-    std::string utf8_str = "Unconvertable string";
-    try 
-    { 
-        std::string tmp = from_utf(error_message, std::locale("")); 
-        utf8_str = boost::move(tmp);         
-    } 
-    catch(...){}
+
+    // create boost locale compatible locale for conversion from UTF-16 message to system default locale
+    static std::locale loc = generator()("");
+
+    std::string utf8_str = "<Cannot convert error message to multibyte system default locale>";
+    try { utf8_str = from_utf(error_message, loc); } catch(...){}
     
     throw edba_error("edba::odbc_backend::Failed with error `" + utf8_str +"'");
 }
