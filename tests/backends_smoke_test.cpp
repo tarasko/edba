@@ -18,7 +18,13 @@ using namespace std;
 using namespace edba;
 
 // Set global locale to system default
-locale::global(locale(""));
+struct set_locale_to_system_default_
+{
+    set_locale_to_system_default_() 
+    {
+        locale::global(locale(""));
+    }
+} set_locale_to_system_default;
 
 void test_escaping(session sess)
 {
