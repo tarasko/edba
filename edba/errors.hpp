@@ -82,10 +82,10 @@ public:
 ///
 /// \brief trying to execute empty string as query
 ///
-class empty_string_query : public edba_error {
+class empty_statement : public edba_error {
 public:
-    empty_string_query() : edba_error(	"edba::empty_string_query "
-        "attempt to execute and query empty string")
+    empty_statement() : edba_error(	"edba::empty_statement "
+        "invalid action on empty statement")
     {
     }
 };

@@ -3,7 +3,9 @@
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/find_iterator.hpp>
+#include <boost/locale/encoding.hpp>
 #include <boost/locale/encoding_utf.hpp>
+#include <boost/locale.hpp>
 #include <boost/typeof/typeof.hpp>
 #include <boost/static_assert.hpp>
 #include <boost/make_shared.hpp>
@@ -48,7 +50,7 @@ string_ref to_string_ref(const column_info& ci)
 
 namespace backend { namespace odbc {
 
-using boost::locale::conv::utf_to_utf;    
+using namespace boost::locale::conv;    
     
 const std::string g_backend("odbc");
 
@@ -88,8 +90,8 @@ void check_odbc_errorW(SQLRETURN error,SQLHANDLE h,SQLSMALLINT type)
     std::string utf8_str = "Unconvertable string";
     try 
     { 
-        std::string tmp = utf_to_utf<char>(error_message); 
-        utf8_str = tmp;         
+        std::string tmp = from_utf(error_message, std::locale("")); 
+        utf8_str = boost::move(tmp);         
     } 
     catch(...){}
     

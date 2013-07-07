@@ -118,12 +118,16 @@ string_ref select_statement(
     const std::locale& loc = std::locale::classic();
 
     string_ref rng = trim(_rng);
-    if (rng.empty()) 
-        throw edba_error("edba::select_statement empty sql provided");
 
+    // Return immediatelly empty statements.
+    if (rng.empty()) 
+        return rng;
+
+    // If statement don`t start from ~ then it is not engine specific, return it
     if ('~' != rng.front())
         return rng;
         
+    // Skip ~ symbol
     rng.advance_begin(1);
 
     using namespace boost::algorithm;
@@ -157,7 +161,7 @@ string_ref select_statement(
         return *spl_iter;
     }
 
-    throw edba_error("edba::select_statement statement not found for current database");
+    return string_ref();
 }
 
 std::string select_statements_in_batch(

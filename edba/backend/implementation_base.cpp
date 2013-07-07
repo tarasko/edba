@@ -214,6 +214,10 @@ string_ref connection::select_statement(const string_ref& _q)
 statement_ptr connection::prepare_statement(const string_ref& _q)
 {
     string_ref q = select_statement(_q);
+
+    if (q.empty())
+        return statement_ptr();
+
     BOOST_AUTO(found, (boost::equal_range(cache_, q, string_ref_less())));
     if (boost::empty(found))
     {
@@ -239,7 +243,7 @@ void connection::before_destroy()
 statement_ptr connection::create_statement(const string_ref& _q)
 {
     string_ref q = select_statement(_q);
-    return create_statement_impl(q);
+    return q.empty() ? statement_ptr() : create_statement_impl(q);
 }
 
 void connection::exec_batch(const string_ref& _q)

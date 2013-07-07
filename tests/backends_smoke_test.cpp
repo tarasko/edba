@@ -18,12 +18,15 @@ void test_escaping(session sess)
 {
     try 
     {
+        try { sess.once() << "~Oracle~drop table test_escaping~" << exec; } catch(...) {}
+
         sess.once() <<
-            "~Microsoft SQL Server~create table ##test_escaping(txt varchar(100))"
-            "~Sqlite3~create temp table test_escaping(txt varchar(100)) "
-            "~Mysql~create temporary table test_escaping(txt varchar(100))"
-            "~PgSQL~create temp table test_escaping(txt varchar(100)) "
-            "~~"
+            "~Microsoft SQL Server~create table ##test_escaping(txt nvarchar(100))"
+            "~Sqlite3~create temp table test_escaping(txt nvarchar(100)) "
+            "~Mysql~create temporary table test_escaping(txt nvarchar(100))"
+            "~PgSQL~create temp table test_escaping(txt nvarchar(100))"
+            "~Oracle~create table test_escaping( txt nvarchar2(100) )"
+            "~"
             << exec;
 
         string bad_string = "\\''\\' insert into char'";
@@ -31,8 +34,8 @@ void test_escaping(session sess)
 
         string insert_query = boost::str(boost::format(
             "~Microsoft SQL Server~insert into ##test_escaping(txt) values('%1%')"
-            "~~insert into test_escaping(txt) values('%2%')"
-            "~") % good_string % good_string);
+            "~~insert into test_escaping(txt) values('%1%')"
+            "~") % good_string);
 
         sess.once() << insert_query << exec;
 
@@ -77,7 +80,9 @@ void test(const char* conn_string)
         "   vcharmax nvarchar(max), "
         "   vbin20 varbinary(20), "
         "   vbinmax varbinary(max), "
-        "   txt text ) "
+        "   txt text, "
+        "   national nvarchar(100) "
+        "   ) "
         "~Sqlite3~create temp table test1( "
         "   id integer primary key autoincrement, "
         "   num double, "
@@ -87,7 +92,9 @@ void test(const char* conn_string)
         "   vcharmax text, "
         "   vbin20 blob, "
         "   vbinmax blob, "
-        "   txt text ) "
+        "   txt text, "
+        "   national nvarchar(100) "
+        "   ) "
         "~Mysql~create temporary table test1( "
         "   id integer AUTO_INCREMENT PRIMARY KEY, "
         "   num numeric(18, 3), "
@@ -97,7 +104,9 @@ void test(const char* conn_string)
         "   vcharmax text, "
         "   vbin20 varbinary(20), "
         "   vbinmax blob, "
-        "   txt text ) "
+        "   txt text, "
+        "   national nvarchar(100) "
+        "   ) "
         "~PgSQL~create temp table test1( "
         "   id serial primary key, "
         "   num numeric(18, 3), "
@@ -107,7 +116,9 @@ void test(const char* conn_string)
         "   vcharmax varchar(15000), "
         "   vbin20 %1%, "
         "   vbinmax %1%, "
-        "   txt text ) "
+        "   txt text, "
+        "   national nvarchar(100) "
+        "   ) "
         "~Oracle~create table test1( "
         "   id number primary key, "
         "   num number(18, 3), "
@@ -117,7 +128,9 @@ void test(const char* conn_string)
         "   vcharmax varchar2(4000), " 
         "   vbin20 raw(20), "
         "   vbinmax blob, "
-        "   txt clob ) "
+        "   txt clob, "
+        "   national nvarchar2(100) "
+        "   ) "
         "~") % postgres_lob_type);
 
     const char* insert_test1_data =
@@ -159,6 +172,10 @@ void test(const char* conn_string)
 
         monitor sm;
         session sess(Driver(), conn_string, &sm);
+
+        // Test empty query
+        sess << "" << exec;
+        sess << "~~" << exec;
 
         try {sess.exec_batch(oracle_cleanup_seq);} catch(...) {}
         try {sess.exec_batch(oracle_cleanup_tbl);} catch(...) {}
@@ -302,14 +319,15 @@ void test(const char* conn_string)
 int main()
 {
     try {
-        // setlocale(LC_ALL, "Russian");
+        //setlocale(LC_ALL, "Russian");
+        test<edba::driver::odbc>("Server=192.168.1.103\\SQLEXPRESS; Database=edba; User Id=sa;Password=1;@utf=wide");
+        test<edba::driver::mysql>("host=192.168.1.103;database=edba;user=edba;password=1111;");
         test<edba::driver::oracle>("user=system; password=1; ConnectionString=192.168.1.103:1521/xe");
-        test<edba::driver::mysql>("host=192.168.1.103;database=edba;user=root;password=1111;");
+        test<edba::driver::sqlite3>("db=test.db");
 
-        //test<edba::driver::odbc>("DSN=EDBA_TESTING_MSSQL;@utf=wide");
+        //test<edba::driver::odbc>("DSN=EDBA");
         //test<edba::driver::postgresql>("user=postgres; password=postgres; host=localhost; port=5433; dbname=test; @blob=bytea");
         //test<edba::driver::postgresql>("user=postgres; password=postgres; host=localhost; port=5433; dbname=test");
-        //test<edba::driver::sqlite3>("db=test.db");
     }
     catch(std::exception& e)
     {

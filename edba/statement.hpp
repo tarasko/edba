@@ -19,8 +19,8 @@ class statement
 {
 public:
     ///
-    /// Default constructor, provided for convenience, access to any member function
-    /// of empty statement will cause an exception being thrown. 
+    /// Default constructor, provided for convenience, access to some member function
+    /// of empty statement will cause an exception empty_statement being thrown. 
     ///
     statement();
 
@@ -29,6 +29,8 @@ public:
     /// functions can be called once again.
     ///
     /// You must use it if you use the same statement multiple times.
+    ///
+    /// Immediatelly exits for empty statements
     ///
     void reset();
 
@@ -40,6 +42,8 @@ public:
     /// may throw invalid_placeholder exception.
     ///
     /// If placeholder was not binded the behavior is undefined and may vary between different backends.
+    ///
+    /// Immediatelly exits for empty statements
     ///
     template<typename T>
     statement& bind(int col, const T& v);
@@ -53,6 +57,8 @@ public:
     ///
     /// If placeholder was not binded the behavior is undefined and may vary between different backends.
     ///
+    /// Immediatelly exits for empty statements
+    ///
     statement& bind(int col, const bind_types_variant& v);
 
     ///
@@ -62,6 +68,8 @@ public:
     /// If placeholder name is invalid then it may throw invalid_placeholder exception
     ///
     /// If placeholder was not binded the behavior is undefined and may vary between different backends.
+    ///
+    /// Immediatelly exits for empty statements
     ///
     template<typename T>
     statement& bind(const string_ref& name, const T& v);
@@ -74,6 +82,8 @@ public:
     ///
     /// If placeholder was not binded the behavior is undefined and may vary between different backends.
     ///
+    /// Immediatelly exits for empty statements
+    ///
     statement& bind(const string_ref& name, const bind_types_variant& v);
 
     ///
@@ -84,6 +94,8 @@ public:
     /// may throw invalid_placeholder exception.
     ///
     /// If placeholder was not binded the behavior is undefined and may vary between different backends.
+    ///
+    /// Immediatelly exits for empty statements
     ///
     template<typename T>
     statement& bind(const T& v);
@@ -96,6 +108,8 @@ public:
     ///
     /// If the statement is actually query, the behavior is undefined and may vary between backends.
     ///
+    /// Throw empty_statement exception for empty statements
+    ///
     long long last_insert_id();
     ///
     /// Get last created sequence value from the last executed statement.
@@ -103,8 +117,9 @@ public:
     /// If the backend does not support named sequences but rather supports "auto increment" columns (like MySQL, Sqlite3),
     /// the \a seq parameter is ignored.
     /// 
-    ///
     /// If the statement is actually query, the behavior is undefined and may vary between backends.
+    ///
+    /// Throw empty_statement exception for empty statements
     ///
     long long sequence_last(std::string const &seq);
     ///
@@ -112,6 +127,8 @@ public:
     ///
     ///
     /// If the statement is actually query, the behavior is undefined and may vary between backends.
+    ///
+    /// Return 0 for empty statements
     ///
     unsigned long long affected();
 
@@ -125,14 +142,17 @@ public:
     ///
     /// Would throw empty_row_access exception if the result is empty.
     ///
-    ///
     /// If the statement is not query statement (like SELECT) it would likely
     /// throw an exception, however the behavior may vary between backends that may ignore this error.
+    ///
+    /// Throw empty_statement exception for empty statements
     ///
     row first_row();
     ///
     /// Fetch a result of the query, if the statement is not query statement (like SELECT) it would likely
     /// throw an exception, however the behavior may vary between backends that may ignore this error.
+    ///
+    /// Throw empty_statement exception for empty statements
     ///
     rowset<> query();
     ///
@@ -144,6 +164,8 @@ public:
     ///
     /// Execute a statement, of the statement is actually SELECT like operator, it throws edba_error exception,
     /// however the behavior may vary between backends that may ignore this error.
+    ///
+    /// Do nothing for empty statements
     ///
     void exec();
 
@@ -181,60 +203,83 @@ inline statement::statement(
 }
 inline void statement::reset()
 {
-    placeholder_ = 1;
-    stmt_->bindings_reset();
+    if (stmt_) 
+    {
+        placeholder_ = 1;
+        stmt_->bindings_reset();
+    }
 }
 template<typename T>
 statement& statement::bind(int col, const T& v)
 {
-    bind_conversion<T>::template bind(*this, col, v);
+    if (stmt_) 
+        bind_conversion<T>::template bind(*this, col, v);
+
     return *this;
 }
 inline statement& statement::bind(int col, const bind_types_variant& v)
 {
-    stmt_->bind(col, v);
+    if (stmt_) 
+        stmt_->bind(col, v);
+
     return *this;
 }
 template<typename T>
 statement& statement::bind(const string_ref& name, const T& v)
 {
-    bind_conversion<T>::template bind(*this, name, v);
+    if (stmt_) 
+        bind_conversion<T>::template bind(*this, name, v);
+
     return *this;
 }
 inline statement& statement::bind(const string_ref& name, const bind_types_variant& v)
 {
-    stmt_->bind(name, v);
+    if (stmt_) 
+        stmt_->bind(name, v);
+
     return *this;
 }
 template<typename T>
 statement& statement::bind(const T& v)
 {
-    // bind_conversion specialization can recursively call bind and thus increment placeholder many times.
-    // In case when bind has internally changed placeholder_ we should not increment placeholder.
-    // Placeholder must be incremented only if bind was plain and was not called recursively
+    if (stmt_) 
+    {
+        // bind_conversion specialization can recursively call bind and thus increment placeholder many times.
+        // In case when bind has internally changed placeholder_ we should not increment placeholder.
+        // Placeholder must be incremented only if bind was plain and was not called recursively
 
-    int old_placeholder_value = placeholder_;
-    bind(placeholder_, v);
+        int old_placeholder_value = placeholder_;
+        bind(placeholder_, v);
 
-    if (old_placeholder_value == placeholder_)
-        ++placeholder_;
+        if (old_placeholder_value == placeholder_)
+            ++placeholder_;
+    }
 
     return *this;
 }
 inline long long statement::last_insert_id()
 {
+    if (!stmt_)
+        throw empty_statement();
+
     return stmt_->sequence_last(std::string());
 }
 inline long long statement::sequence_last(std::string const &seq)
 {
+    if (!stmt_)
+        throw empty_statement();
+
     return stmt_->sequence_last(seq);
 }
 inline unsigned long long statement::affected()
 {
-    return stmt_->affected();
+    return stmt_ ? stmt_->affected() : 0;
 }
 inline row statement::first_row()
 {
+    if (!stmt_) 
+        throw empty_statement();
+
     rowset<> rs(conn_, stmt_, stmt_->run_query());
 
     rowset<>::const_iterator ri = rs.begin();
@@ -250,7 +295,7 @@ inline row statement::first_row()
 inline rowset<> statement::query()
 {
     if (!stmt_)
-        throw empty_string_query();
+        throw empty_statement();
 
     return rowset<>(conn_, stmt_, stmt_->run_query());
 }
