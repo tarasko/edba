@@ -508,13 +508,13 @@ public:
     {
         holder_sp value = boost::make_shared<holder>();
 
-        SQLSMALLINT sqltype_;
+        SQLSMALLINT sqltype_ = SQL_VARCHAR;
         SQLULEN size_;
         SQLSMALLINT digits_;
         SQLSMALLINT nullable_;
 
         SQLRETURN r = SQLDescribeParam(stmt_, bind_col_, &sqltype_, &size_, &digits_, &nullable_);
-        check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
+        //check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
 
         do_bind(true, SQL_C_CHAR, sqltype_, *value);
         return value;

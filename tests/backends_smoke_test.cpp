@@ -17,15 +17,6 @@
 using namespace std;
 using namespace edba;
 
-// Set global locale to system default
-struct set_locale_to_system_default_
-{
-    set_locale_to_system_default_() 
-    {
-        locale::global(locale(""));
-    }
-} set_locale_to_system_default;
-
 void test_escaping(session sess)
 {
     try 
@@ -58,7 +49,7 @@ void test_escaping(session sess)
             "~"
             << first_row >> result;
 
-        assert(result == bad_string);
+        BOOST_CHECK_EQUAL(result, bad_string);
     }
     catch(edba::not_supported_by_backend&)
     {
@@ -88,60 +79,55 @@ void test(const char* conn_string)
         "   num numeric(18, 3), "
         "   dt datetime, "
         "   dt_small smalldatetime, "
-        "   vchar20 nvarchar(20), "
-        "   vcharmax nvarchar(max), "
+        "   vchar20 nvarchar(40), "
+        "   vcharmax varchar(max), "
         "   vbin20 varbinary(20), "
         "   vbinmax varbinary(max), "
-        "   txt text, "
-        "   national nvarchar(100) "
+        "   txt text"
         "   ) "
         "~Sqlite3~create temp table test1( "
         "   id integer primary key autoincrement, "
         "   num double, "
         "   dt text, "
         "   dt_small text, "
-        "   vchar20 varchar(20), "
+        "   vchar20 nvarchar(40), "
         "   vcharmax text, "
         "   vbin20 blob, "
         "   vbinmax blob, "
-        "   txt text, "
-        "   national nvarchar(100) "
+        "   txt text "
         "   ) "
         "~Mysql~create temporary table test1( "
         "   id integer AUTO_INCREMENT PRIMARY KEY, "
         "   num numeric(18, 3), "
         "   dt timestamp, "
         "   dt_small date, "    
-        "   vchar20 varchar(20), "
+        "   vchar20 nvarchar(40), "
         "   vcharmax text, "
         "   vbin20 varbinary(20), "
         "   vbinmax blob, "
-        "   txt text, "
-        "   national nvarchar(100) "
+        "   txt text "
         "   ) "
         "~PgSQL~create temp table test1( "
         "   id serial primary key, "
         "   num numeric(18, 3), "
         "   dt timestamp, "
         "   dt_small date, "
-        "   vchar20 varchar(20), "
+        "   vchar20 nvarchar(40), "
         "   vcharmax varchar(15000), "
         "   vbin20 %1%, "
         "   vbinmax %1%, "
-        "   txt text, "
-        "   national nvarchar(100) "
+        "   txt text "
         "   ) "
         "~Oracle~create table test1( "
         "   id number primary key, "
         "   num number(18, 3), "
         "   dt timestamp, "
         "   dt_small date, "
-        "   vchar20 varchar2(20),  "
+        "   vchar20 nvarchar2(20),  "
         "   vcharmax varchar2(4000), " 
         "   vbin20 raw(20), "
         "   vbinmax blob, "
-        "   txt clob, "
-        "   national nvarchar2(100) "
+        "   txt clob "
         "   ) "
         "~") % postgres_lob_type);
 
@@ -182,8 +168,10 @@ void test(const char* conn_string)
     {
         using namespace edba;
 
+        BOOST_TEST_MESSAGE("Run test for " << conn_string);
+
         monitor sm;
-        session sess(Driver(), conn_string, &sm);
+        session sess(Driver(), conn_string, 0);
 
         // Test empty query
         sess << "" << exec;
@@ -249,7 +237,7 @@ void test(const char* conn_string)
 
             // Check that cache works as expected
             statement st1 = sess << insert_test1_data;
-            assert(st == st1);
+            BOOST_CHECK(st == st1);
         }
 
         // Query single row
@@ -269,13 +257,13 @@ void test(const char* conn_string)
 
             r >> id >> num >> tm1 >> tm2 >> short_str >> long_str >> short_oss >> long_oss >> txt;
 
-            assert(num == 10.10);
-            assert(!memcmp(std::gmtime(&now), &tm1, sizeof(tm1)));
-            assert(short_str == "Hello!");
-            assert(long_str == "Hello! max");
-            assert(short_oss.str() == short_binary);
-            assert(long_oss.str() == long_binary);
-            assert(text == txt);
+            BOOST_CHECK_EQUAL(num, 10.10);
+            BOOST_CHECK(!memcmp(std::gmtime(&now), &tm1, sizeof(tm1)));
+            BOOST_CHECK_EQUAL(short_str, "Hello!");
+            BOOST_CHECK_EQUAL(long_str, "Hello! max");
+            BOOST_CHECK_EQUAL(short_oss.str(), short_binary);
+            BOOST_CHECK_EQUAL(long_oss.str(), long_binary);
+            BOOST_CHECK_EQUAL(text, txt);
 
             tr.commit();
         }
@@ -302,7 +290,7 @@ void test(const char* conn_string)
 
         // Exec when part of parameters are nulls
         sess.once() << 
-            "~Microsoft SQL Server~insert into ##test1(num) values(:num)"
+            "~Microsoft SQL Server~insert into ##test1(num, dt, dt_small) values(:num, :dt, :dt_small)"
             "~Oracle~insert into test1(id, num, dt, dt_small) values(test1_seq_id.nextval, :num, :dt, :dt_small)"
             "~~insert into test1(num, dt, dt_small) values(:num, :dt, :dt_small)"
             "~"
@@ -330,12 +318,12 @@ void test(const char* conn_string)
 
 BOOST_AUTO_TEST_CASE(BackendSmoke)
 {
-    test<edba::driver::odbc>("Server=192.168.1.103\\SQLEXPRESS; Database=edba; User Id=sa;Password=1;@utf=wide");
-    test<edba::driver::mysql>("host=192.168.1.103;database=edba;user=edba;password=1111;");
     test<edba::driver::oracle>("user=system; password=1; ConnectionString=192.168.1.103:1521/xe");
+    test<edba::driver::odbc>("Driver={SQL Server Native Client 10.0}; Server=192.168.1.103\\SQLEXPRESS; Database=EDBA; UID=sa;PWD=1;@utf=wide");
+    test<edba::driver::odbc>("Driver={SQL Server Native Client 10.0}; Server=192.168.1.103\\SQLEXPRESS; Database=EDBA; UID=sa;PWD=1;");
+    test<edba::driver::mysql>("host=192.168.1.103;database=edba;user=edba;password=1111;");
     test<edba::driver::sqlite3>("db=test.db");
 
-    //test<edba::driver::odbc>("DSN=EDBA");
     //test<edba::driver::postgresql>("user=postgres; password=postgres; host=localhost; port=5433; dbname=test; @blob=bytea");
     //test<edba::driver::postgresql>("user=postgres; password=postgres; host=localhost; port=5433; dbname=test");
 }
