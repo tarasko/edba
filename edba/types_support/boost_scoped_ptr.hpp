@@ -28,12 +28,18 @@ struct fetch_conversion<boost::scoped_ptr<T>, typename boost::disable_if< boost:
     template<typename ColOrName>
     static bool fetch(const row& res, ColOrName col_or_name, boost::scoped_ptr<T>& v)
     {
-        T tmp;
-        if (res.fetch(col_or_name, tmp))
-            v.reset(new T(boost::move(tmp)));
+        if (v)
+        {
+            if (!res.fetch(col_or_name, *v))
+                v.reset();
+        }
         else
-            v.reset();
-
+        {
+            boost::scoped_ptr<T> tmp(new T());
+            if (res.fetch(col_or_name, *tmp))
+                v.swap(tmp);
+        }
+            
         return true;
     }
 };
