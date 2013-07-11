@@ -168,7 +168,7 @@ void test(const char* conn_string)
     {
         using namespace edba;
 
-        BOOST_TEST_MESSAGE("Run test for " << conn_string);
+        BOOST_TEST_MESSAGE("Run backend test for " << conn_string);
 
         monitor sm;
         session sess(Driver(), conn_string, 0);
