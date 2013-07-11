@@ -353,12 +353,14 @@ public:
     {
         char buf[4];
         SQLLEN indicator;
-        SQLRETURN r = SQLGetData(stmt_, col + 1, SQL_C_DEFAULT, buf, sizeof(buf), &indicator);
-
-        if (r != SQL_SUCCESS && r != SQL_SUCCESS_WITH_INFO)
+        SQLRETURN r = SQLGetData(stmt_, col + 1, SQL_C_DEFAULT, buf, 0, &indicator);
+        if (!SQL_SUCCEEDED(r))
+        {
+            SQLRETURN r = SQLGetData(stmt_, col + 1, SQL_C_DEFAULT, buf, sizeof(buf), &indicator);
             check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
+        }
 
-        return indicator != SQL_NULL_DATA;
+        return indicator == SQL_NULL_DATA;
     }
 
     virtual int cols()
@@ -508,13 +510,18 @@ public:
     {
         holder_sp value = boost::make_shared<holder>();
 
-        SQLSMALLINT sqltype_ = SQL_VARCHAR;
+        SQLSMALLINT sqltype_;
         SQLULEN size_;
         SQLSMALLINT digits_;
         SQLSMALLINT nullable_;
 
+        // All sql types are compatible with either SQL_VARCHAR or SQL_VARBINARY. 
+        // Null binding doesn`t work if specified sqltype is incompatible with actual type in table.
+        // Attempt to determine actual SQL type. AFAIK SQLDescribeParam doesn`t work with MS Access driver.
+        // In case of failure we assume this is not binary field and SQL_VARCHAR is sufficient.
         SQLRETURN r = SQLDescribeParam(stmt_, bind_col_, &sqltype_, &size_, &digits_, &nullable_);
-        //check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
+        if (!SQL_SUCCEEDED(r))
+            sqltype_ = SQL_VARCHAR;
 
         do_bind(true, SQL_C_CHAR, sqltype_, *value);
         return value;
