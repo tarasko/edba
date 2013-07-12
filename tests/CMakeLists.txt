@@ -2,7 +2,7 @@ find_package(Boost 1.48.0 COMPONENTS date_time locale thread unit_test_framework
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)
 
-add_executable(edba.example example.cpp monitor.hpp)
+add_executable(edba.example.simple example_simple.cpp)
 target_link_libraries(edba.example edba edba_odbc ${Boost_LIBRARIES})
 
 add_executable(edba.tests 
