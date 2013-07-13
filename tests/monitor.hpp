@@ -2,6 +2,8 @@
 
 #include <edba/session_monitor.hpp>
 
+#include <boost/test/test_tools.hpp>
+
 #include <iostream>
 
 struct monitor : edba::session_monitor
@@ -21,13 +23,13 @@ struct monitor : edba::session_monitor
       , unsigned long long rows_affected
       )
     {
-        std::clog << "[SessionMonitor] exec: " << sql << std::endl;
+        BOOST_MESSAGE("[SessionMonitor] exec: " << sql);
         if (!bindings.empty())
-            std::clog << "[SessionMonitor] with bindings:" << bindings << std::endl;
+            BOOST_MESSAGE("[SessionMonitor] with bindings:" << bindings);
         if (ok)
-            std::clog << "[SessionMonitor] took " << execution_time << " sec, rows affected " << rows_affected << std::endl;
+            BOOST_MESSAGE("[SessionMonitor] took " << execution_time << " sec, rows affected " << rows_affected);
         else
-            std::clog << "[SessionMonitor] FAILED\n";
+            BOOST_MESSAGE("[SessionMonitor] FAILED\n");
     }
 
     ///
@@ -45,30 +47,30 @@ struct monitor : edba::session_monitor
       , unsigned long long rows_read
       )
     {
-        std::clog << "[SessionMonitor] query: " << sql << std::endl;
+        BOOST_MESSAGE("[SessionMonitor] query: " << sql);
         if (!bindings.empty())
-            std::clog << "[SessionMonitor] with bindings:" << bindings << std::endl;
+            BOOST_MESSAGE("[SessionMonitor] with bindings:" << bindings);
         if (ok)
         {
             if (rows_read == -1)
-                std::clog << "[SessionMonitor] took " << execution_time << " sec\n";
+                BOOST_MESSAGE("[SessionMonitor] took " << execution_time << " sec\n");
             else
-                std::clog << "[SessionMonitor] took " << execution_time << " sec, rows selected " << rows_read << std::endl;
+                BOOST_MESSAGE("[SessionMonitor] took " << execution_time << " sec, rows selected " << rows_read);
         }
         else
-            std::clog << "[SessionMonitor] FAILED\n";
+            BOOST_MESSAGE("[SessionMonitor] FAILED\n");
     }
 
     virtual void transaction_started() 
     {
-        std::clog << "[SessionMonitor] Transaction started\n";
+        BOOST_MESSAGE("[SessionMonitor] Transaction started\n");
     }
     virtual void transaction_committed() 
     {
-        std::clog << "[SessionMonitor] Transaction committed\n";
+        BOOST_MESSAGE("[SessionMonitor] Transaction committed\n");
     }
     virtual void transaction_reverted() 
     {
-        std::clog << "[SessionMonitor] Transaction reverted\n";
+        BOOST_MESSAGE("[SessionMonitor] Transaction reverted\n");
     }
 };

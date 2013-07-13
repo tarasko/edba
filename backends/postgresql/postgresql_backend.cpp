@@ -600,7 +600,7 @@ public:
             throw;
         }
 
-        // prepare human readeable description
+        // prepare human readable description
         int major;
         int minor;
         version(major, minor);
@@ -618,8 +618,25 @@ public:
 
     void do_simple_exec(char const *s)
     {
-        PGresult *r=PQexec(conn_,s);
-        PQclear(r);
+        PGresult* r = PQexec(conn_,s);
+        
+        BOOST_SCOPE_EXIT((r))
+        {
+            PQclear(r);
+        } BOOST_SCOPE_EXIT_END
+
+        switch(PQresultStatus(r))
+        {
+        case PGRES_COMMAND_OK:
+        case PGRES_EMPTY_QUERY:
+        case PGRES_TUPLES_OK:
+        case PGRES_COPY_OUT:
+        case PGRES_COPY_IN:
+        case PGRES_NONFATAL_ERROR:
+            break;
+        default:
+            throw pqerror(r, "PQexec failed");
+        }
     }
     virtual void begin_impl()
     {

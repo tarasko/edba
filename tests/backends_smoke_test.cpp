@@ -17,6 +17,8 @@
 using namespace std;
 using namespace edba;
 
+#define SERVER_IP "192.168.1.102"
+
 void test_escaping(session sess)
 {
     try 
@@ -27,7 +29,7 @@ void test_escaping(session sess)
             "~Microsoft SQL Server~create table ##test_escaping(txt nvarchar(100))"
             "~Sqlite3~create temp table test_escaping(txt nvarchar(100)) "
             "~Mysql~create temporary table test_escaping(txt nvarchar(100))"
-            "~PgSQL~create temp table test_escaping(txt nvarchar(100))"
+            "~PgSQL~create temp table test_escaping(txt varchar(100))"
             "~Oracle~create table test_escaping( txt nvarchar2(100) )"
             "~"
             << exec;
@@ -112,7 +114,7 @@ void test(const char* conn_string)
         "   num numeric(18, 3), "
         "   dt timestamp, "
         "   dt_small date, "
-        "   vchar20 nvarchar(40), "
+        "   vchar20 varchar(40), "          // postgres don`t have nvarchar
         "   vcharmax varchar(15000), "
         "   vbin20 %1%, "
         "   vbinmax %1%, "
@@ -316,14 +318,38 @@ void test(const char* conn_string)
     }
 }
 
-BOOST_AUTO_TEST_CASE(BackendSmoke)
+BOOST_AUTO_TEST_CASE(Oracle)
 {
-    test<edba::driver::oracle>("user=system; password=1; ConnectionString=192.168.1.103:1521/xe");
-    test<edba::driver::odbc>("Driver={SQL Server Native Client 10.0}; Server=192.168.1.103\\SQLEXPRESS; Database=EDBA; UID=sa;PWD=1;@utf=wide");
-    test<edba::driver::odbc>("Driver={SQL Server Native Client 10.0}; Server=192.168.1.103\\SQLEXPRESS; Database=EDBA; UID=sa;PWD=1;");
-    test<edba::driver::mysql>("host=192.168.1.103;database=edba;user=edba;password=1111;");
-    test<edba::driver::sqlite3>("db=test.db");
-
-    //test<edba::driver::postgresql>("user=postgres; password=postgres; host=localhost; port=5433; dbname=test; @blob=bytea");
-    //test<edba::driver::postgresql>("user=postgres; password=postgres; host=localhost; port=5433; dbname=test");
+    test<edba::driver::oracle>("user=system; password=1; ConnectionString=" SERVER_IP ":1521/xe");
 }
+
+BOOST_AUTO_TEST_CASE(ODBCWide)
+{
+    test<edba::driver::odbc>("Driver={SQL Server Native Client 10.0}; Server=" SERVER_IP "\\SQLEXPRESS; Database=EDBA; UID=sa;PWD=1;@utf=wide");
+}
+
+BOOST_AUTO_TEST_CASE(ODBC)
+{
+    test<edba::driver::odbc>("Driver={SQL Server Native Client 10.0}; Server=" SERVER_IP "\\SQLEXPRESS; Database=EDBA; UID=sa;PWD=1;");
+}
+
+BOOST_AUTO_TEST_CASE(MySQL)
+{
+    test<edba::driver::mysql>("host=" SERVER_IP ";database=edba;user=edba;password=1111;");
+}
+
+BOOST_AUTO_TEST_CASE(SQLite3)
+{
+    test<edba::driver::sqlite3>("db=test.db");
+}
+
+BOOST_AUTO_TEST_CASE(Postgres)
+{
+    test<edba::driver::postgresql>("user=postgres; password=1; host=" SERVER_IP "; port=5432; dbname=test");
+}
+
+BOOST_AUTO_TEST_CASE(PostgresBytea)
+{
+    test<edba::driver::postgresql>("user=postgres; password=1; host=" SERVER_IP "; port=5432; dbname=test; @blob=bytea");
+}
+
