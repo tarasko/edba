@@ -895,7 +895,7 @@ public:
 
     virtual backend::statement_ptr create_statement_impl(const string_ref& q)
     {
-        return prepare_statement(q);
+        return prepare_statement_impl(q);
     }
 
     virtual void exec_batch_impl(const string_ref& q)
@@ -911,7 +911,7 @@ public:
             if (item.empty()) 
                 continue;
 
-            create_statement(item)->run_exec();    
+            prepare_statement_impl(item)->run_exec();    
         }
         
         commit();

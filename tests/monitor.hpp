@@ -23,13 +23,13 @@ struct monitor : edba::session_monitor
       , unsigned long long rows_affected
       )
     {
-        BOOST_MESSAGE("[SessionMonitor] exec: " << sql);
+        BOOST_TEST_MESSAGE("[SessionMonitor] exec: " << sql);
         if (!bindings.empty())
-            BOOST_MESSAGE("[SessionMonitor] with bindings:" << bindings);
+            BOOST_TEST_MESSAGE("[SessionMonitor] with bindings:" << bindings);
         if (ok)
-            BOOST_MESSAGE("[SessionMonitor] took " << execution_time << " sec, rows affected " << rows_affected);
+            BOOST_TEST_MESSAGE("[SessionMonitor] took " << execution_time << " sec, rows affected " << rows_affected);
         else
-            BOOST_MESSAGE("[SessionMonitor] FAILED\n");
+            BOOST_TEST_MESSAGE("[SessionMonitor] FAILED\n");
     }
 
     ///
@@ -47,30 +47,30 @@ struct monitor : edba::session_monitor
       , unsigned long long rows_read
       )
     {
-        BOOST_MESSAGE("[SessionMonitor] query: " << sql);
+        BOOST_TEST_MESSAGE("[SessionMonitor] query: " << sql);
         if (!bindings.empty())
-            BOOST_MESSAGE("[SessionMonitor] with bindings:" << bindings);
+            BOOST_TEST_MESSAGE("[SessionMonitor] with bindings:" << bindings);
         if (ok)
         {
             if (rows_read == -1)
-                BOOST_MESSAGE("[SessionMonitor] took " << execution_time << " sec\n");
+                BOOST_TEST_MESSAGE("[SessionMonitor] took " << execution_time << " sec\n");
             else
-                BOOST_MESSAGE("[SessionMonitor] took " << execution_time << " sec, rows selected " << rows_read);
+                BOOST_TEST_MESSAGE("[SessionMonitor] took " << execution_time << " sec, rows selected " << rows_read);
         }
         else
-            BOOST_MESSAGE("[SessionMonitor] FAILED\n");
+            BOOST_TEST_MESSAGE("[SessionMonitor] FAILED\n");
     }
 
     virtual void transaction_started() 
     {
-        BOOST_MESSAGE("[SessionMonitor] Transaction started\n");
+        BOOST_TEST_MESSAGE("[SessionMonitor] Transaction started\n");
     }
     virtual void transaction_committed() 
     {
-        BOOST_MESSAGE("[SessionMonitor] Transaction committed\n");
+        BOOST_TEST_MESSAGE("[SessionMonitor] Transaction committed\n");
     }
     virtual void transaction_reverted() 
     {
-        BOOST_MESSAGE("[SessionMonitor] Transaction reverted\n");
+        BOOST_TEST_MESSAGE("[SessionMonitor] Transaction reverted\n");
     }
 };

@@ -7,6 +7,7 @@
 #include <boost/foreach.hpp>
 #include <boost/timer.hpp>
 #include <boost/scope_exit.hpp>
+#include <boost/locale/encoding_utf.hpp>
 
 #define BOOST_TEST_MAIN
 #include <boost/test/unit_test.hpp>
@@ -19,43 +20,169 @@ using namespace edba;
 
 #define SERVER_IP "192.168.1.102"
 
+string utf8_text = boost::locale::conv::utf_to_utf<char>(L"Едба лучшая библиотека на свете");
+
+const char* oracle_cleanup_seq = "~Oracle~drop sequence test1_seq_id~;";
+const char* oracle_cleanup_tbl = "~Oracle~drop table test1~;";
+
+const char* create_test1_table_tpl = 
+    "~Oracle~create sequence test1_seq_id~;"
+    "~Microsoft SQL Server~create table ##test1( "
+    "   id int identity(1, 1) primary key clustered, "
+    "   num numeric(18, 3), "
+    "   dt datetime, "
+    "   dt_small smalldatetime, "
+    "   vchar100 nvarchar(100), "
+    "   vcharmax varchar(max), "
+    "   vbin100 varbinary(100), "
+    "   vbinmax varbinary(max), "
+    "   txt text"
+    "   ) "
+    "~Sqlite3~create temp table test1( "
+    "   id integer primary key autoincrement, "
+    "   num double, "
+    "   dt text, "
+    "   dt_small text, "
+    "   vchar100 nvarchar(100), "
+    "   vcharmax text, "
+    "   vbin100 blob, "
+    "   vbinmax blob, "
+    "   txt text "
+    "   ) "
+    "~Mysql~create temporary table test1( "
+    "   id integer AUTO_INCREMENT PRIMARY KEY, "
+    "   num numeric(18, 3), "
+    "   dt timestamp, "
+    "   dt_small date, "    
+    "   vchar100 nvarchar(100), "
+    "   vcharmax text, "
+    "   vbin100 varbinary(100), "
+    "   vbinmax blob, "
+    "   txt text "
+    "   ) "
+    "~PgSQL~create temp table test1( "
+    "   id serial primary key, "
+    "   num numeric(18, 3), "
+    "   dt timestamp, "
+    "   dt_small date, "
+    "   vchar100 varchar(100), "          // postgres don`t have nvarchar
+    "   vcharmax varchar(15000), "
+    "   vbin100 %1%, "
+    "   vbinmax %1%, "
+    "   txt text "
+    "   ) "
+    "~Oracle~create table test1( "
+    "   id number primary key, "
+    "   num number(18, 3), "
+    "   dt timestamp, "
+    "   dt_small date, "
+    "   vchar100 nvarchar2(100),  "
+    "   vcharmax varchar2(4000), " 
+    "   vbin100 raw(100), "
+    "   vbinmax blob, "
+    "   txt clob "
+    "   ) "
+    "~";
+
+const char* insert_test1_data =
+    "~Microsoft SQL Server~insert into ##test1(num, dt, dt_small, vchar100, vcharmax, vbin100, vbinmax, txt) "
+    "   values(:num, :dt, :dt_small, :vchar100, :vcharmax, :vbin100, :vbinmax, :txt)"
+    "~Oracle~insert into test1(id, num, dt, dt_small, vchar100, vcharmax, vbin100, vbinmax, txt)"
+    "   values(test1_seq_id.nextval, :num, :dt, :dt_small, :vchar100, :vcharmax, :vbin100, :vbinmax, :txt)"
+    "~~insert into test1(num, dt, dt_small, vchar100, vcharmax, vbin100, vbinmax, txt)"
+    "   values(:num, :dt, :dt_small, :vchar100, :vcharmax, :vbin100, :vbinmax, :txt)"
+    "~";
+
+const char* select_test1_row_where_id = 
+    "~Microsoft SQL Server~select id, num, dt, dt_small, vchar100, vcharmax, vbin100, vbinmax, txt from ##test1 where id=:id"
+    "~~select id, num, dt, dt_small, vchar100, vcharmax, vbin100, vbinmax, txt from test1 where id=:id"
+    "~";
+
+const char* drop_test1 =
+    "~Oracle~drop sequence test1_seq_id"
+    "~Oracle~drop table test1"
+    "~Microsoft SQL Server~drop table ##test1"
+    "~~drop table test1"
+    "~";
+
+const char* create_test_escaping = 
+    "~Microsoft SQL Server~create table ##test_escaping(txt nvarchar(100))"
+    "~Sqlite3~create temp table test_escaping(txt nvarchar(100)) "
+    "~Mysql~create temporary table test_escaping(txt nvarchar(100))"
+    "~PgSQL~create temp table test_escaping(txt varchar(100))"
+    "~Oracle~create table test_escaping( txt nvarchar2(100) )"
+    "~";
+
+const char* insert_into_test_escaping_tpl = 
+    "~Microsoft SQL Server~insert into ##test_escaping(txt) values('%1%')"
+    "~~insert into test_escaping(txt) values('%1%')"
+    "~";
+
+const char* select_from_test_escaping = 
+    "~Microsoft SQL Server~select txt from ##test_escaping"
+    "~~select txt from test_escaping"
+    "~";
+
 void test_escaping(session sess)
 {
     try 
     {
         try { sess.once() << "~Oracle~drop table test_escaping~" << exec; } catch(...) {}
 
-        sess.once() <<
-            "~Microsoft SQL Server~create table ##test_escaping(txt nvarchar(100))"
-            "~Sqlite3~create temp table test_escaping(txt nvarchar(100)) "
-            "~Mysql~create temporary table test_escaping(txt nvarchar(100))"
-            "~PgSQL~create temp table test_escaping(txt varchar(100))"
-            "~Oracle~create table test_escaping( txt nvarchar2(100) )"
-            "~"
-            << exec;
+        sess.once() << create_test_escaping << exec;
 
         string bad_string = "\\''\\' insert into char'";
         string good_string = sess.escape(bad_string);
 
-        string insert_query = boost::str(boost::format(
-            "~Microsoft SQL Server~insert into ##test_escaping(txt) values('%1%')"
-            "~~insert into test_escaping(txt) values('%1%')"
-            "~") % good_string);
+        string insert_query = boost::str(boost::format(insert_into_test_escaping_tpl) % good_string);
 
         sess.once() << insert_query << exec;
 
         string result;
-        sess.once() << 
-            "~Microsoft SQL Server~select txt from ##test_escaping"
-            "~~select txt from test_escaping"
-            "~"
-            << first_row >> result;
+        sess.once() << select_from_test_escaping << first_row >> result;
 
         BOOST_CHECK_EQUAL(result, bad_string);
     }
     catch(edba::not_supported_by_backend&)
     {
     }
+}
+
+void test_utf8(session sess)
+{
+    statement st = sess << 
+        "~Microsoft SQL Server~insert into ##test1(vchar100, txt) values(:txt, :txt)"
+        "~Oracle~insert into test1(id, vchar100, txt) values(test1_seq_id.nextval, :txt, :txt)"
+        "~~insert into test1(vchar100, txt) values(:txt, :txt)"
+        << use("txt", utf8_text) 
+        << exec;
+    
+    long long id = sess.backend() == "oracle" ? st.sequence_last("test1_seq_id") : id = st.last_insert_id();
+
+    string vc;
+    string txt;
+    sess << select_test1_row_where_id << id << first_row >> into("vchar100", vc) >> into("txt", txt);
+
+    BOOST_CHECK_EQUAL(utf8_text, vc);
+    BOOST_CHECK_EQUAL(utf8_text, txt);
+}
+
+void test_incorrect_query(session sess)
+{
+    // Some backends may successfully compile incorrect statements
+    // However they all must fail on execution step
+
+    BOOST_CHECK_THROW(sess.exec_batch("incorrect statement"), edba_error);
+    BOOST_CHECK_THROW(sess.exec_batch("incorrect statement;"), edba_error);
+    BOOST_CHECK_THROW(sess << "incorrect statement" << exec, edba_error);
+    BOOST_CHECK_THROW(sess.once() << "incorrect statement" << exec, edba_error);
+}
+
+void test_empty_query(session sess)
+{
+    // Test empty query
+    sess << "" << exec;
+    sess << "~~" << exec;
 }
 
 template<typename Driver>
@@ -74,85 +201,7 @@ void test(const char* conn_string)
     std::string oracle_cleanup_seq = "~Oracle~drop sequence test1_seq_id~;";
     std::string oracle_cleanup_tbl = "~Oracle~drop table test1~;";
 
-    std::string create_test1_table = boost::str(boost::format(
-        "~Oracle~create sequence test1_seq_id~;"
-        "~Microsoft SQL Server~create table ##test1( "
-        "   id int identity(1, 1) primary key clustered, "
-        "   num numeric(18, 3), "
-        "   dt datetime, "
-        "   dt_small smalldatetime, "
-        "   vchar20 nvarchar(40), "
-        "   vcharmax varchar(max), "
-        "   vbin20 varbinary(20), "
-        "   vbinmax varbinary(max), "
-        "   txt text"
-        "   ) "
-        "~Sqlite3~create temp table test1( "
-        "   id integer primary key autoincrement, "
-        "   num double, "
-        "   dt text, "
-        "   dt_small text, "
-        "   vchar20 nvarchar(40), "
-        "   vcharmax text, "
-        "   vbin20 blob, "
-        "   vbinmax blob, "
-        "   txt text "
-        "   ) "
-        "~Mysql~create temporary table test1( "
-        "   id integer AUTO_INCREMENT PRIMARY KEY, "
-        "   num numeric(18, 3), "
-        "   dt timestamp, "
-        "   dt_small date, "    
-        "   vchar20 nvarchar(40), "
-        "   vcharmax text, "
-        "   vbin20 varbinary(20), "
-        "   vbinmax blob, "
-        "   txt text "
-        "   ) "
-        "~PgSQL~create temp table test1( "
-        "   id serial primary key, "
-        "   num numeric(18, 3), "
-        "   dt timestamp, "
-        "   dt_small date, "
-        "   vchar20 varchar(40), "          // postgres don`t have nvarchar
-        "   vcharmax varchar(15000), "
-        "   vbin20 %1%, "
-        "   vbinmax %1%, "
-        "   txt text "
-        "   ) "
-        "~Oracle~create table test1( "
-        "   id number primary key, "
-        "   num number(18, 3), "
-        "   dt timestamp, "
-        "   dt_small date, "
-        "   vchar20 nvarchar2(20),  "
-        "   vcharmax varchar2(4000), " 
-        "   vbin20 raw(20), "
-        "   vbinmax blob, "
-        "   txt clob "
-        "   ) "
-        "~") % postgres_lob_type);
-
-    const char* insert_test1_data =
-        "~Microsoft SQL Server~insert into ##test1(num, dt, dt_small, vchar20, vcharmax, vbin20, vbinmax, txt) "
-        "   values(:num, :dt, :dt_small, :vchar20, :vcharmax, :vbin20, :vbinmax, :txt)"
-        "~Oracle~insert into test1(id, num, dt, dt_small, vchar20, vcharmax, vbin20, vbinmax, txt)"
-        "   values(test1_seq_id.nextval, :num, :dt, :dt_small, :vchar20, :vcharmax, :vbin20, :vbinmax, :txt)"
-        "~~insert into test1(num, dt, dt_small, vchar20, vcharmax, vbin20, vbinmax, txt)"
-        "   values(:num, :dt, :dt_small, :vchar20, :vcharmax, :vbin20, :vbinmax, :txt)"
-        "~";
-
-    const char* select_test1_row = 
-        "~Microsoft SQL Server~select id, num, dt, dt_small, vchar20, vcharmax, vbin20, vbinmax, txt from ##test1 where id=:id"
-        "~~select id, num, dt, dt_small, vchar20, vcharmax, vbin20, vbinmax, txt from test1 where id=:id"
-        "~";
-
-    const char* drop_test1 =
-        "~Oracle~drop sequence test1_seq_id~;"
-        "~Oracle~drop table test1~;"
-        "~Microsoft SQL Server~drop table ##test1"
-        "~~drop table test1"
-        "~";
+    std::string create_test1_table = boost::str(boost::format(create_test1_table_tpl) % postgres_lob_type);
 
     std::string short_binary("binary");
     std::string long_binary(10000, 't');
@@ -175,10 +224,11 @@ void test(const char* conn_string)
         monitor sm;
         session sess(Driver(), conn_string, 0);
 
-        // Test empty query
-        sess << "" << exec;
-        sess << "~~" << exec;
+        test_incorrect_query(sess);
+        test_empty_query(sess);
 
+        // Cleanup previous oracle testing
+        // Oracle don`t have temporary tables
         try {sess.exec_batch(oracle_cleanup_seq);} catch(...) {}
         try {sess.exec_batch(oracle_cleanup_tbl);} catch(...) {}
 
@@ -210,9 +260,9 @@ void test(const char* conn_string)
                 << use("num", 10.10) 
                 << use("dt", *std::gmtime(&now)) 
                 << use("dt_small", *std::gmtime(&now)) 
-                << use("vchar20", "Hello!")
+                << use("vchar100", "Hello!")
                 << use("vcharmax", "Hello! max")
-                << use("vbin20", &short_binary_stream)
+                << use("vbin100", &short_binary_stream)
                 << use("vbinmax", &long_binary_stream)
                 << use("txt", text)
                 << exec
@@ -246,7 +296,7 @@ void test(const char* conn_string)
         {
             transaction tr(sess);
 
-            row r = sess << select_test1_row << id << first_row;
+            row r = sess << select_test1_row_where_id << id << first_row;
     
             int id;
             double num;
@@ -308,11 +358,11 @@ void test(const char* conn_string)
                 "~~select id from test1"
                 "~";
 
-            copy(rs.begin(), rs.end(), ostream_iterator<int>(cout, " "));
-            cout << endl;
+            BOOST_CHECK_EQUAL(boost::distance(rs), 8);
         }
 
         test_escaping(sess);
+        test_utf8(sess);
 
         sess.exec_batch(drop_test1);
     }
