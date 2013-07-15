@@ -378,34 +378,40 @@ public:
     void operator()(std::string* v)
     {
         column& c = columns_[fetch_col_];
-        oraub8 lob_len = 0;
 
         if (c.is_lob())
         {
-            throw_on_error_ = OCILobGetLength2(svchp_, throw_on_error_.errhp_, c.lob_.get(), &lob_len);
+            oraub8 lob_len_max = 0;
+            throw_on_error_ = OCILobGetLength2(svchp_, throw_on_error_.errhp_, c.lob_.get(), &lob_len_max);
 
-            if (!lob_len) 
+            if (!lob_len_max) 
             {
                 v->clear();
                 return;
             }
 
-            c.data_.resize((size_t)lob_len);
+            oraub8 lob_len_char = lob_len_max;
+            oraub8 lob_len_bytes = lob_len_max;
+
+            if (c.type_ == SQLT_CLOB)
+                lob_len_bytes *= 4;
+
+            c.data_.resize((size_t)lob_len_bytes);
 
             throw_on_error_ = OCILobRead2(
                 svchp_
               , throw_on_error_.errhp_
               , c.lob_.get()
-              , &lob_len
-              , &lob_len
+              , &lob_len_bytes
+              , &lob_len_char
               , 1
               , &c.data_[0]
-              , c.data_.size() * 4
+              , c.data_.size()
               , OCI_ONE_PIECE
               , 0, 0, 0, 0
               );
 
-              v->assign(&c.data_[0], c.data_.size());
+              v->assign(c.data_.begin(), c.data_.begin() + (size_t)lob_len_bytes);
         }
         else 
             v->assign(&c.data_[0], c.col_fetch_size_);
@@ -417,23 +423,28 @@ public:
 
         if (c.is_lob())
         {
-            // TODO: Read by chunk size
-        
-            oraub8 lob_len = 0;
-            throw_on_error_ = OCILobGetLength2(svchp_, throw_on_error_.errhp_, c.lob_.get(), &lob_len);
+            // TODO: Read by chunk size        
+            oraub8 lob_len_max = 0;
+            throw_on_error_ = OCILobGetLength2(svchp_, throw_on_error_.errhp_, c.lob_.get(), &lob_len_max);
 
-            if (!lob_len) 
+            if (!lob_len_max) 
                 return;
 
+            oraub8 lob_len_char = lob_len_max;
+            oraub8 lob_len_bytes = lob_len_max;
+
+            if (c.type_ == SQLT_CLOB)
+                lob_len_max *= 4;
+
             // TODO: Read by portion 
-            c.data_.resize((size_t)lob_len);
+            c.data_.resize((size_t)lob_len_max);
 
             throw_on_error_ = OCILobRead2(
                 svchp_
               , throw_on_error_.errhp_
               , c.lob_.get()
-              , &lob_len
-              , &lob_len
+              , &lob_len_bytes
+              , &lob_len_char
               , 1
               , &c.data_[0]
               , c.data_.size()
@@ -441,7 +452,7 @@ public:
               , 0, 0, 0, 0
               );
 
-            v->write(&c.data_[0], c.data_.size());
+              v->write(&c.data_[0], lob_len_bytes);
         }
         else 
             v->write(&columns_[fetch_col_].data_[0], columns_[fetch_col_].col_fetch_size_);

@@ -20,7 +20,7 @@ using namespace edba;
 
 #define SERVER_IP "192.168.1.102"
 
-string utf8_text = boost::locale::conv::utf_to_utf<char>(L"Едба лучшая библиотека на свете");
+string utf8_text = boost::locale::conv::utf_to_utf<char>(L"edba лучшая библиотека на свете");
 
 const char* oracle_cleanup_seq = "~Oracle~drop sequence test1_seq_id~;";
 const char* oracle_cleanup_tbl = "~Oracle~drop table test1~;";
@@ -165,6 +165,13 @@ void test_utf8(session sess)
 
     BOOST_CHECK_EQUAL(utf8_text, vc);
     BOOST_CHECK_EQUAL(utf8_text, txt);
+
+    ostringstream vc_ss;
+    ostringstream txt_ss;
+    sess << select_test1_row_where_id << id << first_row >> into("vchar100", vc_ss) >> into("txt", txt_ss);
+
+    BOOST_CHECK_EQUAL(utf8_text, vc_ss.str());
+    BOOST_CHECK_EQUAL(utf8_text, txt_ss.str());
 }
 
 void test_incorrect_query(session sess)
