@@ -20,8 +20,15 @@
 
 namespace edba { namespace postgresql_backend {	
 
+namespace {
+
 const std::string g_backend("PgSQL");
 const std::string g_engine("PgSQL");
+
+const int BYTEA_IDENTIFIER_TYPE = 17;
+const int OID_IDENTIFIER_TYPE = 26;
+
+}
 
 typedef enum {
     lo_type,
@@ -62,13 +69,12 @@ public:
 class result : public backend::result, public boost::static_visitor<>
 {
 public:
-    result(PGresult *res, PGconn *conn, blob_type b) :
+    result(PGresult *res, PGconn *conn) :
       res_(res),
       conn_(conn),
       rows_(PQntuples(res)),
       cols_(PQnfields(res)),
-      current_(-1),
-      blob_(b)
+      current_(-1)
     {
     }
 
@@ -115,52 +121,59 @@ public:
 
     void operator()(std::ostream* v)
     {
-        if(blob_ == bytea_type) 
+        switch(PQftype(res_, fetch_col_))
         {
-            unsigned char *val = (unsigned char*)PQgetvalue(res_, current_, fetch_col_);
-            size_t len = 0;
+            case BYTEA_IDENTIFIER_TYPE: {
+                unsigned char *val = (unsigned char*)PQgetvalue(res_, current_, fetch_col_);
+                size_t len = 0;
 
-            unsigned char *buf = PQunescapeBytea(val, &len);
-            if(!buf)
-                throw bad_value_cast();
+                unsigned char *buf = PQunescapeBytea(val, &len);
+                if(!buf)
+                    throw bad_value_cast();
 
-            BOOST_SCOPE_EXIT((buf)) {
-                PQfreemem(buf);
-            } BOOST_SCOPE_EXIT_END
+                BOOST_SCOPE_EXIT((buf)) {
+                    PQfreemem(buf);
+                } BOOST_SCOPE_EXIT_END
 
-            v->write((char *)buf,len);
-        }
-        else 
-        {   // oid
-            Oid id = 0;
-            this->operator()(&id);
-
-            if(id == 0)
-                throw pqerror("fetching large object failed, oid=0");
-
-            int fd = lo_open(conn_, id, INV_READ | INV_WRITE);
-
-            if(fd < 0)
-                throw pqerror(conn_, "Failed opening large object for read");
-
-            BOOST_SCOPE_EXIT((conn_)(fd)) {
-                lo_close(conn_, fd);
-            } BOOST_SCOPE_EXIT_END
-
-            char buf[4096];
-            for(;;) 
-            {
-                int n = lo_read(conn_, fd, buf, sizeof(buf));
-                if(n < 0)
-                    throw pqerror(conn_, "Failed reading large object");
-
-                if(n >= 0)
-                    v->write(buf,n);
-
-                if(n < int(sizeof(buf)))
-                    break;
+                v->write((char *)buf,len);
+                break;
             }
-        }        
+            case OID_IDENTIFIER_TYPE: {
+                Oid id = 0;
+                this->operator()(&id);
+
+                if(id == 0)
+                    throw pqerror("fetching large object failed, oid=0");
+
+                int fd = lo_open(conn_, id, INV_READ | INV_WRITE);
+
+                if(fd < 0)
+                    throw pqerror(conn_, "Failed opening large object for read");
+
+                BOOST_SCOPE_EXIT((conn_)(fd)) {
+                    lo_close(conn_, fd);
+                } BOOST_SCOPE_EXIT_END
+
+                char buf[4096];
+                for(;;) 
+                {
+                    int n = lo_read(conn_, fd, buf, sizeof(buf));
+                    if(n < 0)
+                        throw pqerror(conn_, "Failed reading large object");
+
+                    if(n >= 0)
+                        v->write(buf,n);
+
+                    if(n < int(sizeof(buf)))
+                        break;
+                }
+
+                break;
+            }
+            default: {
+                v->write(PQgetvalue(res_, current_, fetch_col_), PQgetlength(res_, current_, fetch_col_));
+            }
+        }
     }
 
     void operator()(std::tm* v)
@@ -214,7 +227,6 @@ private:
     int rows_;
     int cols_;
     int current_;
-    blob_type blob_;
     int fetch_col_;
 };
 
@@ -472,7 +484,7 @@ public:
         {
         case PGRES_TUPLES_OK:
         {
-            boost::intrusive_ptr<result> ptr(new result(res_,conn_,blob_));
+            boost::intrusive_ptr<result> ptr(new result(res_,conn_));
             res_ = 0;
             return ptr;
         }

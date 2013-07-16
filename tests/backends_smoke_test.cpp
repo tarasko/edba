@@ -151,24 +151,26 @@ void test_escaping(session sess)
 void test_utf8(session sess)
 {
     statement st = sess << 
-        "~Microsoft SQL Server~insert into ##test1(vchar100, txt) values(:txt, :txt)"
-        "~Oracle~insert into test1(id, vchar100, txt) values(test1_seq_id.nextval, :txt, :txt)"
-        "~~insert into test1(vchar100, txt) values(:txt, :txt)"
+        "~Microsoft SQL Server~insert into ##test1(vchar100, vbinmax, txt) values(:txt, :txt, :txt)"
+        "~Oracle~insert into test1(id, vchar100, vbinmax, txt) values(test1_seq_id.nextval, :txt, :txt, :txt)"
+        "~~insert into test1(vchar100, vbinmax, txt) values(:txt, :txt, :txt)"
         << use("txt", utf8_text) 
         << exec;
     
     long long id = sess.backend() == "oracle" ? st.sequence_last("test1_seq_id") : id = st.last_insert_id();
 
     string vc;
+    string vb;
     string txt;
-    sess << select_test1_row_where_id << id << first_row >> into("vchar100", vc) >> into("txt", txt);
+    sess << select_test1_row_where_id << id << first_row >> into("vchar100", vc) >> into("vbinmax", vb) >> into("txt", txt);
 
     BOOST_CHECK_EQUAL(utf8_text, vc);
     BOOST_CHECK_EQUAL(utf8_text, txt);
 
     ostringstream vc_ss;
+    ostringstream vb_ss;
     ostringstream txt_ss;
-    sess << select_test1_row_where_id << id << first_row >> into("vchar100", vc_ss) >> into("txt", txt_ss);
+    sess << select_test1_row_where_id << id << first_row >> into("vchar100", vc_ss) >> into("vbinmax", vb_ss) >> into("txt", txt_ss);
 
     BOOST_CHECK_EQUAL(utf8_text, vc_ss.str());
     BOOST_CHECK_EQUAL(utf8_text, txt_ss.str());
