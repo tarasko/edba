@@ -27,18 +27,18 @@
 #include <sqlext.h>
 
 namespace mpl = boost::mpl;
+using namespace boost::locale::conv;   
+using namespace boost::locale;
 
 namespace edba { 
 
 namespace {
-
-struct column_info
-{
-    std::string name_;  // name
-    int index_;         // index
-    SQLSMALLINT type_;  // type
-};
-
+    struct column_info
+    {
+        std::string name_;  // name
+        int index_;         // index
+        SQLSMALLINT type_;  // type
+    };
 }
 
 string_ref to_string_ref(const column_info& ci)
@@ -46,26 +46,39 @@ string_ref to_string_ref(const column_info& ci)
     return string_ref(ci.name_);
 }
 
-namespace backend { namespace odbc {
-
-using namespace boost::locale::conv;   
-using namespace boost::locale;
+namespace backend { namespace odbc { 
     
+// backend name
 const std::string g_backend("odbc");
 
-typedef unsigned odbc_u32;
-typedef unsigned short odbc_u16;
+// create boost locale compatible locale for conversion from UTF-16 message to system default locale
+const std::locale g_system_locale = generator()("");
 
+// TODO: Some code rely on this constrants.
+// Review code and relax them
 BOOST_STATIC_ASSERT(sizeof(unsigned) == 4);
 BOOST_STATIC_ASSERT(sizeof(unsigned short) == 2);
 BOOST_STATIC_ASSERT(sizeof(SQLWCHAR) == 2);
 
+// This map allow to get SQL C type constant for C++ number types.
+typedef mpl::map<
+    mpl::pair< char,                mpl::pair< mpl::int_<SQL_C_STINYINT>,   char> >
+  , mpl::pair< unsigned char,       mpl::pair< mpl::int_<SQL_C_UTINYINT>,   unsigned char> >
+  , mpl::pair< short,               mpl::pair< mpl::int_<SQL_C_SSHORT>,     short> >
+  , mpl::pair< unsigned short,      mpl::pair< mpl::int_<SQL_C_USHORT>,     unsigned short> >
+  , mpl::pair< int,                 mpl::pair< mpl::int_<SQL_C_SLONG>,      long> >
+  , mpl::pair< unsigned int,        mpl::pair< mpl::int_<SQL_C_ULONG>,      unsigned long> >
+  , mpl::pair< long,                mpl::pair< mpl::int_<SQL_C_SLONG>,      long> >
+  , mpl::pair< unsigned long,       mpl::pair< mpl::int_<SQL_C_ULONG>,      unsigned long> >
+  , mpl::pair< long long,           mpl::pair< mpl::int_<SQL_C_SBIGINT>,    long long> >
+  , mpl::pair< unsigned long long,  mpl::pair< mpl::int_<SQL_C_UBIGINT>,    unsigned long long> >
+  , mpl::pair< float,               mpl::pair< mpl::int_<SQL_C_FLOAT>,      float> >
+  , mpl::pair< double,              mpl::pair< mpl::int_<SQL_C_DOUBLE>,     double> >
+  , mpl::pair< long double,         mpl::pair< mpl::int_<SQL_C_DOUBLE>,     double> >
+  > type_ids_map;
 
-void check_odbc_errorW(SQLRETURN error,SQLHANDLE h,SQLSMALLINT type)
+std::string get_odbc_errorW(SQLHANDLE h, SQLSMALLINT type)
 {
-    if(SQL_SUCCEEDED(error))
-        return;
-
     std::basic_string<SQLWCHAR> error_message;
     int rec=1;
     int r;
@@ -82,8 +95,8 @@ void check_odbc_errorW(SQLRETURN error,SQLHANDLE h,SQLSMALLINT type)
         {
             if(!error_message.empty())
             {
-                SQLWCHAR nl = '\n';
-                error_message+=nl;
+                SQLWCHAR nl = L'\n';
+                error_message += nl;
             }
             error_message.append(msg);
         }
@@ -92,19 +105,14 @@ void check_odbc_errorW(SQLRETURN error,SQLHANDLE h,SQLSMALLINT type)
 
     }
 
-    // create boost locale compatible locale for conversion from UTF-16 message to system default locale
-    static std::locale loc = generator()("");
-
-    std::string utf8_str = "<Cannot convert error message to multibyte system default locale>";
-    try { utf8_str = from_utf(error_message, loc); } catch(...){}
+    std::string local_error_message = "<Cannot convert error message to multibyte system default locale>";
+    try { local_error_message = from_utf(error_message, g_system_locale); } catch(...){}
     
-    throw edba_error("edba::odbc_backend::Failed with error `" + utf8_str +"'");
+    return local_error_message;
 }
 
-void check_odbc_errorA(SQLRETURN error,SQLHANDLE h,SQLSMALLINT type)
+std::string get_odbc_errorA(SQLHANDLE h, SQLSMALLINT type)
 {
-    if(SQL_SUCCEEDED(error))
-        return;
     std::string error_message;
     int rec=1,r;
     for(;;)
@@ -115,24 +123,26 @@ void check_odbc_errorA(SQLRETURN error,SQLHANDLE h,SQLSMALLINT type)
         SQLSMALLINT len;
         r = SQLGetDiagRecA(type,h,rec,stat,&err,msg,sizeof(msg),&len);
         rec++;
-        if(r==SQL_SUCCESS || r==SQL_SUCCESS_WITH_INFO) {
+        if(r==SQL_SUCCESS || r==SQL_SUCCESS_WITH_INFO) 
+        {
             if(!error_message.empty())
-                error_message+='\n';
-            error_message +=(char *)msg;
+                error_message += '\n';
+            error_message += (char *)msg;
         }
         else 
             break;
 
     } 
-    throw edba_error("edba::odbc::Failed with error `" + error_message +"'");
+    return error_message;
 }
 
 void check_odbc_error(SQLRETURN error,SQLHANDLE h,SQLSMALLINT type,bool wide)
 {
-    if(wide)
-        check_odbc_errorW(error,h,type);
-    else
-        check_odbc_errorA(error,h,type);
+    if(SQL_SUCCEEDED(error))
+        return;
+
+    std::string msg = wide ? get_odbc_errorW(h, type) : get_odbc_errorA(h, type);
+    throw edba_error("edba::odbc_backend::Failed with error `" + msg +"'");
 }
 
 class result : public backend::result, public boost::static_visitor<bool>
@@ -165,7 +175,7 @@ public:
                 SQLWCHAR name[257] = {0};
                 r = SQLDescribeColW(stmt_, col + 1, name, 256, &name_length, &ci.type_, &column_size, 0, 0);
                 check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
-                ci.name_ = utf_to_utf<char>(name);
+                ci.name_ = from_utf(name, g_system_locale);
             }
             else 
             {
@@ -209,22 +219,6 @@ public:
     template<typename T>
     bool operator()(T* data, typename boost::enable_if< boost::is_arithmetic<T> >::type* = 0 )
     {
-        typedef mpl::map<
-            mpl::pair< char,                mpl::pair< mpl::int_<SQL_C_STINYINT>,   char> >
-          , mpl::pair< unsigned char,       mpl::pair< mpl::int_<SQL_C_UTINYINT>,   unsigned char> >
-          , mpl::pair< short,               mpl::pair< mpl::int_<SQL_C_SSHORT>,     short> >
-          , mpl::pair< unsigned short,      mpl::pair< mpl::int_<SQL_C_USHORT>,     unsigned short> >
-          , mpl::pair< int,                 mpl::pair< mpl::int_<SQL_C_SLONG>,      long> >
-          , mpl::pair< unsigned int,        mpl::pair< mpl::int_<SQL_C_ULONG>,      unsigned long> >
-          , mpl::pair< long,                mpl::pair< mpl::int_<SQL_C_SLONG>,      long> >
-          , mpl::pair< unsigned long,       mpl::pair< mpl::int_<SQL_C_ULONG>,      unsigned long> >
-          , mpl::pair< long long,           mpl::pair< mpl::int_<SQL_C_SBIGINT>,    long long> >
-          , mpl::pair< unsigned long long,  mpl::pair< mpl::int_<SQL_C_UBIGINT>,    unsigned long long> >
-          , mpl::pair< float,               mpl::pair< mpl::int_<SQL_C_FLOAT>,      float> >
-          , mpl::pair< double,              mpl::pair< mpl::int_<SQL_C_DOUBLE>,     double> >
-          , mpl::pair< long double,         mpl::pair< mpl::int_<SQL_C_DOUBLE>,     double> >
-          > type_ids_map;
-
         typedef typename mpl::at<type_ids_map, T>::type data_pair;
         typedef typename data_pair::first c_type_id;
         typedef typename data_pair::second c_type;
@@ -436,7 +430,8 @@ public:
                         (SQLWCHAR*)utf_to_utf<SQLWCHAR>(patched_query()).c_str(),
                         SQL_NTS);
                 }
-                else {
+                else 
+                {
                     r = SQLPrepareA(
                         stmt_,
                         (SQLCHAR*)patched_query().c_str(),
@@ -491,18 +486,18 @@ public:
     template<typename T>
     holder_sp operator()(T v)
     {
-        std::ostringstream ss;
-        ss.imbue(std::locale::classic());
-
-        if(!std::numeric_limits<T>::is_integer)
-            ss << std::setprecision(std::numeric_limits<T>::digits10 + 1);
-
-        ss << v;
+        typedef typename mpl::at<type_ids_map, T>::type data_pair;
+        typedef typename data_pair::first c_type_id;
+        typedef typename data_pair::second c_type;
 
         SQLSMALLINT sqltype = std::numeric_limits<T>::is_integer ? SQL_INTEGER : SQL_DOUBLE;
 
-        holder_sp value = boost::make_shared<holder>(0, ss.str());
-        do_bind(false, SQL_C_CHAR, sqltype, *value);
+        c_type tmp = (c_type)v;
+
+        holder_sp value = boost::make_shared<holder>(0, std::string((const char*)&tmp, sizeof(c_type)));
+
+        do_bind(false, c_type_id::value, sqltype, *value);
+
         return value;
     }
 

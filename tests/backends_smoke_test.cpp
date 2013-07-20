@@ -8,6 +8,8 @@
 #include <boost/timer.hpp>
 #include <boost/scope_exit.hpp>
 #include <boost/locale/encoding_utf.hpp>
+#include <boost/locale/encoding.hpp>
+#include <boost/locale/generator.hpp>
 
 #define BOOST_TEST_MAIN
 #include <boost/test/unit_test.hpp>
@@ -18,9 +20,14 @@
 using namespace std;
 using namespace edba;
 
-#define SERVER_IP "192.168.1.102"
+#define SERVER_IP "192.168.1.105"
 
-string utf8_text = boost::locale::conv::utf_to_utf<char>(L"edba лучшая библиотека на свете");
+wstring utf16_text = L"edba лучшая библиотека на свете";
+
+locale system_locale = boost::locale::generator()("");
+
+string utf8_text = boost::locale::conv::utf_to_utf<char>(utf16_text);
+string local_text = boost::locale::conv::from_utf(utf16_text, system_locale);
 
 const char* oracle_cleanup_seq = "~Oracle~drop sequence test1_seq_id~;";
 const char* oracle_cleanup_tbl = "~Oracle~drop table test1~;";
@@ -150,30 +157,30 @@ void test_escaping(session sess)
 
 void test_utf8(session sess)
 {
+    string text = sess.backend() == "odbc" ? local_text : utf8_text;
+
     statement st = sess << 
-        "~Microsoft SQL Server~insert into ##test1(vchar100, vbinmax, txt) values(:txt, :txt, :txt)"
-        "~Oracle~insert into test1(id, vchar100, vbinmax, txt) values(test1_seq_id.nextval, :txt, :txt, :txt)"
-        "~~insert into test1(vchar100, vbinmax, txt) values(:txt, :txt, :txt)"
-        << use("txt", utf8_text) 
+        "~Microsoft SQL Server~insert into ##test1(vchar100, txt) values(:txt, :txt)"
+        "~Oracle~insert into test1(id, vchar100, txt) values(test1_seq_id.nextval, :txt, :txt)"
+        "~~insert into test1(vchar100, txt) values(:txt, :txt)"
+        << use("txt", text) 
         << exec;
     
     long long id = sess.backend() == "oracle" ? st.sequence_last("test1_seq_id") : id = st.last_insert_id();
 
     string vc;
-    string vb;
     string txt;
-    sess << select_test1_row_where_id << id << first_row >> into("vchar100", vc) >> into("vbinmax", vb) >> into("txt", txt);
+    sess << select_test1_row_where_id << id << first_row >> into("vchar100", vc) >> into("txt", txt);
 
-    BOOST_CHECK_EQUAL(utf8_text, vc);
-    BOOST_CHECK_EQUAL(utf8_text, txt);
+    BOOST_CHECK_EQUAL(text, vc);
+    BOOST_CHECK_EQUAL(text, txt);
 
     ostringstream vc_ss;
-    ostringstream vb_ss;
     ostringstream txt_ss;
-    sess << select_test1_row_where_id << id << first_row >> into("vchar100", vc_ss) >> into("vbinmax", vb_ss) >> into("txt", txt_ss);
+    sess << select_test1_row_where_id << id << first_row >> into("vchar100", vc_ss) >> into("txt", txt_ss);
 
-    BOOST_CHECK_EQUAL(utf8_text, vc_ss.str());
-    BOOST_CHECK_EQUAL(utf8_text, txt_ss.str());
+    BOOST_CHECK_EQUAL(text, vc_ss.str());
+    BOOST_CHECK_EQUAL(text, txt_ss.str());
 }
 
 void test_incorrect_query(session sess)
