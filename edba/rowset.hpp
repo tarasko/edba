@@ -291,8 +291,6 @@ class rowset_iterator
       , boost::single_pass_traversal_tag
       > base_type;
 
-    typedef typename base_type::reference reference;
-      
     typedef typename boost::remove_cv<T>::type mutable_value_type;
     typedef mutable_value_type& mutable_reference;
 
@@ -322,7 +320,7 @@ public:
 private:
     friend class boost::iterator_core_access;
 
-    reference dereference() const;
+    typename base_type::reference dereference() const;
     void increment();
     bool equal(rowset_iterator const& other) const;
 
