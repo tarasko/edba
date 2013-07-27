@@ -169,6 +169,63 @@ public:
     ///
     void exec();
 
+    // NOTE: Following overloaded operators are members because in case of free functions they need to accept
+    // statement by value or const reference. Otherwise the next statement will be illformed because rvalue ref   
+    // can`t be casted to non-const lvalue ref.
+    // rowset<> rs = sess << "select * from world where id = :id" << 10;
+    
+    /// 
+    /// Syntactic sugar for 
+    /// \code
+    /// st.bind(val);
+    /// \endcode
+    ///
+    template<typename T>
+    statement& operator<<(const T& v)
+    {
+        return bind(v);
+    }    
+    
+    ///
+    /// Apply manipulator on the statement, same as manipulator(*this).
+    ///
+    statement& operator<<(void (*manipulator)(statement &st))
+    {
+        manipulator(*this);
+        return *this;
+    }
+
+    ///
+    /// Apply manipulator on the statement, same as manipulator(*this).
+    ///
+    row operator<<(row (*manipulator)(statement &st))
+    {
+        return manipulator(*this);
+    }
+
+    ///
+    /// Apply manipulator on the statement, same as manipulator(*this).
+    ///
+    rowset<> operator<<(rowset<> (*manipulator)(statement &st))
+    {
+        return manipulator(*this);
+    }
+
+    ///
+    /// Used with types produced by use function.
+    ///
+    /// The call st << use("paramname", val) is same as
+    ///
+    /// \code
+    ///  st.bind("paramname", val);
+    /// \endcode
+    ///
+    template<typename T1, typename T2>
+    statement &operator<<(const detail::tag<T1, T2>& val)
+    {
+        return bind(val.first_, val.second_);
+    }    
+    
     ///
     /// Equality operator
     ///
@@ -386,58 +443,6 @@ inline row first_row(statement &st)
 inline rowset<> query(statement &st)
 {
     return st.query();
-}
-
-///
-/// Apply manipulator on the statement, same as manipulator(*this).
-///
-inline statement& operator<<(statement& st, void (*manipulator)(statement &st))
-{
-    manipulator(st);
-    return st;
-}
-
-///
-/// Apply manipulator on the statement, same as manipulator(*this).
-///
-inline row operator<<(statement& st, row (*manipulator)(statement &st))
-{
-    return manipulator(st);
-}
-
-///
-/// Apply manipulator on the statement, same as manipulator(*this).
-///
-inline rowset<> operator<<(statement& st, rowset<> (*manipulator)(statement &st))
-{
-    return manipulator(st);
-}
-
-///
-/// Used with types produced by use function.
-///
-/// The call st << use("paramname", val) is same as
-///
-/// \code
-///  st.bind("paramname", val);
-/// \endcode
-///
-template<typename T1, typename T2>
-statement &operator<<(statement& st, const detail::tag<T1, T2>& val)
-{
-    return st.bind(val.first_, val.second_);
-}
-
-/// 
-/// Syntactic sugar for 
-/// \code
-/// st.bind(val);
-/// \endcode
-///
-template<typename T>
-statement& operator<<(statement& st, const T& v)
-{
-    return st.bind(v);
 }
 
 /// Specialization of bind_conversion for native types

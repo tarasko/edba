@@ -41,7 +41,7 @@ endif()
 
 add_definitions(-DBOOST_ALL_DYN_LINK=1)
 
-find_package(Boost 1.48.0 COMPONENTS date_time locale thread system unit_test_framework)
+find_package(Boost 1.48.0 COMPONENTS date_time locale thread system unit_test_framework REQUIRED)
 
 if (WIN32)
     add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS -DBOOST_ALL_NO_LIB)
@@ -91,7 +91,12 @@ set(sources
 
 if(EDBA_SHARED_LIBS)
     add_library(edba SHARED ${sources})
-    target_link_libraries(edba ${Boost_LIBRARIES})
+    if (WIN32)
+        target_link_libraries(edba ${Boost_LIBRARIES})
+    else()
+        target_link_libraries(edba ${Boost_LIBRARIES} dl)
+    endif()
+    
 endif()
 
 if(EDBA_STATIC_LIBS)

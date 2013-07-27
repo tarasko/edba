@@ -32,14 +32,12 @@ using namespace boost::locale;
 
 namespace edba { 
 
-namespace {
-    struct column_info
-    {
-        std::string name_;  // name
-        int index_;         // index
-        SQLSMALLINT type_;  // type
-    };
-}
+struct column_info
+{
+    std::string name_;  // name
+    int index_;         // index
+    SQLSMALLINT type_;  // type
+};
 
 string_ref to_string_ref(const column_info& ci)
 {

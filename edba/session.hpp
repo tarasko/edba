@@ -58,6 +58,7 @@ public:
     /// \code
     /// sess.once() << query << use(somevar);
     /// sess.create_statement(query) << use(somevar) << exec;
+    /// \endcode
     ///
     once_type once();
 
@@ -135,6 +136,14 @@ public:
     {
         return s1.conn_ == s2.conn_;
     }
+    
+    ///
+    /// Syntactic sugar, same as prepare(q)
+    ///
+    statement operator<<(string_ref query)
+    {
+        return prepare_statement(query);
+    }    
 
 private:
     friend class session_pool;
@@ -207,9 +216,9 @@ inline void session::set_specific(const T& data)
     conn_->set_specific(data);
 }
 template<typename T>
-T& get_specific()
+T& session::get_specific()
 {
-    return conn_->get_specific<T>();
+    return boost::any_cast<T&>(conn_->get_specific());
 }
 
 inline void session::begin()
@@ -243,16 +252,6 @@ inline void session::version(int& major, int& minor)
 inline const std::string& session::description()
 {
     return conn_->description();
-}
-
-// ------ free functions ------
-
-///
-/// Syntactic sugar, same as prepare(q)
-///
-inline statement operator<<(session& s, string_ref query)
-{
-    return s.prepare_statement(query);
 }
 
 }

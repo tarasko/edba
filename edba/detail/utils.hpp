@@ -10,6 +10,7 @@
 #include <boost/intrusive_ptr.hpp>
 #include <boost/noncopyable.hpp>
 
+#include <cstdio>
 #include <string>
 #include <sstream>
 #include <ctime>

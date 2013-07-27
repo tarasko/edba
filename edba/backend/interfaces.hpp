@@ -27,7 +27,7 @@ public:
         next_row_unknown  ///< It is unknown, next() may return either true or false
     } next_row;
 
-    virtual ~result_iface()  = 0 {}
+    virtual ~result_iface() {}
 
     ///
     /// Check if the next row in the result exists. If the DB engine can't perform
@@ -78,7 +78,7 @@ public:
 
 struct statement_iface : ref_cnt
 {
-    virtual ~statement_iface() = 0 {}
+    virtual ~statement_iface() {}
 
     ///
     /// Bind value to column \a col (starting from 1).
@@ -135,7 +135,7 @@ struct statement_iface : ref_cnt
 
 struct connection_iface : public ref_cnt
 {
-    virtual ~connection_iface() = 0 {}
+    virtual ~connection_iface() {}
 
     ///
     /// Try get already compiled statement from the cache. If failed then use prepare_statement_impl 
