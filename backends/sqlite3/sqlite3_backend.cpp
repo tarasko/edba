@@ -27,7 +27,7 @@ static std::string g_description = std::string("SQLite Version ") + sqlite3_libv
 class result : public backend::result, public boost::static_visitor<>
 {
 public:
-    result(sqlite3_stmt *st,sqlite3 *conn) : 
+    result(sqlite3_stmt *st,sqlite3 *conn) :
         st_(st),
         conn_(conn),
         cols_(-1)
@@ -44,7 +44,7 @@ public:
         return next_row_unknown;
     }
 
-    virtual bool next() 
+    virtual bool next()
     {
         int r = sqlite3_step(st_);
         if(r==SQLITE_DONE)
@@ -62,7 +62,7 @@ public:
 
         if(sqlite3_column_type(st_,col) == SQLITE_NULL)
             return false;
-        
+
         fetch_col_ = col;
         v.apply_visitor(*this);
         return true;
@@ -92,7 +92,7 @@ public:
 
         *data = tmp;
     }
-    
+
     template<typename T>
     void operator()(T* data, typename boost::enable_if< boost::is_floating_point<T> >::type* = 0)
     {
@@ -126,21 +126,21 @@ public:
         return sqlite3_column_type(st_, col) == SQLITE_NULL;
     }
 
-    virtual int cols() 
+    virtual int cols()
     {
         return cols_;
     }
 
-    virtual unsigned long long rows()
+    virtual boost::uint64_t rows()
     {
-        return unsigned long long(-1);
+        return boost::uint64_t(-1);
     }
 
     virtual int name_to_column(const string_ref& n)
     {
-        if(column_names_.empty()) 
+        if(column_names_.empty())
         {
-            for(int i=0; i < cols_; i++) 
+            for(int i=0; i < cols_; i++)
             {
                 char const *name = sqlite3_column_name(st_,i);
                 if(!name)
@@ -178,7 +178,7 @@ private:
 class statement : public backend::statement, public boost::static_visitor<>
 {
 public:
-    statement(const string_ref& query, sqlite3* conn, session_monitor* sm) : 
+    statement(const string_ref& query, sqlite3* conn, session_monitor* sm) :
         backend::statement(sm),
         st_(0),
         conn_(conn),
@@ -203,13 +203,13 @@ public:
             reset_ = true;
         }
     }
-    
+
     virtual void bindings_reset_impl()
     {
         reset_stat();
         sqlite3_clear_bindings(st_);
     }
-    
+
     virtual void bind_impl(int col, bind_types_variant const& v)
     {
         reset_stat();
@@ -224,7 +224,7 @@ public:
         std::string name;
         name.push_back(':');
         name.append(_name.begin(), _name.end());
-        
+
         bind_col_ = sqlite3_bind_parameter_index(st_, name.c_str());
 
         if (!bind_col_)
@@ -278,7 +278,7 @@ public:
     }
 
     // backend::statement implementation
-    
+
     virtual const std::string& patched_query() const
     {
         return orig_sql_;
@@ -305,7 +305,7 @@ public:
             if(r==SQLITE_ROW) {
                 throw edba_error("Using exec with query!");
             }
-            else 
+            else
                 check_bind(r);
         }
     }
@@ -319,7 +319,7 @@ private:
     void check_bind(int v)
     {
         if(v==SQLITE_RANGE) {
-            throw invalid_placeholder(); 
+            throw invalid_placeholder();
         }
         if(v!=SQLITE_OK) {
             throw edba_error(sqlite3_errmsg(conn_));
@@ -369,15 +369,15 @@ public:
             throw edba_error("sqlite3:Failed to open connection:" + error_message);
         }
     }
-    virtual ~connection() 
+    virtual ~connection()
     {
         sqlite3_close(conn_);
     }
     virtual void begin_impl()
     {
-        fast_exec("begin");	
+        fast_exec("begin");
     }
-    virtual void commit_impl() 
+    virtual void commit_impl()
     {
         fast_exec("commit");
     }
@@ -395,7 +395,7 @@ public:
     }
     virtual void exec_batch_impl(const string_ref& q)
     {
-        if (expand_conditionals_) 
+        if (expand_conditionals_)
             fast_exec(q.begin());
         else
         {

@@ -27,10 +27,10 @@
 #include <sqlext.h>
 
 namespace mpl = boost::mpl;
-using namespace boost::locale::conv;   
+using namespace boost::locale::conv;
 using namespace boost::locale;
 
-namespace edba { 
+namespace edba {
 
 struct column_info
 {
@@ -44,8 +44,8 @@ string_ref to_string_ref(const column_info& ci)
     return string_ref(ci.name_);
 }
 
-namespace backend { namespace odbc { 
-    
+namespace backend { namespace odbc {
+
 // backend name
 const std::string g_backend("odbc");
 
@@ -89,7 +89,7 @@ std::string get_odbc_errorW(SQLHANDLE h, SQLSMALLINT type)
         SQLSMALLINT len;
         r = SQLGetDiagRecW(type,h,rec,stat,&err,msg,sizeof(msg)/sizeof(SQLWCHAR),&len);
         rec++;
-        if(r==SQL_SUCCESS || r==SQL_SUCCESS_WITH_INFO) 
+        if(r==SQL_SUCCESS || r==SQL_SUCCESS_WITH_INFO)
         {
             if(!error_message.empty())
             {
@@ -98,14 +98,14 @@ std::string get_odbc_errorW(SQLHANDLE h, SQLSMALLINT type)
             }
             error_message.append(msg);
         }
-        else 
+        else
             break;
 
     }
 
     std::string local_error_message = "<Cannot convert error message to multibyte system default locale>";
     try { local_error_message = from_utf(error_message, g_system_locale); } catch(...){}
-    
+
     return local_error_message;
 }
 
@@ -121,16 +121,16 @@ std::string get_odbc_errorA(SQLHANDLE h, SQLSMALLINT type)
         SQLSMALLINT len;
         r = SQLGetDiagRecA(type,h,rec,stat,&err,msg,sizeof(msg),&len);
         rec++;
-        if(r==SQL_SUCCESS || r==SQL_SUCCESS_WITH_INFO) 
+        if(r==SQL_SUCCESS || r==SQL_SUCCESS_WITH_INFO)
         {
             if(!error_message.empty())
                 error_message += '\n';
             error_message += (char *)msg;
         }
-        else 
+        else
             break;
 
-    } 
+    }
     return error_message;
 }
 
@@ -150,7 +150,7 @@ class result : public backend::result, public boost::static_visitor<bool>
     typedef std::vector<column_info> columns_set;
 
 public:
-    result(SQLHSTMT stmt, bool wide) : stmt_(stmt), wide_(wide) 
+    result(SQLHSTMT stmt, bool wide) : stmt_(stmt), wide_(wide)
     {
         // Read number of columns
         SQLSMALLINT columns_count;
@@ -162,20 +162,20 @@ public:
         SQLULEN max_column_size = 0;
 
         // For each column get name, and push back into columns_
-        for(SQLSMALLINT col = 0; col < columns_count; col++) 
+        for(SQLSMALLINT col = 0; col < columns_count; col++)
         {
             column_info ci;
             SQLSMALLINT name_length = 0;
             SQLULEN column_size = 0;
 
-            if(wide_) 
+            if(wide_)
             {
                 SQLWCHAR name[257] = {0};
                 r = SQLDescribeColW(stmt_, col + 1, name, 256, &name_length, &ci.type_, &column_size, 0, 0);
                 check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
                 ci.name_ = from_utf(name, g_system_locale);
             }
-            else 
+            else
             {
                 SQLCHAR name[257] = {0};
                 r=SQLDescribeColA(stmt_, col + 1, name, 256, &name_length, &ci.type_, &column_size, 0, 0);
@@ -188,7 +188,7 @@ public:
             if (SQL_VARCHAR == ci.type_ ||
                 SQL_WVARCHAR == ci.type_ ||
                 SQL_LONGVARCHAR == ci.type_ ||
-                SQL_VARBINARY == ci.type_ || 
+                SQL_VARBINARY == ci.type_ ||
                 SQL_LONGVARBINARY)
             {
                 if (0 == column_size)
@@ -223,7 +223,7 @@ public:
 
         c_type tmp;
         SQLLEN indicator;
-        
+
         SQLRETURN r = SQLGetData(stmt_, fetch_col_, c_type_id::value, &tmp, sizeof(tmp), &indicator);
         if (r == SQL_SUCCESS || r == SQL_SUCCESS_WITH_INFO)
         {
@@ -276,11 +276,11 @@ public:
 
         SQLRETURN r;
 
-        do 
+        do
         {
             r = SQLGetData(stmt_, fetch_col_, SQL_C_CHAR, &column_char_buf_[0], column_char_buf_.size(), &indicator);
             check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
-            
+
             if (SQL_NULL_DATA == indicator)
                 return false;
 
@@ -298,15 +298,15 @@ public:
     {
         SQLLEN indicator;
         SQLRETURN r;
-        
+
         do
         {
             r = SQLGetData(stmt_, fetch_col_, SQL_C_BINARY, &column_char_buf_[0], column_char_buf_.size(), &indicator);
             check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
-            
+
             if (SQL_NULL_DATA == indicator)
                 return false;
-            
+
             SQLLEN bytes_read = (std::min)(indicator, (SQLLEN)column_char_buf_.size());
             data->write(&column_char_buf_[0], bytes_read);
         } while(SQL_SUCCESS_WITH_INFO == r);
@@ -314,7 +314,7 @@ public:
         return true;
     }
 
-    virtual next_row has_next() 
+    virtual next_row has_next()
     {
         // not supported by odbc
         return next_row_unknown;
@@ -324,7 +324,7 @@ public:
     {
         SQLRETURN r = SQLFetch(stmt_);
 
-        if (r == SQL_SUCCESS || r == SQL_SUCCESS_WITH_INFO) 
+        if (r == SQL_SUCCESS || r == SQL_SUCCESS_WITH_INFO)
             return true;
 
         if(r == SQL_NO_DATA)
@@ -334,7 +334,7 @@ public:
 
         return false;
     }
-    
+
     virtual bool fetch(int col, const fetch_types_variant& v)
     {
         fetch_col_ = col + 1;
@@ -360,10 +360,10 @@ public:
         return (int)columns_.size();
     }
 
-    virtual unsigned long long rows()
+    virtual boost::uint64_t rows()
     {
         // not supported by odbc
-        return (unsigned long long)-1;
+        return (boost::uint64_t)-1;
     }
 
     virtual int name_to_column(const string_ref& name)
@@ -388,7 +388,7 @@ private:
     bool wide_;
     int fetch_col_;
     columns_set columns_;
-    std::vector<char> column_char_buf_;  
+    std::vector<char> column_char_buf_;
 };
 
 class statement : public backend::bind_by_name_helper, public boost::static_visitor<boost::shared_ptr<std::pair<SQLLEN, std::string> > >
@@ -405,7 +405,7 @@ public:
       , bool prepared
       , const std::string& sequence_last
       , const std::string& last_insert_id
-      ) 
+      )
       : backend::bind_by_name_helper(sm, q, backend::question_marker())
       , dbc_(dbc)
       , wide_(wide)
@@ -417,18 +417,18 @@ public:
         SQLRETURN r = SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt_);
         check_odbc_error(r, dbc, SQL_HANDLE_DBC, wide_);
 
-        if(prepared_) 
+        if(prepared_)
         {
-            try 
+            try
             {
-                if(wide_) 
+                if(wide_)
                 {
                     r = SQLPrepareW(
                         stmt_,
                         (SQLWCHAR*)utf_to_utf<SQLWCHAR>(patched_query()).c_str(),
                         SQL_NTS);
                 }
-                else 
+                else
                 {
                     r = SQLPrepareA(
                         stmt_,
@@ -508,7 +508,7 @@ public:
         SQLSMALLINT digits_;
         SQLSMALLINT nullable_;
 
-        // All sql types are compatible with either SQL_VARCHAR or SQL_VARBINARY. 
+        // All sql types are compatible with either SQL_VARCHAR or SQL_VARBINARY.
         // Null binding doesn`t work if specified sqltype is incompatible with actual type in table.
         // Attempt to determine actual SQL type. AFAIK SQLDescribeParam doesn`t work with MS Access driver.
         // In case of failure we assume this is not binary field and SQL_VARCHAR is sufficient.
@@ -527,11 +527,11 @@ public:
         if(wide_)
         {
             std::basic_string<SQLWCHAR> wstr = utf_to_utf<SQLWCHAR>(v.begin(), v.end());
-            
+
             value = boost::make_shared<holder>(0, std::string((const char*)&wstr[0], wstr.size() * sizeof(SQLWCHAR)));
             do_bind(false, SQL_C_WCHAR, SQL_WLONGVARCHAR, *value);
         }
-        else 
+        else
         {
             value = boost::make_shared<holder>();
             value->second.assign(v.begin(), v.end());
@@ -557,21 +557,21 @@ public:
         return value;
     }
 
-    virtual long long sequence_last(std::string const &sequence) 
+    virtual long long sequence_last(std::string const &sequence)
     {
         // evaluate statement
         statement_ptr st;
 
         if (sequence.empty() && !last_insert_id_.empty())
             st.reset(new statement(0, last_insert_id_, dbc_, wide_, false, std::string(), std::string()));
-        else if (!sequence.empty() && !sequence_last_.empty()) 
+        else if (!sequence.empty() && !sequence_last_.empty())
         {
             st.reset(new statement(0, sequence_last_, dbc_, wide_, false, std::string(), std::string()));
             st->bind(1, sequence);
         }
-        else         
+        else
         {
-            if (sequence.empty()) 
+            if (sequence.empty())
                 throw not_supported_by_backend(
                 "edba::odbc::last_insert_id is not supported by odbc backend "
                 "unless properties @last_insert_id is specified "
@@ -589,10 +589,10 @@ public:
 
         if(!res->next() || res->cols() != 1 || !res->fetch(0, fetch_types_variant(&last_id)))
             throw edba_error("edba::odbc::sequence_last failed to fetch last value");
-        
+
         return last_id;
     }
-    virtual unsigned long long affected() 
+    virtual unsigned long long affected()
     {
         SQLLEN rows = 0;
         int r = SQLRowCount(stmt_,&rows);
@@ -638,13 +638,13 @@ private:
     {
         int r;
 
-        if(null) 
+        if(null)
         {
             value.first = SQL_NULL_DATA;
             r = SQLBindParameter(stmt_,
                 bind_col_,
                 SQL_PARAM_INPUT,
-                ctype, 
+                ctype,
                 sqltype, // for null
                 10, // COLUMNSIZE
                 0, //  Presision
@@ -652,7 +652,7 @@ private:
                 0, // size
                 &value.first);
         }
-        else 
+        else
         {
             value.first = value.second.size();
             size_t column_size = value.second.size();
@@ -660,7 +660,7 @@ private:
                 column_size/=2;
             if(value.second.empty())
                 column_size=1;
-            r = SQLBindParameter(	
+            r = SQLBindParameter(
                 stmt_,
                 bind_col_,
                 SQL_PARAM_INPUT,
@@ -688,7 +688,7 @@ private:
     std::vector<holder_sp> params_;
 };
 
-class connection : public backend::connection 
+class connection : public backend::connection
 {
 public:
 
@@ -749,9 +749,9 @@ public:
         SQLSMALLINT len = 0;
         SQLRETURN rc = SQLGetInfoA(dbc_, SQL_DBMS_NAME, &buf, sizeof buf, &len );
 
-        if( SQL_SUCCESS == rc || SQL_SUCCESS_WITH_INFO == rc ) 
+        if( SQL_SUCCESS == rc || SQL_SUCCESS_WITH_INFO == rc )
         {
-            if (boost::iequals(buf, "Postgresql", loc)) 
+            if (boost::iequals(buf, "Postgresql", loc))
                 engine_ = "PgSQL";
             else
                 engine_ = buf;
@@ -762,7 +762,7 @@ public:
         // get version
         rc = SQLGetInfoA( dbc_, SQL_DBMS_VER, &buf, sizeof buf, &len );
 
-        if( SQL_SUCCESS == rc || SQL_SUCCESS_WITH_INFO == rc ) 
+        if( SQL_SUCCESS == rc || SQL_SUCCESS_WITH_INFO == rc )
         {
             if (2 != EDBA_SSCANF(buf, "%2d.%2d", &ver_major_, &ver_minor_))
                 ver_major_ = ver_minor_ = -1;
@@ -772,7 +772,7 @@ public:
         rc = SQLGetInfoA( dbc_, SQL_USER_NAME, &buf, sizeof buf, &len );
 
         char desc_buf[256];
-        if( SQL_SUCCESS == rc || SQL_SUCCESS_WITH_INFO == rc ) 
+        if( SQL_SUCCESS == rc || SQL_SUCCESS_WITH_INFO == rc )
             EDBA_SNPRINTF(desc_buf, 255, "%s version %d.%d, user is '%s'", engine_.c_str(), ver_major_, ver_minor_, buf);
         else
             EDBA_SNPRINTF(desc_buf, 255, "%s version %d.%d", engine_.c_str(), ver_major_, ver_minor_);
@@ -782,7 +782,7 @@ public:
 
         // initialize sequance_last_ and last_insert_id_
         string_ref seq = ci_.get("@sequence_last","");
-        if(seq.empty()) 
+        if(seq.empty())
         {
             const std::string& eng=engine();
             if(boost::iequals(eng, "sqlite3", loc))
@@ -797,7 +797,7 @@ public:
             else if(boost::iequals(eng, "Microsoft SQL Server", loc))
                 last_insert_id_ = "select @@identity";
         }
-        else 
+        else
         {
             // TODO: avoid copying
             if(std::find(seq.begin(), seq.end(), '?') == seq.end())
@@ -814,7 +814,7 @@ public:
         SQLFreeHandle(SQL_HANDLE_ENV,env_);
     }
 
-    /// API 
+    /// API
     virtual void begin_impl()
     {
         set_autocommit(false);
@@ -826,19 +826,19 @@ public:
         set_autocommit(true);
     }
 
-    virtual void rollback_impl() 
+    virtual void rollback_impl()
     {
         try
         {
             SQLRETURN r = SQLEndTran(SQL_HANDLE_DBC,dbc_,SQL_ROLLBACK);
             check_odbc_error(r,dbc_,SQL_HANDLE_DBC,wide_);
-        } 
+        }
         catch(...) {}
-        
-        try 
+
+        try
         {
             set_autocommit(true);
-        } 
+        }
         catch(...){}
     }
 
@@ -881,12 +881,12 @@ public:
         throw not_supported_by_backend("cppcms::odbc:: string escaping is not supported");
     }
 
-    virtual const std::string& backend() 
+    virtual const std::string& backend()
     {
         return g_backend;
     }
 
-    virtual const std::string& engine() 
+    virtual const std::string& engine()
     {
         return engine_;
     }

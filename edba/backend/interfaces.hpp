@@ -10,7 +10,7 @@
 
 namespace edba { namespace backend {
 
-/// 
+///
 /// Tries to load dynamic driver and return connect function
 ///
 EDBA_API connect_function_type get_connect_function(const char* path, const char* entry_func_name);
@@ -39,7 +39,7 @@ public:
     /// return false, otherwise return true
     ///
     virtual bool next() = 0;
-    
+
     ///
     /// Fetch value with type currently stored in variant for column \a starting from 0.
     /// Returns true if ok, returns false if the column value is NULL and the referenced object should remain unchanged
@@ -49,7 +49,7 @@ public:
     ///
     virtual bool fetch(int col, const fetch_types_variant& v) = 0;
 
-    /// 
+    ///
     /// Return true if value is null at specified column
     ///
     virtual bool is_null(int col) = 0;
@@ -59,10 +59,10 @@ public:
     ///
     virtual int cols() = 0;
     ///
-    /// Return the number of rows in the result. Return unsigned long long(-1) if backend doesn`t support
+    /// Return the number of rows in the result. Return boost::uint64_t(-1) if backend doesn`t support
     /// this feature
     ///
-    virtual unsigned long long rows() = 0;
+    virtual boost::uint64_t rows() = 0;
     ///
     /// Return the number of columns by its name. Return -1 if the name is invalid
     /// Should be able to work even without calling next() first time.
@@ -82,14 +82,14 @@ struct statement_iface : ref_cnt
 
     ///
     /// Bind value to column \a col (starting from 1).
-    /// 
+    ///
     /// Dispatch call to suitable implementation
     ///
     virtual void bind(int col, const bind_types_variant& val) = 0;
 
     ///
     /// Bind value to column by name.
-    /// 
+    ///
     /// Dispatch call to suitable implementation
     ///
     virtual void bind(const string_ref& name, const bind_types_variant& val) = 0;
@@ -98,10 +98,10 @@ struct statement_iface : ref_cnt
     /// Reset all bindings to initial state
     ///
     virtual void bindings_reset() = 0;
-    
+
     ///
     /// Return query that is scheduled for execution by backend after all possible transformations
-    /// 
+    ///
     virtual const std::string& patched_query() const = 0;
 
     ///
@@ -138,18 +138,18 @@ struct connection_iface : public ref_cnt
     virtual ~connection_iface() {}
 
     ///
-    /// Try get already compiled statement from the cache. If failed then use prepare_statement_impl 
+    /// Try get already compiled statement from the cache. If failed then use prepare_statement_impl
     /// to create prepared statement. \a q. May throw if preparation had failed.
     /// Should never return null value.
-    /// 
+    ///
     virtual statement_ptr prepare_statement(const string_ref& q) = 0;
 
     ///
     /// Create a (unprepared) statement \a q. May throw if had failed.
     /// Should never return null value.
-    ///    
+    ///
     virtual statement_ptr create_statement(const string_ref& q) = 0;
-    
+
     ///
     /// Executes commands batch in one shot
     ///
@@ -160,12 +160,12 @@ struct connection_iface : public ref_cnt
     ///
     virtual void set_specific(const boost::any& data) = 0;
 
-    /// 
+    ///
     /// Get connection specific data
     ///
     virtual boost::any& get_specific() = 0;
 
-    // API 
+    // API
 
     ///
     /// Start new isolated transaction. Would not be called
@@ -195,13 +195,13 @@ struct connection_iface : public ref_cnt
     ///
     virtual const std::string& engine() = 0;
     ///
-    /// Get the SQL Server version 
+    /// Get the SQL Server version
     ///
     virtual void version(int& major, int& minor) = 0;
     ///
     /// Get human readable string describing SQL Server, usefull for logging
     ///
-    virtual const std::string& description() = 0;    
+    virtual const std::string& description() = 0;
 };
 
 }} // namespace edba, backend

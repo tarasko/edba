@@ -18,7 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-namespace edba { namespace postgresql_backend {	
+namespace edba { namespace postgresql_backend {
 
 namespace {
 
@@ -35,7 +35,7 @@ typedef enum {
     bytea_type
 } blob_type;
 
-class pqerror : public edba_error 
+class pqerror : public edba_error
 {
 public:
     pqerror(char const *msg) : edba_error(message(msg)) {}
@@ -78,7 +78,7 @@ public:
     {
     }
 
-    virtual ~result() 
+    virtual ~result()
     {
         PQclear(res_);
     }
@@ -88,10 +88,10 @@ public:
         if(current_ + 1 < rows_)
             return next_row_exists;
         else
-            return last_row_reached; 
+            return last_row_reached;
     }
 
-    virtual bool next() 
+    virtual bool next()
     {
         ++current_;
         return current_ < rows_;
@@ -155,7 +155,7 @@ public:
                 } BOOST_SCOPE_EXIT_END
 
                 char buf[4096];
-                for(;;) 
+                for(;;)
                 {
                     int n = lo_read(conn_, fd, buf, sizeof(buf));
                     if(n < 0)
@@ -186,17 +186,17 @@ public:
         return do_isnull(col);
     }
 
-    virtual int cols() 
+    virtual int cols()
     {
         return cols_;
     }
 
-    virtual unsigned long long rows() 
+    virtual boost::uint64_t rows()
     {
-        return unsigned long long(PQntuples(res_));
+        return boost::uint64_t(PQntuples(res_));
     }
 
-    virtual int name_to_column(const string_ref& n) 
+    virtual int name_to_column(const string_ref& n)
     {
         return PQfnumber(res_, boost::copy_range<std::string>(n).c_str());
     }
@@ -240,7 +240,7 @@ public:
         binary_param
     } param_type;
 
-    statement(PGconn *conn, const string_ref& src_query, blob_type b, unsigned long long prepared_id, session_monitor* sm) 
+    statement(PGconn *conn, const string_ref& src_query, blob_type b, unsigned long long prepared_id, session_monitor* sm)
       : backend::bind_by_name_helper(sm, src_query, backend::postgresql_style_marker())
       , res_(0)
       , conn_(conn)
@@ -253,7 +253,7 @@ public:
         std::ostringstream ss;
         ss.imbue(std::locale::classic());
 
-        if(prepared_id > 0) 
+        if(prepared_id > 0)
         {
             ss << "edba_psqlstmt_" << prepared_id;
             prepared_id_ = ss.str();
@@ -275,34 +275,34 @@ public:
 
     virtual ~statement()
     {
-        try 
+        try
         {
-            if(res_) 
+            if(res_)
             {
                 PQclear(res_);
                 res_ = 0;
             }
 
-            if(!prepared_id_.empty()) 
+            if(!prepared_id_.empty())
             {
                 std::string stmt = "DEALLOCATE " + prepared_id_;
                 res_ = PQexec(conn_, stmt.c_str());
-                
-                if(res_)  
+
+                if(res_)
                 {
                     PQclear(res_);
                     res_ = 0;
                 }
             }
         }
-        catch(...) 
+        catch(...)
         {
         }
     }
 
     virtual void bindings_reset_impl()
     {
-        if(res_) 
+        if(res_)
         {
             PQclear(res_);
             res_ = 0;
@@ -311,7 +311,7 @@ public:
         params_values_.resize(bindings_count());
         BOOST_FOREACH(std::string& s, params_values_)
             s.clear();
-        
+
         params_pvalues_.assign(bindings_count(), 0);
         params_plengths_.assign(bindings_count(), 0);
         params_set_.assign(bindings_count(), null_param);
@@ -352,17 +352,17 @@ public:
 
     void operator()(std::istream* in)
     {
-        if(blob_ == bytea_type) 
+        if(blob_ == bytea_type)
         {
             std::ostringstream ss;
             ss << in->rdbuf();
             params_values_[bind_col_ - 1] = ss.str();
             params_set_[bind_col_ - 1] = binary_param;
         }
-        else 
+        else
         {
             Oid id = InvalidOid;
-            try 
+            try
             {
                 id = lo_creat(conn_, INV_READ | INV_WRITE);
                 if(InvalidOid == id)
@@ -378,14 +378,14 @@ public:
                 } BOOST_SCOPE_EXIT_END
 
                 char buf[4096];
-                for(;;) 
+                for(;;)
                 {
                     in->read(buf, sizeof(buf));
                     std::streamsize bytes_read = in->gcount();
-                    if(bytes_read > 0) 
+                    if(bytes_read > 0)
                     {
                         int n = lo_write(conn_, fd, buf, (size_t)bytes_read);
-                        if(n < 0) 
+                        if(n < 0)
                             throw pqerror(conn_,"failed writing to large object");
                     }
                     if(bytes_read < int(sizeof(buf)))
@@ -401,7 +401,7 @@ public:
             }
         }
     }
-    
+
     void operator()(null_type)
     {
         params_set_[bind_col_ - 1] = null_param;
@@ -417,21 +417,21 @@ public:
         std::vector<char const *> values;
         std::vector<int> lengths;
         std::vector<int> formats;
-        if(bindings_count() > 0) 
+        if(bindings_count() > 0)
         {
             values.resize(bindings_count(),0);
             lengths.resize(bindings_count(),0);
             formats.resize(bindings_count(),0);
-            for(unsigned i=0; i<bindings_count(); i++) 
+            for(unsigned i=0; i<bindings_count(); i++)
             {
-                if(params_set_[i]!=null_param) 
+                if(params_set_[i]!=null_param)
                 {
-                    if(params_pvalues_[i]!=0) 
+                    if(params_pvalues_[i]!=0)
                     {
                         values[i]=params_pvalues_[i];
                         lengths[i]=params_plengths_[i];
                     }
-                    else 
+                    else
                     {
                         values[i]=params_values_[i].c_str();
                         lengths[i]=params_values_[i].size();
@@ -446,7 +446,7 @@ public:
             pformats=&formats.front();
         }
 
-        if(res_) 
+        if(res_)
         {
             PQclear(res_);
             res_ = 0;
@@ -477,7 +477,7 @@ public:
         }
     }
 
-    virtual backend::result_ptr query_impl() 
+    virtual backend::result_ptr query_impl()
     {
         real_query();
         switch(PQresultStatus(res_))
@@ -496,7 +496,7 @@ public:
             throw pqerror(res_,"query execution failed ");
         }
     }
-    virtual void exec_impl() 
+    virtual void exec_impl()
     {
         real_query();
         switch(PQresultStatus(res_))
@@ -515,9 +515,9 @@ public:
         PGresult *res = 0;
         long long rowid;
         try {
-            if (sequence.empty()) 
+            if (sequence.empty())
                 res = PQexec( conn_, "SELECT lastval()" );
-            else 
+            else
             {
                 char const * const param_ptr = sequence.c_str();
                 res = PQexecParams(	conn_,
@@ -547,9 +547,9 @@ public:
         PQclear(res);
         return rowid;
     }
-    virtual unsigned long long affected() 
+    virtual unsigned long long affected()
     {
-        if(res_) 
+        if(res_)
         {
             char const *s=PQcmdTuples(res_);
             if(!s || !*s)
@@ -558,7 +558,7 @@ public:
         }
         return 0;
     }
- 
+
 private:
     void check(int col)
     {
@@ -577,7 +577,7 @@ private:
     int bind_col_;
 };
 
-class connection : public backend::connection 
+class connection : public backend::connection
 {
 public:
     connection(conn_info const &ci, session_monitor* sm) :
@@ -592,7 +592,7 @@ public:
             blob_ = bytea_type;
         else if(boost::algorithm::iequals(blob, "lo"))
             blob_ = lo_type;
-        else 
+        else
             throw pqerror("@blob property should be either lo or bytea");
 
         conn_ = 0;
@@ -631,7 +631,7 @@ public:
     void do_simple_exec(char const *s)
     {
         PGresult* r = PQexec(conn_,s);
-        
+
         BOOST_SCOPE_EXIT((r))
         {
             PQclear(r);
@@ -654,7 +654,7 @@ public:
     {
         do_simple_exec("begin");
     }
-    virtual void commit_impl() 
+    virtual void commit_impl()
     {
         do_simple_exec("commit");
     }
@@ -675,7 +675,7 @@ public:
     }
     virtual void exec_batch_impl(const string_ref& q)
     {
-        if (expand_conditionals_) 
+        if (expand_conditionals_)
             do_simple_exec(q.begin());
         else
         {

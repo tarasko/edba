@@ -4,11 +4,13 @@
 #include <edba/string_ref.hpp>
 #include <edba/detail/utils.hpp>
 
+#include <boost/config.hpp>
 #include <boost/mpl/vector.hpp>
 #include <boost/mpl/contains.hpp>
 #include <boost/mpl/or.hpp>
 #include <boost/variant/variant.hpp>
 #include <boost/variant/get.hpp>
+#include <boost/cstdint.hpp>
 
 #include <string>
 #include <ctime>
@@ -22,7 +24,7 @@ class session_monitor;
 class statement;
 class row;
 
-namespace backend { 
+namespace backend {
 
 struct result_iface;
 struct statement_iface;
@@ -57,8 +59,10 @@ typedef boost::mpl::vector<
   , unsigned int
   , long
   , unsigned long
+#ifndef BOOST_NO_LONG_LONG
   , long long
   , unsigned long long
+#endif
   , float
   , double
   , long double
@@ -75,8 +79,10 @@ typedef boost::mpl::vector<
   , unsigned int*
   , long*
   , unsigned long*
+#ifndef BOOST_NO_LONG_LONG
   , long long*
   , unsigned long long*
+#endif
   , float*
   , double*
   , long double*
@@ -90,7 +96,7 @@ typedef boost::make_variant_over<fetch_types>::type fetch_types_variant;
 
 ///
 /// Extendable mechanism for binding arbitrary user type into statement.
-/// 
+///
 template<typename T, typename Enable = void>
 struct bind_conversion
 {
@@ -103,7 +109,7 @@ struct bind_conversion
 
 ///
 /// Extendable mechanism for fetching arbitrary user type from row.
-/// 
+///
 template<typename T, typename Enable = void>
 struct fetch_conversion
 {
