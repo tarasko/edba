@@ -1,12 +1,12 @@
 #ifndef EDBA_TYPES_SUPPORT_BOOST_SCOPED_PTR_HPP
 #define EDBA_TYPES_SUPPORT_BOOST_SCOPED_PTR_HPP
 
-#include <edba/types.hpp>
+#include <edba/statement.hpp>
 
 #include <boost/scoped_ptr.hpp>
 #include <boost/move/move.hpp>
 
-namespace edba 
+namespace edba
 {
 
 template<typename T>
@@ -39,7 +39,7 @@ struct fetch_conversion<boost::scoped_ptr<T>, typename boost::disable_if< boost:
             if (res.fetch(col_or_name, *tmp))
                 v.swap(tmp);
         }
-            
+
         return true;
     }
 };

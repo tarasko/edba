@@ -1,9 +1,11 @@
 #if !defined(BOOST_PP_IS_ITERATING)
 
-#  ifndef EDBA_TYPES_SUPPORT_STD_TUPLE_HPP
+#  include <boost/config.hpp>
+
+#  if !defined(EDBA_TYPES_SUPPORT_STD_TUPLE_HPP) && !defined(BOOST_NO_CXX11_HDR_TUPLE)
 #  define EDBA_TYPES_SUPPORT_STD_TUPLE_HPP
 
-#  include <edba/types.hpp>
+#  include <edba/statement.hpp>
 
 #  include <tuple>
 
@@ -13,7 +15,7 @@ namespace edba {
 #  include <boost/preprocessor/iteration/local.hpp>
 #  include <boost/preprocessor/repetition/enum_params.hpp>
 
-#  define BOOST_PP_ITERATION_PARAMS_1 (3, (1, 5, "std_tuple.hpp"))
+#  define BOOST_PP_ITERATION_PARAMS_1 (3, (1, 5, "edba/types_support/std_tuple.hpp"))
 #  include BOOST_PP_ITERATE()
 
 }

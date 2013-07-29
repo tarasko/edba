@@ -3,9 +3,10 @@
 #  ifndef EDBA_TYPES_SUPPORT_BOOST_TUPLE_HPP
 #  define EDBA_TYPES_SUPPORT_BOOST_TUPLE_HPP
 
-#  include <edba/types.hpp>
+#  include <edba/statement.hpp>
 
 #  include <boost/tuple/tuple.hpp>
+#  include <boost/preprocessor/tuple.hpp>
 
 namespace edba {
 
@@ -13,7 +14,7 @@ namespace edba {
 #  include <boost/preprocessor/iteration/local.hpp>
 #  include <boost/preprocessor/repetition/enum_params.hpp>
 
-#  define BOOST_PP_ITERATION_PARAMS_1 (3, (1, 10, "boost_tuple.hpp"))
+#  define BOOST_PP_ITERATION_PARAMS_1 (3, (1, 10, "edba/types_support/boost_tuple.hpp"))
 #  include BOOST_PP_ITERATE()
 
 }

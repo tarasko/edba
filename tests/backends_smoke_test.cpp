@@ -22,11 +22,11 @@ using namespace edba;
 
 #define SERVER_IP "192.168.1.105"
 
-wstring utf16_text = L"edba лучшая библиотека на свете";
+string utf8_text = "\xE2\x88\x83y \xE2\x88\x80x \xC2\xAC(x \xE2\x89\xBA y)";
 
 locale system_locale = boost::locale::generator()("");
 
-string utf8_text = boost::locale::conv::utf_to_utf<char>(utf16_text);
+wstring utf16_text = boost::locale::conv::utf_to_utf<wchar_t>(utf8_text);
 string local_text = boost::locale::conv::from_utf(utf16_text, system_locale);
 
 const char* oracle_cleanup_seq = "~Oracle~drop sequence test1_seq_id~;";

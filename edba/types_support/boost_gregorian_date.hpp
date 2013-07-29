@@ -1,12 +1,12 @@
 #ifndef EDBA_TYPES_SUPPORT_BOOST_GREGORIAN_DATE_HPP
 #define EDBA_TYPES_SUPPORT_BOOST_GREGORIAN_DATE_HPP
 
-#include <edba/types.hpp>
+#include <edba/statement.hpp>
 
 #include <boost/date_time/gregorian/greg_date.hpp>
 #include <boost/date_time/gregorian/conversion.hpp>
 
-namespace edba 
+namespace edba
 {
 
 template<>

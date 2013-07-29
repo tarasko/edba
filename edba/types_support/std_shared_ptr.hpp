@@ -1,11 +1,13 @@
-#ifndef EDBA_TYPES_SUPPORT_STD_SHARED_PTR_HPP
+#include <boost/config.hpp>
+
+#if !defined(EDBA_TYPES_SUPPORT_STD_SHARED_PTR_HPP) && !defined(BOOST_NO_CXX11_SMART_PTR)
 #define EDBA_TYPES_SUPPORT_STD_SHARED_PTR_HPP
 
-#include <edba/types.hpp>
+#include <edba/statement.hpp>
 
 #include <memory>
 
-namespace edba 
+namespace edba
 {
 
 template<typename T>
@@ -38,7 +40,7 @@ struct fetch_conversion<std::shared_ptr<T>, typename boost::disable_if< boost::i
             if (res.fetch(col_or_name, *tmp))
                 v = tmp;
         }
-            
+
         return true;
     }
 };

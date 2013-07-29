@@ -303,10 +303,11 @@ class rowset_iterator
       , mutable_rowset_type
       >::type rowset_type;
 
-
     template<typename> friend class rowset_iterator;
 
 public:
+    typedef typename base_type::reference reference;
+    
     rowset_iterator(rowset_type* rs = 0);
 
     ///
@@ -320,7 +321,7 @@ public:
 private:
     friend class boost::iterator_core_access;
 
-    typename base_type::reference dereference() const;
+    reference dereference() const;
     void increment();
     bool equal(rowset_iterator const& other) const;
 

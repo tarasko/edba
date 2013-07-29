@@ -1,12 +1,12 @@
 #ifndef EDBA_TYPES_SUPPORT_BOOST_POSIX_TIME_PTIME_HPP
 #define EDBA_TYPES_SUPPORT_BOOST_POSIX_TIME_PTIME_HPP
 
-#include <edba/types.hpp>
+#include <edba/statement.hpp>
 
 #include <boost/date_time/posix_time/ptime.hpp>
 #include <boost/date_time/posix_time/conversion.hpp>
 
-namespace edba 
+namespace edba
 {
 
 template<>

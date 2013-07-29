@@ -1,13 +1,13 @@
 #ifndef EDBA_TYPES_SUPPORT_BOOST_SHARED_PTR_HPP
 #define EDBA_TYPES_SUPPORT_BOOST_SHARED_PTR_HPP
 
-#include <edba/types.hpp>
+#include <edba/statement.hpp>
 
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/move/move.hpp>
 
-namespace edba 
+namespace edba
 {
 
 template<typename T>
@@ -40,7 +40,7 @@ struct fetch_conversion<boost::shared_ptr<T>, typename boost::disable_if< boost:
             if (res.fetch(col_or_name, *tmp))
                 v = tmp;
         }
-            
+
         return true;
     }
 };
