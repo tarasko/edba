@@ -204,8 +204,11 @@ BOOST_FIXTURE_TEST_CASE(StdUniquePtr, types_support_fixture)
 
 #ifndef BOOST_NO_CXX11_HDR_TUPLE
 
-BOOST_FIXTURE_TEST_CASE(StdUniquePtr, types_support_fixture)
+BOOST_FIXTURE_TEST_CASE(StdTuple, types_support_fixture)
 {
+    shared_ptr<string> case1_str;
+    BOOST_AUTO(case1_dt, (std::make_shared<boost::gregorian::date>(2011, 1, 1)));
+
     // 3. Test std::tuple
     auto case3 = std::make_tuple(3, case1_dt, case1_str);
     st << case3 << exec << reset;
