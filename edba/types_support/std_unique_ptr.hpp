@@ -29,18 +29,13 @@ struct fetch_conversion<std::unique_ptr<T>, typename boost::disable_if< boost::i
     template<typename ColOrName>
     static bool fetch(const row& res, ColOrName col_or_name, std::unique_ptr<T>& v)
     {
-        if (v)
-        {
-            if (!res.fetch(col_or_name, *v))
-                v.reset();
-        }
-        else
-        {
-            std::unique_ptr<T> tmp(new T());
-            if (res.fetch(col_or_name, *tmp))
-                v = std::move(tmp);
-        }
+        std::unique_ptr<T> tmp(new T());
 
+        if (res.fetch(col_or_name, *tmp))
+            v = std::move(tmp);
+        else
+            v.reset();
+            
         return true;
     }
 };

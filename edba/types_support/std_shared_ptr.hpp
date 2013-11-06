@@ -29,18 +29,13 @@ struct fetch_conversion<std::shared_ptr<T>, typename boost::disable_if< boost::i
     template<typename ColOrName>
     static bool fetch(const row& res, ColOrName col_or_name, std::shared_ptr<T>& v)
     {
-        if (v)
-        {
-            if (!res.fetch(col_or_name, *v))
-                v.reset();
-        }
-        else
-        {
-            std::shared_ptr<T> tmp = std::make_shared<T>();
-            if (res.fetch(col_or_name, *tmp))
-                v = tmp;
-        }
+        std::shared_ptr<T> tmp = std::make_shared<T>();
 
+        if (res.fetch(col_or_name, *tmp))
+            v = tmp;
+        else
+            v.reset();
+            
         return true;
     }
 };
