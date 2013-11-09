@@ -20,14 +20,19 @@
 using namespace std;
 using namespace edba;
 
-#define SERVER_IP "192.168.1.105"
+#define SERVER_IP "192.168.1.101"
 
-string utf8_text = "\xE2\x88\x83y \xE2\x88\x80x \xC2\xAC(x \xE2\x89\xBA y)";
+wstring utf16_text;
+string utf8_text;
 
-locale system_locale = boost::locale::generator()("");
-
-wstring utf16_text = boost::locale::conv::utf_to_utf<wchar_t>(utf8_text);
-string local_text = boost::locale::conv::from_utf(utf16_text, system_locale);
+struct init_t
+{
+    init_t()
+    {
+        utf16_text = L"Привет Мир ( Hello world )";
+        utf8_text = boost::locale::conv::utf_to_utf<char>(utf16_text);
+    }
+} g_init;
 
 const char* oracle_cleanup_seq = "~Oracle~drop sequence test1_seq_id~;";
 const char* oracle_cleanup_tbl = "~Oracle~drop table test1~;";
@@ -152,18 +157,17 @@ void test_escaping(session sess)
     }
     catch(edba::not_supported_by_backend&)
     {
+        // This is ok if backend doesn`t support escaping
     }
 }
 
 void test_utf8(session sess)
 {
-    string text = sess.backend() == "odbc" ? local_text : utf8_text;
-
     statement st = sess << 
         "~Microsoft SQL Server~insert into ##test1(vchar100, txt) values(:txt, :txt)"
         "~Oracle~insert into test1(id, vchar100, txt) values(test1_seq_id.nextval, :txt, :txt)"
         "~~insert into test1(vchar100, txt) values(:txt, :txt)"
-        << use("txt", text) 
+        << use("txt", utf8_text) 
         << exec;
     
     long long id = sess.backend() == "oracle" ? st.sequence_last("test1_seq_id") : id = st.last_insert_id();
@@ -172,15 +176,15 @@ void test_utf8(session sess)
     string txt;
     sess << select_test1_row_where_id << id << first_row >> into("vchar100", vc) >> into("txt", txt);
 
-    BOOST_CHECK_EQUAL(text, vc);
-    BOOST_CHECK_EQUAL(text, txt);
+    BOOST_CHECK_EQUAL(utf8_text, vc);
+    BOOST_CHECK_EQUAL(utf8_text, txt);
 
     ostringstream vc_ss;
     ostringstream txt_ss;
     sess << select_test1_row_where_id << id << first_row >> into("vchar100", vc_ss) >> into("txt", txt_ss);
 
-    BOOST_CHECK_EQUAL(text, vc_ss.str());
-    BOOST_CHECK_EQUAL(text, txt_ss.str());
+    BOOST_CHECK_EQUAL(utf8_text, vc_ss.str());
+    BOOST_CHECK_EQUAL(utf8_text, txt_ss.str());
 }
 
 void test_incorrect_query(session sess)
@@ -196,7 +200,7 @@ void test_incorrect_query(session sess)
 
 void test_empty_query(session sess)
 {
-    // Test empty query
+    // Test empty query, should not throw
     sess << "" << exec;
     sess << "~~" << exec;
 }
@@ -204,12 +208,10 @@ void test_empty_query(session sess)
 template<typename Driver>
 void test(const char* conn_string)
 {
-    const std::locale& loc = std::locale::classic();
-
     // Workaround for postgres lobs
     conn_info ci(conn_string);
     const char* postgres_lob_type;
-    if (ci.has("@blob") && boost::iequals(ci.get("@blob"), "bytea", loc))
+    if (ci.has("@blob") && boost::iequals(ci.get("@blob"), "bytea"))
         postgres_lob_type = "bytea";
     else
         postgres_lob_type = "oid";

@@ -54,6 +54,7 @@ set(sources
   edba/detail/exports.hpp
   edba/detail/utils.hpp
   edba/detail/utils.cpp
+  edba/detail/handle.hpp
   edba/conn_info.hpp
   edba/conn_info.cpp
   edba/edba.hpp

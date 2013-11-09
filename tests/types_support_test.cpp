@@ -180,7 +180,7 @@ BOOST_FIXTURE_TEST_CASE(StdSharedPtr, types_support_fixture)
     // 1. Test std::shared_ptr and boost::gregorian::date
     shared_ptr<boost::gregorian::date> case1_dt_res;
     shared_ptr<string> case1_str_res;
-    select_st << first_row >> case1_dt_res >> case1_str_res;
+    select_st << 1 << first_row >> case1_dt_res >> case1_str_res;
     BOOST_CHECK(*case1_dt == *case1_dt_res);
     BOOST_CHECK(!case1_str_res);
 }
@@ -215,7 +215,7 @@ BOOST_FIXTURE_TEST_CASE(StdTuple, types_support_fixture)
 
     // 3. Test std::tuple
     tuple<boost::gregorian::date, std::shared_ptr<string>> case3_res;
-    select_st << first_row >> case3_res;
+    select_st << 3 << first_row >> case3_res;
     BOOST_CHECK(get<0>(case3_res) == *get<1>(case3));
     BOOST_CHECK(!get<1>(case3_res));
 

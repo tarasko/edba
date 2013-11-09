@@ -1,8 +1,6 @@
 #include <edba/backend/implementation_base.hpp>
-
+#include <edba/detail/handle.hpp>
 #include <edba/errors.hpp>
-
-#include <oci.h>
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/find_iterator.hpp>
@@ -21,99 +19,40 @@
 #include <sstream>
 #include <vector>
 
-namespace edba { namespace oracle_backend { namespace {
+#include <oci.h>
+
+namespace edba { namespace backend { namespace oracle { namespace {
 
 const std::string g_backend_name("oracle");
 const std::string g_engine_name("oracle");
 const int g_utf8_charset_id = 871;
 
-typedef sword (*deallocator_type)( void *hndlp, ub4 type );
-  
-template <class T, ub4 HandleType, deallocator_type Deallocator = &OCIHandleFree> 
-class oci_handle 
+struct handle_deallocator
 {
-    struct proxy;
-
-    BOOST_MOVABLE_BUT_NOT_COPYABLE(oci_handle)
-
-public:
-    oci_handle() : handle_(0) {}
-    explicit oci_handle(T* handle) : handle_(handle) {}
-
-    // move constructor
-    oci_handle(BOOST_RV_REF(oci_handle) x) : handle_(x.handle_)
+    static void free(void* h, ub4 type)
     {
-        x.handle_ = 0;
+        OCIHandleFree(h, type);
     }
-
-    oci_handle& operator=(BOOST_RV_REF(oci_handle) x) 
-    {
-        handle_ = x.handle_;
-        x.handle_ = 0;
-        return *this;
-    }
-
-    ~oci_handle() 
-    {
-        if(handle_)
-            Deallocator( (dvoid *)handle_, HandleType );
-    }
-
-    void reset(T* handle = 0)
-    {
-        if(handle_)
-            Deallocator( (dvoid *)handle_, HandleType );
-
-        handle_ = handle;
-    }
-
-    T* get() const 
-    {
-        return handle_;
-    }
-
-    proxy ptr() 
-    {
-        return proxy(this);
-    }
-
-private:
-    struct proxy {
-        proxy(oci_handle* h) : h_(h), val_(h->get()) {}
-
-        ~proxy() 
-        {
-            if (h_->get() != val_) 
-                h_->reset(val_);
-        }
-
-        operator T**() 
-        {
-            return &val_;
-        }
-
-        operator dvoid**()
-        {
-            return (dvoid**)&val_;
-        }
-
-    private:
-        oci_handle* h_;
-        T* val_;
-    };
-
-    T* handle_;
 };
 
-typedef oci_handle<OCIEnv   , OCI_HTYPE_ENV   > oci_handle_env;
-typedef oci_handle<OCIError , OCI_HTYPE_ERROR > oci_handle_error;
-typedef oci_handle<OCISvcCtx, OCI_HTYPE_SVCCTX> oci_handle_service_context;
-typedef oci_handle<OCIStmt  , OCI_HTYPE_STMT>   oci_handle_statement;
-typedef oci_handle<OCIDefine, OCI_HTYPE_DEFINE> oci_handle_define;
-typedef oci_handle<OCIDateTime, OCI_DTYPE_TIMESTAMP, &OCIDescriptorFree> oci_descriptor_datetime;
-typedef oci_handle<OCIInterval, OCI_DTYPE_INTERVAL_DS, &OCIDescriptorFree> oci_descriptor_interval_ds;
-typedef oci_handle<OCILobLocator, OCI_DTYPE_LOB, &OCIDescriptorFree> oci_lob;
+struct descriptor_deallocator
+{
+    static void free(void* h, ub4 type)
+    {
+        OCIDescriptorFree(h, type);
+    }
+};
 
+typedef detail::handle<OCIEnv*,         ub4, OCI_HTYPE_ENV,         handle_deallocator>     oci_handle_env;
+typedef detail::handle<OCIError*,       ub4, OCI_HTYPE_ERROR,       handle_deallocator>     oci_handle_error;
+typedef detail::handle<OCISvcCtx*,      ub4, OCI_HTYPE_SVCCTX,      handle_deallocator>     oci_handle_service_context;
+typedef detail::handle<OCIStmt*,        ub4, OCI_HTYPE_STMT,        handle_deallocator>     oci_handle_statement;
+typedef detail::handle<OCIDefine*,      ub4, OCI_HTYPE_DEFINE,      handle_deallocator>     oci_handle_define;
+
+typedef detail::handle<OCIDateTime*,    ub4, OCI_DTYPE_TIMESTAMP,   descriptor_deallocator> oci_desc_datetime;
+typedef detail::handle<OCIInterval*,    ub4, OCI_DTYPE_INTERVAL_DS, descriptor_deallocator> oci_desc_interval_ds;
+typedef detail::handle<OCIParam*,       ub4, OCI_DTYPE_PARAM,       descriptor_deallocator> oci_desc_param;
+typedef detail::handle<OCILobLocator*,  ub4, OCI_DTYPE_LOB,         descriptor_deallocator> oci_desc_lob;
 
 struct error_checker
 {
@@ -157,7 +96,7 @@ struct column
     oci_handle_define define_;
 
     std::vector<char> data_;
-    oci_lob lob_;
+    oci_desc_lob lob_;
 
     sb2 col_fetch_ind_;
     ub2	col_fetch_size_;
@@ -168,10 +107,10 @@ struct column
     void init(OCIEnv* envhp, OCIStmt* stmtp, OCIError* errp, ub4 idx)
     {
         error_checker ec(errp);
-        oci_handle< OCIParam, OCI_DTYPE_PARAM, &OCIDescriptorFree > parm;
+        oci_desc_param parm;
         ++idx;
 
-        ec = OCIParamGet(stmtp, OCI_HTYPE_STMT, errp, parm.ptr(), idx);
+        ec = OCIParamGet(stmtp, OCI_HTYPE_STMT, errp, parm.ptr().as_void(), idx);
       
         // Get column name and remember it
         text* name = 0;
@@ -208,7 +147,7 @@ struct column
         if (SQLT_CLOB == type_ ||
             SQLT_BLOB == type_ )
         {
-            ec = OCIDescriptorAlloc(envhp, lob_.ptr(), OCI_DTYPE_LOB, 0, 0);
+            ec = OCIDescriptorAlloc(envhp, lob_.ptr().as_void(), OCI_DTYPE_LOB, 0, 0);
 
             ec = OCIDefineByPos(
                 stmtp, define_.ptr(), errp, 
@@ -463,11 +402,11 @@ public:
         if (SQLT_DAT != columns_[fetch_col_].type_)
             throw invalid_placeholder();
 
-        oci_descriptor_datetime dt;
-        throw_on_error_ = OCIDescriptorAlloc(envhp_, dt.ptr(), OCI_DTYPE_TIMESTAMP, 0, 0);
+        oci_desc_datetime dt;
+        throw_on_error_ = OCIDescriptorAlloc(envhp_, dt.ptr().as_void(), OCI_DTYPE_TIMESTAMP, 0, 0);
 
-        oci_descriptor_interval_ds iv;
-        throw_on_error_ = OCIDescriptorAlloc(envhp_, iv.ptr(), OCI_DTYPE_INTERVAL_DS, 0, 0);
+        oci_desc_interval_ds iv;
+        throw_on_error_ = OCIDescriptorAlloc(envhp_, iv.ptr().as_void(), OCI_DTYPE_INTERVAL_DS, 0, 0);
 
         ub4 data_len = columns_[fetch_col_].col_fetch_size_;
         throw_on_error_ = OCIDateTimeFromArray(
@@ -637,8 +576,8 @@ public:
 
     void operator()(const std::tm& v)
     {
-        oci_descriptor_datetime dt;
-        throw_on_error_ = OCIDescriptorAlloc(envhp_, dt.ptr(), OCI_DTYPE_TIMESTAMP, 0, 0);
+        oci_desc_datetime dt;
+        throw_on_error_ = OCIDescriptorAlloc(envhp_, dt.ptr().as_void(), OCI_DTYPE_TIMESTAMP, 0, 0);
         dt_holder_.push_back(boost::move(dt));
 
         throw_on_error_ = OCIDateTimeConstruct(
@@ -660,8 +599,8 @@ public:
 
     void operator()(std::istream* v) 
     {
-        oci_lob lob;
-        throw_on_error_ = OCIDescriptorAlloc(envhp_, lob.ptr(), OCI_DTYPE_LOB, 0, 0);
+        oci_desc_lob lob;
+        throw_on_error_ = OCIDescriptorAlloc(envhp_, lob.ptr().as_void(), OCI_DTYPE_LOB, 0, 0);
         throw_on_error_ = OCILobCreateTemporary(svchp_, throw_on_error_.errhp_, lob.get(), OCI_DEFAULT, OCI_DEFAULT, OCI_TEMP_BLOB, FALSE, OCI_DURATION_STATEMENT);
         
         ub4 chunk_size;
@@ -846,8 +785,8 @@ private:
 
     std::vector<char> bind_buf_;           //!< Bindings serialized in one buffer
     std::vector<bind_bound> bind_bounds_;  //!< Bindings bounds from bind_buf_
-    boost::container::vector<oci_descriptor_datetime> dt_holder_;
-    boost::container::vector<oci_lob> lob_holder_;
+    boost::container::vector<oci_desc_datetime> dt_holder_;
+    boost::container::vector<oci_desc_lob> lob_holder_;
     int bind_col_;
 };
 
@@ -861,7 +800,7 @@ public:
         string_ref conn_string = ci.get("ConnectionString");
         
         throw_on_error_ = OCIEnvNlsCreate(envhp_.ptr(), OCI_THREADED, 0, 0, 0, 0, 0, 0, g_utf8_charset_id, g_utf8_charset_id);
-        throw_on_error_ = OCIHandleAlloc(envhp_.get(), errhp_.ptr(), OCI_HTYPE_ERROR, 0, 0);
+        throw_on_error_ = OCIHandleAlloc(envhp_.get(), errhp_.ptr().as_void(), OCI_HTYPE_ERROR, 0, 0);
 
         throw_on_error_.errhp_ = errhp_.get();
         
@@ -977,11 +916,12 @@ private:
     int ver_minor_;
 };
 
-}}} // anonymous, oracle_backend, edba
+}}}} // edba, backend, oracle, anonymous
 
-extern "C" {
+extern "C" 
+{
     EDBA_DRIVER_API edba::backend::connection *edba_oracle_get_connection(const edba::conn_info& ci, edba::session_monitor* sm)
     {
-        return new edba::oracle_backend::connection(ci, sm);
+        return new edba::backend::oracle::connection(ci, sm);
     }
 }
