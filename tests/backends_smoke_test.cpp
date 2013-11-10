@@ -1,7 +1,9 @@
 #include "monitor.hpp"
 
 #include <edba/edba.hpp>
+#include <edba/types_support/boost_optional.hpp>
 
+#include <boost/optional/optional_io.hpp>
 #include <boost/format.hpp>
 #include <boost/iostreams/device/mapped_file.hpp>
 #include <boost/foreach.hpp>
@@ -274,7 +276,7 @@ void test(const char* conn_string)
                 << exec;
 
             // Bind data to statement and execute two times
-            st 
+            st << reset
                 << use("num", 10.10) 
                 << use("dt", *std::gmtime(&now)) 
                 << use("dt_small", *std::gmtime(&now)) 

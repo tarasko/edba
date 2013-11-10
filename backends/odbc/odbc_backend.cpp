@@ -13,6 +13,7 @@
 #include <boost/mpl/int.hpp>
 #include <boost/mpl/at.hpp>
 #include <boost/type_traits/is_arithmetic.hpp>
+#include <boost/format.hpp>
 
 #include <list>
 #include <vector>
@@ -48,6 +49,7 @@ string_ref to_string_ref(const column_info& ci)
 
 namespace backend { namespace odbc { namespace {
 
+// Deallocator type for detail::handle wrapper
 struct handle_deallocator
 {
     static void free(SQLHANDLE h, SQLSMALLINT type)
@@ -56,15 +58,32 @@ struct handle_deallocator
     }
 };
 
+// Wrappers for different handle types
 typedef detail::handle<SQLHSTMT, SQLSMALLINT, SQL_HANDLE_STMT, handle_deallocator> stmt_handle;
 typedef detail::handle<SQLHENV, SQLSMALLINT, SQL_HANDLE_ENV, handle_deallocator> env_handle;
 typedef detail::handle<SQLHDBC, SQLSMALLINT, SQL_HANDLE_DBC, handle_deallocator> dbc_handle;
+
+// This data is stored in connection object but required everywhere, including statement and result objects
+struct common_data
+{
+    env_handle env_;
+    dbc_handle dbc_;
+    bool wide_;
+    string engine_;
+    int ver_major_;
+    int ver_minor_;
+    string description_;
+    string sequence_last_;
+    string last_insert_id_;
+};
 
 // backend name
 const string g_backend("odbc");
 
 // create boost locale compatible locale for conversion from UTF-16 message to system default locale
 const locale g_system_locale = generator()("");
+
+boost::format g_error_formatter("edba::backend::odbc %1% failed with error %2% (%3%)");
 
 // TODO: Some code rely on this constrants.
 // Review code and relax them
@@ -89,73 +108,86 @@ typedef mpl::map<
   , mpl::pair< long double,         mpl::pair< mpl::int_<SQL_C_DOUBLE>,     double> >
   > type_ids_map;
 
-string get_odbc_errorW(SQLHANDLE h, SQLSMALLINT type)
+struct error_checker
 {
-    basic_string<SQLWCHAR> error_message;
-    int rec=1;
-    int r;
+    bool wide_;
+    SQLHANDLE h_;
+    SQLSMALLINT type_;
+    const char* api_;
 
-    for(;;)
+    error_checker(bool wide, SQLHANDLE h, SQLSMALLINT type)
+        : wide_(wide), h_(h), type_(type)
+    {}
+
+    error_checker& operator()(const char* api)
     {
-        SQLWCHAR msg[SQL_MAX_MESSAGE_LENGTH + 2] = {0};
-        SQLWCHAR stat[SQL_SQLSTATE_SIZE + 1] = {0};
+        api_ = api;
+        return *this;
+    }
+
+    SQLRETURN operator=(SQLRETURN error) const
+    {
+        if(SQL_SUCCEEDED(error))
+            return error;
+
+        boost::format fmt("edba::backend::odbc %1% failed with error %2% (%3%)");
+
+        int rec = 1;
         SQLINTEGER err;
         SQLSMALLINT len;
-        r = SQLGetDiagRecW(type,h,rec,stat,&err,msg,sizeof(msg)/sizeof(SQLWCHAR),&len);
-        rec++;
-        if(r==SQL_SUCCESS || r==SQL_SUCCESS_WITH_INFO)
+        string msg;
+
+        if (wide_)
         {
-            if(!error_message.empty())
+            basic_string<SQLWCHAR> utf16_msg;
+
+            for(;;)
             {
-                SQLWCHAR nl = L'\n';
-                error_message += nl;
+                SQLWCHAR msg_buf[SQL_MAX_MESSAGE_LENGTH + 2] = {0};
+                SQLWCHAR stat[SQL_SQLSTATE_SIZE + 1] = {0};
+                SQLRETURN r = SQLGetDiagRecW(type_, h_, rec++, stat, &err, msg_buf, sizeof(msg_buf)/sizeof(SQLWCHAR), &len);
+
+                if(r == SQL_SUCCESS || r == SQL_SUCCESS_WITH_INFO)
+                {
+                    if(!utf16_msg.empty())
+                    {
+                        SQLWCHAR nl = L'\n';
+                        utf16_msg += nl;
+                    }
+                    utf16_msg.append(msg_buf);
+                }
+                else
+                    break;
             }
-            error_message.append(msg);
+
+            msg = utf_to_utf<char>(utf16_msg);
         }
         else
-            break;
-
-    }
-
-    string local_error_message = "<Cannot convert error message to multibyte system default locale>";
-    try { local_error_message = from_utf(error_message, g_system_locale); } catch(...){}
-
-    return local_error_message;
-}
-
-string get_odbc_errorA(SQLHANDLE h, SQLSMALLINT type)
-{
-    string error_message;
-    int rec=1,r;
-    for(;;)
-    {
-        SQLCHAR msg[SQL_MAX_MESSAGE_LENGTH + 2] = {0};
-        SQLCHAR stat[SQL_SQLSTATE_SIZE + 1] = {0};
-        SQLINTEGER err;
-        SQLSMALLINT len;
-        r = SQLGetDiagRecA(type,h,rec,stat,&err,msg,sizeof(msg),&len);
-        rec++;
-        if(r==SQL_SUCCESS || r==SQL_SUCCESS_WITH_INFO)
         {
-            if(!error_message.empty())
-                error_message += '\n';
-            error_message += (char *)msg;
+            for(;;)
+            {
+                SQLCHAR msg_buf[SQL_MAX_MESSAGE_LENGTH + 2] = {0};
+                SQLCHAR stat[SQL_SQLSTATE_SIZE + 1] = {0};
+                SQLRETURN r = SQLGetDiagRecA(type_, h_, rec++, stat, &err, msg_buf, sizeof(msg_buf), &len);
+                
+                if(r == SQL_SUCCESS || r == SQL_SUCCESS_WITH_INFO)
+                {
+                    if(!msg.empty())
+                        msg += '\n';
+                    msg += (char *)msg_buf;
+                }
+                else
+                    break;
+
+            }
         }
-        else
-            break;
 
+        throw edba_error((fmt % api_ % msg % err).str());
+        return error;
     }
-    return error_message;
-}
+};
 
-void check_odbc_error(SQLRETURN error,SQLHANDLE h,SQLSMALLINT type,bool wide)
-{
-    if(SQL_SUCCEEDED(error))
-        return;
 
-    string msg = wide ? get_odbc_errorW(h, type) : get_odbc_errorA(h, type);
-    throw edba_error("edba::odbc_backend::Failed with error `" + msg +"'");
-}
 
 class result : public backend::result, public boost::static_visitor<bool>
 {
@@ -164,12 +196,14 @@ class result : public backend::result, public boost::static_visitor<bool>
     typedef vector<column_info> columns_set;
 
 public:
-    result(SQLHSTMT stmt, bool wide) : stmt_(stmt), wide_(wide)
+    result(SQLHSTMT stmt, bool wide) 
+        : stmt_(stmt)
+        , wide_(wide)
+        , throw_on_error_(wide, stmt, SQL_HANDLE_STMT)
     {
         // Read number of columns
         SQLSMALLINT columns_count;
-        SQLRETURN r = SQLNumResultCols(stmt_, &columns_count);
-        check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
+        throw_on_error_("SQLNumResultCols") = SQLNumResultCols(stmt_, &columns_count);
         columns_.reserve(columns_count);
 
         // This variable will hold maximum column size over all parameters
@@ -185,15 +219,13 @@ public:
             if(wide_)
             {
                 SQLWCHAR name[257] = {0};
-                r = SQLDescribeColW(stmt_, col + 1, name, 256, &name_length, &ci.type_, &column_size, 0, 0);
-                check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
+                throw_on_error_("SQLDescribeColW") = SQLDescribeColW(stmt_, col + 1, name, 256, &name_length, &ci.type_, &column_size, 0, 0);
                 ci.name_ = from_utf(name, g_system_locale);
             }
             else
             {
                 SQLCHAR name[257] = {0};
-                r=SQLDescribeColA(stmt_, col + 1, name, 256, &name_length, &ci.type_, &column_size, 0, 0);
-                check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
+                throw_on_error_("SQLDescribeColA") = SQLDescribeColA(stmt_, col + 1, name, 256, &name_length, &ci.type_, &column_size, 0, 0);
                 ci.name_ = (char*)name;
             }
 
@@ -238,20 +270,14 @@ public:
         c_type tmp;
         SQLLEN indicator;
 
-        SQLRETURN r = SQLGetData(stmt_, fetch_col_, c_type_id::value, &tmp, sizeof(tmp), &indicator);
-        if (r == SQL_SUCCESS || r == SQL_SUCCESS_WITH_INFO)
-        {
-            if (SQL_NULL_DATA == indicator)
-                return false;
+        throw_on_error_("SQLGetData") = SQLGetData(stmt_, fetch_col_, c_type_id::value, &tmp, sizeof(tmp), &indicator);
 
-            *data = static_cast<T>(tmp);
+        if (SQL_NULL_DATA == indicator)
+            return false;
 
-            return true;
-        }
+        *data = static_cast<T>(tmp);
 
-        check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
-
-        return false;
+        return true;
     }
 
     bool operator()(tm* data)
@@ -259,28 +285,23 @@ public:
         TIMESTAMP_STRUCT tmp;
         SQLLEN indicator;
 
-        SQLRETURN r = SQLGetData(stmt_, fetch_col_, SQL_C_TYPE_TIMESTAMP, &tmp, sizeof(tmp), &indicator);
-        if (r == SQL_SUCCESS || r == SQL_SUCCESS_WITH_INFO)
-        {
-            if (SQL_NULL_DATA == indicator)
-                return false;
+        throw_on_error_("SQLGetData") = SQLGetData(stmt_, fetch_col_, SQL_C_TYPE_TIMESTAMP, &tmp, sizeof(tmp), &indicator);
 
-            data->tm_isdst = -1;
-            data->tm_year = tmp.year - 1900;
-            data->tm_mon = tmp.month - 1;
-            data->tm_mday = tmp.day;
-            data->tm_hour = tmp.hour;
-            data->tm_min = tmp.minute;
-            data->tm_sec = tmp.second;
+        if (SQL_NULL_DATA == indicator)
+            return false;
 
-            // normalize and compute the remaining fields
-            mktime(data);
+        data->tm_isdst = -1;
+        data->tm_year = tmp.year - 1900;
+        data->tm_mon = tmp.month - 1;
+        data->tm_mday = tmp.day;
+        data->tm_hour = tmp.hour;
+        data->tm_min = tmp.minute;
+        data->tm_sec = tmp.second;
 
-            return true;
-        }
+        // normalize and compute the remaining fields
+        mktime(data);
 
-        check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
-        return false;
+        return true;
     }
 
     bool operator()(string* _data)
@@ -292,8 +313,7 @@ public:
 
         do
         {
-            r = SQLGetData(stmt_, fetch_col_, SQL_C_CHAR, &column_char_buf_[0], column_char_buf_.size(), &indicator);
-            check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
+            r = throw_on_error_("SQLGetData") = SQLGetData(stmt_, fetch_col_, SQL_C_CHAR, &column_char_buf_[0], column_char_buf_.size(), &indicator);
 
             if (SQL_NULL_DATA == indicator)
                 return false;
@@ -315,8 +335,7 @@ public:
 
         do
         {
-            r = SQLGetData(stmt_, fetch_col_, SQL_C_BINARY, &column_char_buf_[0], column_char_buf_.size(), &indicator);
-            check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
+            r = throw_on_error_("SQLGetData") = SQLGetData(stmt_, fetch_col_, SQL_C_BINARY, &column_char_buf_[0], column_char_buf_.size(), &indicator);
 
             if (SQL_NULL_DATA == indicator)
                 return false;
@@ -338,13 +357,13 @@ public:
     {
         SQLRETURN r = SQLFetch(stmt_);
 
-        if (r == SQL_SUCCESS || r == SQL_SUCCESS_WITH_INFO)
+        if(r == SQL_SUCCESS || r == SQL_SUCCESS_WITH_INFO)
             return true;
 
         if(r == SQL_NO_DATA)
             return false;
 
-        check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
+        throw_on_error_("SQLGetData") = r;
 
         return false;
     }
@@ -360,11 +379,9 @@ public:
         char buf[4];
         SQLLEN indicator;
         SQLRETURN r = SQLGetData(stmt_, col + 1, SQL_C_DEFAULT, buf, 0, &indicator);
+        
         if (!SQL_SUCCEEDED(r))
-        {
-            SQLRETURN r = SQLGetData(stmt_, col + 1, SQL_C_DEFAULT, buf, sizeof(buf), &indicator);
-            check_odbc_error(r, stmt_, SQL_HANDLE_STMT, wide_);
-        }
+            throw_on_error_("SQLGetData") = SQLGetData(stmt_, col + 1, SQL_C_DEFAULT, buf, sizeof(buf), &indicator);
 
         return indicator == SQL_NULL_DATA;
     }
@@ -403,6 +420,7 @@ private:
     int fetch_col_;
     columns_set columns_;
     vector<char> column_char_buf_;
+    error_checker throw_on_error_;
 };
 
 class statement : public backend::bind_by_name_helper, public boost::static_visitor<boost::shared_ptr<pair<SQLLEN, string> > >
@@ -410,35 +428,37 @@ class statement : public backend::bind_by_name_helper, public boost::static_visi
     typedef pair<SQLLEN, string> holder;
     typedef boost::shared_ptr<holder> holder_sp;
 
+    struct param_desc
+    {
+        SQLSMALLINT data_type_;
+        SQLULEN     param_size_;
+        SQLSMALLINT decimal_digits_;
+        SQLSMALLINT nullable_;
+    };
+
 public:
     statement(
-        session_monitor* sm
+        const common_data* cd
+      , session_monitor* sm
       , const string_ref& q
-      , SQLHDBC dbc
-      , bool wide
       , bool prepared
-      , const string& sequence_last
-      , const string& last_insert_id
       )
       : backend::bind_by_name_helper(sm, q, backend::question_marker())
-      , dbc_(dbc)
-      , wide_(wide)
+      , cd_(cd)
       , prepared_(prepared)
-      , sequence_last_(sequence_last)
-      , last_insert_id_(last_insert_id)
+      , throw_on_error_(cd->wide_, 0, SQL_HANDLE_STMT)
     {
         // Allocate statement handle
         stmt_handle stmt;
-
-        SQLRETURN r = SQLAllocHandle(SQL_HANDLE_STMT, dbc, stmt.ptr());
-        check_odbc_error(r, dbc, SQL_HANDLE_DBC, wide_);
+        error_checker(cd->wide_, cd->dbc_.get(), SQL_HANDLE_DBC)("SQLAllocHandle") = SQLAllocHandle(SQL_HANDLE_STMT, cd->dbc_.get(), stmt.ptr());
+        throw_on_error_.h_ = stmt.get();
 
         // If prepared statement were requested, run SQLPrepare
         if(prepared_)
         {
-            if(wide_)
+            if(cd->wide_)
             {
-                r = SQLPrepareW(
+                throw_on_error_("SQLPrepareW") = SQLPrepareW(
                         stmt.get()
                       , (SQLWCHAR*)utf_to_utf<SQLWCHAR>(patched_query()).c_str()
                       , SQL_NTS
@@ -446,33 +466,14 @@ public:
             }
             else
             {
-                r = SQLPrepareA(
+                throw_on_error_("SQLPrepareA") = SQLPrepareA(
                         stmt.get()
                       , (SQLCHAR*)patched_query().c_str()
                       , SQL_NTS
                       );
             }
-            check_odbc_error(r, stmt.get(), SQL_HANDLE_STMT, wide_);
 
-            SQLSMALLINT params_no;
-            r = SQLNumParams(stmt.get(), &params_no);
-            check_odbc_error(r, stmt.get(), SQL_HANDLE_STMT, wide_);
-
-            if (params_no)
-            {
-                // Workaround for null binding trouble in the SQL Server. (Checked for 2005 Express and 2008 Express)
-                // Following code cause exception
-                // sql << "CREATE TABLE test_n (aa, bb) VALUES (?, ?) << 0 << edba::null << edba::exec;
-                // sql << "INSERT INTO test_n (aa, bb) VALUES (?, ?) << 0 << edba::null << edba::exec;
-                //
-                // SQLDescribeParams will return error if it will be called after SQLBindParameter for the first time.
-                // Thanks to a.sitnikov (http://vk.com/typename) for report and workaround :)
-                SQLSMALLINT data_type;
-                SQLULEN param_size;
-                SQLSMALLINT digits;
-                SQLSMALLINT nullable;
-                SQLDescribeParam(stmt.get(), 1, &data_type, &param_size, &digits, &nullable);
-            }
+            try_fill_params_descriptions(stmt.get());
         }
 
         stmt_ = boost::move(stmt);
@@ -480,8 +481,9 @@ public:
 
     virtual void bindings_reset_impl()
     {
-        SQLFreeStmt(stmt_.get(), SQL_UNBIND);
         SQLCloseCursor(stmt_.get());
+        SQLFreeStmt(stmt_.get(), SQL_RESET_PARAMS);
+
         params_.resize(0);
     }
 
@@ -513,20 +515,15 @@ public:
     {
         holder_sp value = boost::make_shared<holder>();
 
-        SQLSMALLINT sqltype_;
-        SQLULEN size_;
-        SQLSMALLINT digits_;
-        SQLSMALLINT nullable_;
-
         // All sql types are compatible with either SQL_VARCHAR or SQL_VARBINARY.
-        // Null binding doesn`t work if specified sqltype is incompatible with actual type in table.
-        // Attempt to determine actual SQL type. AFAIK SQLDescribeParam doesn`t work with MS Access driver.
-        // In case of failure we assume this is not binary field and SQL_VARCHAR is sufficient.
-        SQLRETURN r = SQLDescribeParam(stmt_.get(), bind_col_, &sqltype_, &size_, &digits_, &nullable_);
-        if (!SQL_SUCCEEDED(r))
-            sqltype_ = SQL_VARCHAR;
+        // Null binding doesn`t work if specified sqltype is incompatible with actual type in database, because conversion 
+        // of VARCHAR null to VARBINARY null is impossible :) I have tried this on mssql 2008 native client driver.
+        //
+        // Thus if SQLDescribeParam is not supported by particular driver, we can`t implement binding of nulls that will 
+        // always work, we have to choose what type will be possible to bind null. VARCHAR is much more friendly in term of
+        // conversion to different types
 
-        do_bind(true, SQL_C_CHAR, sqltype_, *value);
+        do_bind(true, SQL_C_DEFAULT, get_param_desc(bind_col_).data_type_, *value);
         return value;
     }
 
@@ -534,18 +531,18 @@ public:
     {
         holder_sp value;
 
-        if(wide_)
+        if(cd_->wide_)
         {
             basic_string<SQLWCHAR> wstr = utf_to_utf<SQLWCHAR>(v.begin(), v.end());
 
             value = boost::make_shared<holder>(0, string((const char*)&wstr[0], wstr.size() * sizeof(SQLWCHAR)));
-            do_bind(false, SQL_C_WCHAR, SQL_WLONGVARCHAR, *value);
+            do_bind(false, SQL_C_WCHAR, get_param_desc(bind_col_).data_type_, *value);
         }
         else
         {
             value = boost::make_shared<holder>();
             value->second.assign(v.begin(), v.end());
-            do_bind(false, SQL_C_CHAR, SQL_LONGVARCHAR, *value);
+            do_bind(false, SQL_C_CHAR, get_param_desc(bind_col_).data_type_, *value);
         }
 
         return value;
@@ -572,11 +569,11 @@ public:
         // evaluate statement
         statement_ptr st;
 
-        if (sequence.empty() && !last_insert_id_.empty())
-            st.reset(new statement(0, last_insert_id_, dbc_, wide_, false, string(), string()));
-        else if (!sequence.empty() && !sequence_last_.empty())
+        if (sequence.empty() && !cd_->last_insert_id_.empty())
+            st.reset(new statement(cd_, 0, cd_->last_insert_id_, false));
+        else if (!sequence.empty() && !cd_->sequence_last_.empty())
         {
-            st.reset(new statement(0, sequence_last_, dbc_, wide_, false, string(), string()));
+            st.reset(new statement(cd_, 0, cd_->sequence_last_, false));
             st->bind(1, sequence);
         }
         else
@@ -602,56 +599,83 @@ public:
 
         return last_id;
     }
+
     virtual unsigned long long affected()
     {
         SQLLEN rows = 0;
-        int r = SQLRowCount(stmt_.get(), &rows);
-        check_error(r);
+        throw_on_error_("SQLRowCount") = SQLRowCount(stmt_.get(), &rows);
         return rows;
     }
+
     virtual backend::result_ptr query_impl()
     {
-        int r = real_exec();
-        check_error(r);
-        return backend::result_ptr(new result(stmt_.get(), wide_));
+        BOOST_AUTO(p, real_exec());
+        throw_on_error_(p.first) = p.second;
+        return backend::result_ptr(new result(stmt_.get(), cd_->wide_));
     }
 
-    int real_exec()
-    {
-        int r = 0;
-        if(prepared_) 
-            r = SQLExecute(stmt_.get());
-        else 
-        {
-            if(wide_)
-                r = SQLExecDirectW(stmt_.get(), (SQLWCHAR*)utf_to_utf<SQLWCHAR>(patched_query()).c_str(), SQL_NTS);
-            else
-                r = SQLExecDirectA(stmt_.get(), (SQLCHAR*)patched_query().c_str(), SQL_NTS);
-        }
-        return r;
-    }
     virtual void exec_impl()
     {
-        int r=real_exec();
-        if(r!=SQL_NO_DATA)
-            check_error(r);
+        BOOST_AUTO(p, real_exec());
+        
+        if(p.second != SQL_NO_DATA)
+            throw_on_error_(p.first) = p.second;
     }
+
+    pair<const char*, SQLRETURN> real_exec()
+    {
+        if(prepared_) 
+            return make_pair("SQLExecute", SQLExecute(stmt_.get()));
+        else 
+        {
+            if(cd_->wide_)
+                return make_pair("SQLExecDirectW", SQLExecDirectW(stmt_.get(), (SQLWCHAR*)utf_to_utf<SQLWCHAR>(patched_query()).c_str(), SQL_NTS));
+            else
+                return make_pair("SQLExecDirectA", SQLExecDirectA(stmt_.get(), (SQLCHAR*)patched_query().c_str(), SQL_NTS));
+        }
+    }
+
     // End of API
 
 private:
-    void check_error(int code)
+    void try_fill_params_descriptions(SQLHSTMT stmt)
     {
-        check_odbc_error(code, stmt_.get(), SQL_HANDLE_STMT, wide_);
+        SQLSMALLINT params_no;
+
+        if (!SQL_SUCCEEDED(SQLNumParams(stmt, &params_no)))
+            // This is bad news for us, we can`t make uniform null binding.
+            return;
+
+        if (!params_no)
+            return;
+
+        params_desc_.resize(params_no);
+        for (SQLSMALLINT i = 0; i < params_no; ++i)
+        {
+            param_desc& d = params_desc_[i];
+
+            if (!SQL_SUCCEEDED(SQLDescribeParam(stmt, i + 1, &d.data_type_, &d.param_size_, &d.decimal_digits_, &d.nullable_)))
+            {
+                params_desc_.clear();
+                return;
+            }
+        }
+    }
+
+    const param_desc& get_param_desc(int column) const
+    {
+        if (params_desc_.size() < (size_t)column)
+            return s_generic_null_desc;
+        else
+            return params_desc_[column - 1];
     }
 
     void do_bind(bool null, SQLSMALLINT ctype, SQLSMALLINT sqltype, holder& value)
     {
-        int r;
-
         if(null)
         {
             value.first = SQL_NULL_DATA;
-            r = SQLBindParameter(stmt_.get(),
+            throw_on_error_("SQLBindParameter") = SQLBindParameter(stmt_.get(),
                 bind_col_,
                 SQL_PARAM_INPUT,
                 ctype,
@@ -670,7 +694,7 @@ private:
                 column_size/=2;
             if(value.second.empty())
                 column_size=1;
-            r = SQLBindParameter(
+            throw_on_error_("SQLBindParameter") = SQLBindParameter(
                 stmt_.get(),
                 bind_col_,
                 SQL_PARAM_INPUT,
@@ -682,26 +706,35 @@ private:
                 value.second.size(),
                 &value.first);
         }
-
-        check_odbc_error(r, stmt_.get(), SQL_HANDLE_STMT, wide_);
     }
 
 private:
-    SQLHDBC dbc_;
-    stmt_handle stmt_;
-    bool wide_;
+    // Read only members, filled during constructions
 
-    string sequence_last_;
-    string last_insert_id_;
-    bool prepared_;
-    int bind_col_;
-    vector<holder_sp> params_;
+    const common_data* cd_;
+    stmt_handle stmt_;
+    bool prepared_;                     // Should be statement prepared or executed immediatelly
+
+    vector<param_desc> params_desc_;    // Remember all parameter descriptions, extracted by SQLDescribeParam 
+                                        // Empty if api for SQLDescribeParam or SQLNumParams is not supported by backend.
+
+    // Read write members, modified during statement life
+
+    vector<holder_sp> params_;          // Contain data for parameters bound by SQLBindParameter. Data owned here will be referenced by 
+                                        // ODBC driver during SQLExecute or SQLExecuteDirect invocation
+
+    int bind_col_;                      // Transfer current bind column index from bind_impl to visitation operator()
+
+    error_checker throw_on_error_;      // Utility for checking api return codes, 
+
+    static param_desc s_generic_null_desc;
 };
 
-class connection : public backend::connection
+statement::param_desc statement::s_generic_null_desc = {SQL_CHAR, 10, 0, 1};
+
+class connection : public backend::connection, private common_data
 {
 public:
-
     connection(const conn_info& ci, session_monitor* sm) : backend::connection(ci, sm), ci_(ci)
     {
         string_ref utf = ci.get("@utf", "narrow");
@@ -717,27 +750,28 @@ public:
         SQLRETURN r = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, env_.ptr());
 
         if(!SQL_SUCCEEDED(r))
-            throw edba_error("edba::odbc::Failed to allocate environment handle");
+            throw edba_error("edba::odbc:: failed to allocate environment handle");
 
-        r = SQLSetEnvAttr(env_.get(), SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0);
-        check_odbc_error(r, env_.get(), SQL_HANDLE_ENV, wide_);
+        error_checker throw_on_env_error(wide_, env_.get(), SQL_HANDLE_ENV);
 
-        r = SQLAllocHandle(SQL_HANDLE_DBC, env_.get(), dbc_.ptr());
-        check_odbc_error(r, env_.get(), SQL_HANDLE_ENV, wide_);
+        throw_on_env_error("SQLSetEnvAttr") = SQLSetEnvAttr(env_.get(), SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0);
+
+        throw_on_env_error("SQLAllocHandle") = SQLAllocHandle(SQL_HANDLE_DBC, env_.get(), dbc_.ptr());
+
+        error_checker throw_on_dbc_error(wide_, dbc_.get(), SQL_HANDLE_DBC);
 
         if(wide_) 
         {
-            r = SQLDriverConnectW(dbc_.get(), 0,
+            throw_on_dbc_error("SQLDriverConnectW") = SQLDriverConnectW(dbc_.get(), 0,
                 (SQLWCHAR*)utf_to_utf<SQLWCHAR>(ci.conn_string()).c_str(),
                 SQL_NTS, 0, 0, 0, SQL_DRIVER_COMPLETE);
         }
         else 
         {
-            r = SQLDriverConnectA(dbc_.get(), 0,
+            throw_on_dbc_error("SQLDriverConnectA") = SQLDriverConnectA(dbc_.get(), 0,
                 (SQLCHAR*)ci.conn_string().c_str(),
                 SQL_NTS, 0, 0, 0, SQL_DRIVER_COMPLETE);
         }
-        check_odbc_error(r, dbc_.get(), SQL_HANDLE_DBC,wide_);
 
         // TODO: Reimplement to use unicode SQLGetInfo when wide_ is true
 
@@ -816,10 +850,10 @@ public:
     {
         set_autocommit(false);
     }
+
     virtual void commit_impl()
     {
-        SQLRETURN r = SQLEndTran(SQL_HANDLE_DBC, dbc_.get(), SQL_COMMIT);
-        check_odbc_error(r, dbc_.get(), SQL_HANDLE_DBC, wide_);
+        error_checker(wide_, dbc_.get(), SQL_HANDLE_DBC)("SQLEndTran") = SQLEndTran(SQL_HANDLE_DBC, dbc_.get(), SQL_COMMIT);
         set_autocommit(true);
     }
 
@@ -827,8 +861,7 @@ public:
     {
         try
         {
-            SQLRETURN r = SQLEndTran(SQL_HANDLE_DBC, dbc_.get(), SQL_ROLLBACK);
-            check_odbc_error(r, dbc_.get(), SQL_HANDLE_DBC,wide_);
+            error_checker(wide_, dbc_.get(), SQL_HANDLE_DBC)("SQLEndTran") = SQLEndTran(SQL_HANDLE_DBC, dbc_.get(), SQL_ROLLBACK);
         }
         catch(...) {}
 
@@ -841,7 +874,7 @@ public:
 
     statement_ptr real_prepare(const string_ref& q, bool prepared)
     {
-        return boost::intrusive_ptr<statement>(new statement(sm_, q, dbc_.get(), wide_, prepared, sequence_last_, last_insert_id_));
+        return boost::intrusive_ptr<statement>(new statement(this, sm_, q, prepared));
     }
 
     virtual backend::statement_ptr prepare_statement_impl(const string_ref& q)
@@ -902,25 +935,15 @@ public:
     void set_autocommit(bool on)
     {
         SQLPOINTER mode = (SQLPOINTER)(on ? SQL_AUTOCOMMIT_ON : SQL_AUTOCOMMIT_OFF);
-        SQLRETURN r = SQLSetConnectAttr(
+        error_checker(wide_, dbc_.get(), SQL_HANDLE_DBC)("SQLSetConnectAttr") = SQLSetConnectAttr(
             dbc_.get(), // handler
             SQL_ATTR_AUTOCOMMIT, // option
             mode, //value
             0);
-        check_odbc_error(r, dbc_.get(), SQL_HANDLE_DBC, wide_);
     }
 
 private:
     conn_info ci_;
-    env_handle env_;
-    dbc_handle dbc_;
-    bool wide_;
-    string engine_;
-    int ver_major_;
-    int ver_minor_;
-    string description_;
-    string sequence_last_;
-    string last_insert_id_;
 };
 
 
