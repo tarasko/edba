@@ -259,6 +259,20 @@ public:
 
     ~result()
     {
+        // Don`t try to use SQLCloseCursor here because in case when statement cursor is not open, SQLCloseCursor will
+        // turn your statement object into invalid state, and further operations will be impossible.
+        // I found that when SELECT was done inside of transaction and SQLEndTran had closed statement cursor before 
+        // we got to ~result. ~result had used SQLCloseCursor that days.
+
+        // I`ve wasted  2 days trying figure out why statement in cache become broken and SQLExecute always fail with 
+        // "incorrect cursor state".
+
+        // Checkout out this article
+        // http://msdn.microsoft.com/en-us/library/ms713402(v=vs.85).aspx
+        // Read carefully about SQLCloseCursor 
+        // http://msdn.microsoft.com/en-us/library/ms709301(v=vs.85).aspx
+        // and take care of youself
+
         SQLFreeStmt(stmt_, SQL_CLOSE);
     }
 
@@ -483,6 +497,20 @@ public:
 
     virtual void bindings_reset_impl()
     {
+        // Don`t try to use SQLCloseCursor here because in case when statement cursor is not open, SQLCloseCursor will
+        // turn your statement object into invalid state, and further operations will be impossible.
+        // I found that when SELECT was done inside of transaction and SQLEndTran had closed statement cursor before 
+        // we got to ~result. ~result had used SQLCloseCursor that days.
+
+        // I`ve wasted  2 days trying figure out why statement in cache become broken and SQLExecute always fail with 
+        // "incorrect cursor state".
+
+        // Checkout out this article
+        // http://msdn.microsoft.com/en-us/library/ms713402(v=vs.85).aspx
+        // Read carefully about SQLCloseCursor 
+        // http://msdn.microsoft.com/en-us/library/ms709301(v=vs.85).aspx
+        // and take care of youself
+
         SQLFreeStmt(stmt_.get(), SQL_CLOSE);
         SQLFreeStmt(stmt_.get(), SQL_RESET_PARAMS);
 
