@@ -75,6 +75,8 @@ struct common_data
     string description_;
     string sequence_last_;
     string last_insert_id_;
+    SQLUSMALLINT commit_behavior_;
+    SQLUSMALLINT rollback_behavior_;
 };
 
 // backend name
@@ -257,7 +259,7 @@ public:
 
     ~result()
     {
-        SQLCloseCursor(stmt_);
+        SQLFreeStmt(stmt_, SQL_CLOSE);
     }
 
     template<typename T>
@@ -481,7 +483,7 @@ public:
 
     virtual void bindings_reset_impl()
     {
-        SQLCloseCursor(stmt_.get());
+        SQLFreeStmt(stmt_.get(), SQL_CLOSE);
         SQLFreeStmt(stmt_.get(), SQL_RESET_PARAMS);
 
         params_.resize(0);
@@ -837,6 +839,13 @@ public:
             else
                 sequence_last_.assign(seq.begin(), seq.end());
         }
+
+        // 
+        throw_on_dbc_error("SQLGetInfoA(..., SQL_CURSOR_COMMIT_BEHAVIOR,...)") = SQLGetInfoA(
+            dbc_.get(), SQL_CURSOR_COMMIT_BEHAVIOR, &commit_behavior_, sizeof(commit_behavior_), &len);
+
+        throw_on_dbc_error("SQLGetInfoA(..., SQL_CURSOR_ROLLBACK_BEHAVIOR,...)") = SQLGetInfoA(
+            dbc_.get(), SQL_CURSOR_ROLLBACK_BEHAVIOR, &rollback_behavior_, sizeof(rollback_behavior_), &len);
     }
 
     ~connection()

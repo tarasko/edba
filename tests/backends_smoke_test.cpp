@@ -189,6 +189,71 @@ void test_utf8(session sess)
     BOOST_CHECK_EQUAL(utf8_text, txt_ss.str());
 }
 
+void test_transactions_and_cursors(session sess)
+{
+    const char* INSERT_QUERY = 
+        "~Microsoft SQL Server~insert into ##test1(vchar100, txt) values(:txt, :txt)"
+        "~Oracle~insert into test1(id, vchar100, txt) values(test1_seq_id.nextval, :txt, :txt)"
+        "~~insert into test1(vchar100, txt) values(:txt, :txt)";
+
+    const char* SELECT_QUERY = 
+        "~Microsoft SQL Server~select id, num, dt, dt_small, vchar100, vcharmax, vbin100, vbinmax, txt from ##test1 where id=:id"
+        "~~select id, num, dt, dt_small, vchar100, vcharmax, vbin100, vbinmax, txt from test1 where id=:id"
+        "~";
+
+    // Create and execute prepared statement inside transaction, commit transaction
+    statement st1;
+    {
+        transaction tr(sess);
+        st1 = sess << INSERT_QUERY << use("txt", "1") << exec;
+        tr.commit();
+    }
+
+    // Execute query rollback transaction
+    {
+        transaction tr(sess);
+        sess << INSERT_QUERY << use("txt", "1") << exec;
+    }
+
+    // Reexecute statement outside of transaction
+    st1 << reset << use("txt", "2") << exec;
+
+    // Extract ref to statement from cache and execute it
+    statement st2 = sess << INSERT_QUERY << use("txt", "3") << exec;
+
+    // Get some valid id for select query
+    long long id = sess.backend() == "oracle" ? st2.sequence_last("test1_seq_id") : id = st2.last_insert_id();
+
+    string vc;
+    string txt;
+    // commit query
+    // use row object to make cursor formally life after tr.commit
+    // odbc drivers are tend to behave wierdly in that case
+    {
+        transaction tr(sess);
+        row r = sess << SELECT_QUERY << id << first_row >> into("vchar100", vc) >> into("txt", txt);
+        tr.commit();
+    }
+
+    BOOST_CHECK_EQUAL(vc, "3");
+    BOOST_CHECK_EQUAL(txt, "3");
+
+    // rollback query
+    {
+        transaction tr(sess);
+        sess << SELECT_QUERY << id << first_row >> into("vchar100", vc) >> into("txt", txt);
+    }
+
+    BOOST_CHECK_EQUAL(vc, "3");
+    BOOST_CHECK_EQUAL(txt, "3");
+
+    // auto commit mode
+    sess << SELECT_QUERY << id << first_row >> into("vchar100", vc) >> into("txt", txt);
+
+    BOOST_CHECK_EQUAL(vc, "3");
+    BOOST_CHECK_EQUAL(txt, "3");
+}
+
 void test_incorrect_query(session sess)
 {
     // Some backends may successfully compile incorrect statements
@@ -381,6 +446,7 @@ void test(const char* conn_string)
             BOOST_CHECK_EQUAL(boost::distance(rs), 8);
         }
 
+        test_transactions_and_cursors(sess);
         test_escaping(sess);
         test_utf8(sess);
 

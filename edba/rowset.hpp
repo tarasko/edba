@@ -128,9 +128,9 @@ public:
     void get(int col, T& value) const;
 
 private:
-    backend::connection_ptr conn_;
-    backend::statement_ptr stmt_;
     backend::result_ptr res_;
+    backend::statement_ptr stmt_;
+    backend::connection_ptr conn_;
     mutable int current_col_;
 };
 
@@ -141,9 +141,9 @@ inline row::row(
   , const backend::statement_ptr& stmt
   , const backend::result_ptr& res
   )
-  : conn_(conn)
+  : res_(res)
   , stmt_(stmt)
-  , res_(res)
+  , conn_(conn)
   , current_col_(0)
 {
 }
