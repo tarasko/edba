@@ -1,0 +1,119 @@
+[/ Copyright (C) 2013 Kozlov Taras ]
+[/ Distributed under the Boost Software License, Version 1.0 ]
+[/ (see accompanying file LICENSE_1_0.txt or a copy at ]
+[/ http://www.boost.org/LICENSE_1_0.txt) ]
+[/ Home at https://github.com/tarasko/cppan ]
+
+[library edba
+    [quickbook 1.6]
+    [version 1.0]
+    [copyright 2013, Kozlov Taras]
+    [purpose Uniform modern C++ interface over different database backends]
+    [license
+        Distributed under the Boost Software License, Version 1.0
+        (see accompanying file LICENSE_1_0.txt or a copy at
+        [@http://www.boost.org/LICENSE_1_0.txt])
+    ]
+]
+
+[def __boost_fusion__ [@http://www.boost.org/doc/libs/1_54_0/libs/fusion/doc/html Boost.Fusion]]
+[def __boost_preprocessor__ [@http://www.boost.org/doc/libs/1_54_0/libs/preprocessor/doc/index.html Boost.Preprocessor]]
+[def __boost_mpl__ [@http://www.boost.org/doc/libs/1_54_0/libs/mpl/doc/index.html Boost.MPL]]
+
+[def __sp__			 [classref edba::session_pool session_pool]]
+[def __sp_open__     [memberref edba::session_pool::open session_pool::open]]
+[def __sp_try_open__ [memberref edba::session_pool::try_open session_pool::try_open]]
+
+[section Introduction]
+
+[@https://github.com/tarasko/cppan] library repository page
+[endsect]
+
+[section Tutorial]
+
+[section Hello World]
+Let`s start from simple example
+
+[import ../tests/example_simple.cpp]
+[example_simple]
+Program output:
+``
+Rows affected by last statement: 1
+Last insert row id: 2
+id: 1   dt: 2013-Jul-14 txt: 1
+id: 2   dt: 2013-Jul-14 txt: 0
+``
+[endsect]
+
+[section Connecting to Database]
+[heading Obtain Session]
+The session instance can be obtained by constructing explicitly from driver and connection string or by using __sp_open__ and __sp_try_open__ methods. 
+``
+session sess(driver::sqlite3(), "db=test.db");
+
+session_pool pool(driver::sqlite3(), "db=test.db");
+...
+session sess = pool.open(); // Block if all sessions are busy now
+...
+session sess;
+if (pool.try_open(sess))    // Will not block but return false if there are no available sessions in pool
+{    
+	// Got it
+}
+``
+[heading Connection String Format]
+edba connection string consists of the following parts:
+
+Set of key = value pairs separated with ";" symbol. Where value can be put in single quotation marks ' and double quotation mark represents a single one (like in SQL syntax).
+For example:
+``
+database=test;user=joe;password='d''eep secret'
+``
+Represent user "joe" and password "d'eep secret".
+[br]
+There are special keys that used as internal edba options rather then connection options. Such keys are always start with @ symbol. For example: 
+``
+database=test;user=joe;password='d''eep secret';@use_prepared=off`.
+``
+See [link edba.options Connection String Options] section for the list of all edba core and backends options
+
+[endsect]
+
+[section Preparing and Executing Statements]
+[endsect]
+
+[section Fetching query results]
+[endsect]
+
+[section Using Session Pool]
+[endsect]
+
+[section Handling Transactions]
+[endsect]
+
+[section Escaping Strings]
+[endsect]
+
+[section Extending Types Support]
+[endsect]
+
+[section Syntax for Database Specific Statements]
+[endsect]
+
+[section Multithreading]
+All objects, except session_pool are NOT thread-safe. Simple and efficient approach is to use __sp__ 
+to get session whenever you need to do query and release it after the job is done.
+[endsect]
+
+[section String Conversions]
+[endsect]
+
+[section Monitoring Statement Execution]
+[endsect]
+
+[endsect]
+
+[section:options Connection String Options]
+[endsect]
+
+[xinclude reference.xml]
