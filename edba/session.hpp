@@ -48,7 +48,7 @@ public:
     statement prepare_statement(const string_ref& q);
 
     ///
-    /// Create ordinary statement it generally unprepared statement and it is never cached. It should
+    /// Create unprepared statement which is never cached. It should
     /// be used when such statement is executed rarely or very customized.
     ///
     statement create_statement(const string_ref& q);
@@ -68,12 +68,12 @@ public:
     void exec_batch(const string_ref& q);
 
     ///
-    /// Set connection specific data
+    /// Set session specific data
     ///
     template<typename T>
     void set_specific(const T& data);
     /// 
-    /// Get connection specific data, will throw bad_value_cast if type is differenet from original one
+    /// Get session specific data, will throw bad_value_cast if type is differenet from original one
     /// passed to set_specific
     ///
     template<typename T>

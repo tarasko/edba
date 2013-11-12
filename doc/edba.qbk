@@ -24,6 +24,9 @@
 [def __sp_open__     [memberref edba::session_pool::open session_pool::open]]
 [def __sp_try_open__ [memberref edba::session_pool::try_open session_pool::try_open]]
 
+[def __st_bind__      [memberref edba::statement::bind(int edba::statement::bind]]
+[def __st_bind_null__ [memberref edba::statement::bind(int edba::statement::bind_null]]
+
 [section Introduction]
 
 [@https://github.com/tarasko/cppan] library repository page
@@ -80,6 +83,75 @@ See [link edba.options Connection String Options] section for the list of all ed
 [endsect]
 
 [section Preparing and Executing Statements]
+[heading Creating a Statement]
+The [classref edba::statement] objects can be created by either calling [memberref edba::session::create_statement] or [memberref edba::session::prepare_statement] functions. 
+Prepared statements have separated compile and execution steps. They are also cached by edba for future reuse. 
+Non-prepared statements should be created by edba::session::create_statement() and are mostly useful when executed rarely.
+[br]
+Syntactic sugar operator<< can be used to create both prepared and unprepared statements
+``
+statement st = sess << "select * from test";        // Prepare and cache statement
+statement st = sess.once() << "select * from test"; // Create unprepared statement
+``
+
+[heading Binding Parameters]
+Statement may contain placeholders marked with ":placeholdername" for parameters that should be binded. 
+Values for placeholders can be bound by their index implicitly or explicitly or by name using
+[memberref edba::statement::operator<<] or __st_bind__ functions. 
+The index is starting from 1.
+``
+statement st = sess << "insert into test(v1, v2, v3) values(:p1, :p2, :p3)"
+st.bind("Hello");
+st.bind(2, "world");
+st.bind("p3", "!!!");
+``
+__st_bind__ return reference to statement, so it can be rewritten in chained form
+``
+st.bind("Hello").bind("world").bind("!!!");
+``
+You may use [memberref edba::statement::operator<<] and [funcref edba::use] to put it in another way
+``
+statement st = sess 
+  << "insert into test(v1, v2, v3) values(:p1, :p2, :p3)"
+  << "Hello"
+  << use(2, "world");
+  << use("p3", "!!!");
+``
+Placeholder names in a query may repeat, this allow to bind same value in multiple places
+``
+statement st = sess 
+  << "insert into test(v1, v2, v3, v4) values(:v1, :v2, :v1, :v2)"
+  << use("v1", 10)
+  << use("v2", "Hello world");
+``
+[note Internally edba emulate binding by name for those backend who don't support it natively.
+Please use `:placeholdername` syntax and don't bother about actual backend you`ve bin using]
+
+To bind null values you may either directly call __st_bind_null__ or use special `edba::null` value.
+``
+statement st = sess 
+  << "insert into test(v1, v2, v3) values(:p1, :p2, :p3)"
+  << null
+  << "Hello"
+  << "world";
+``
+[caution Some backends allow to bind parameters only in increasing order.
+`` 
+statement st = sess 
+  << "insert into test(v1, v2) values(:p1, :p2)"
+  << use("p2", "world")
+  << use("p1", "Hello");  // ODBC backend will throw exception here
+``
+However you may skip parameters, such parameters will be implicitly bound to null.
+`` 
+statement st = sess 
+  << "insert into test(v1, v2, v3) values(:p1, :p2, :p3)"
+  << use("p1", "Hello")
+  << use("p3", "world");
+  
+// Correct, p2 is bound to null
+``
+]
 [endsect]
 
 [section Fetching query results]
