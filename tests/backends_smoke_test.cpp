@@ -164,29 +164,51 @@ void test_utf8(session sess)
     wstring utf16_long(L'Ò', 20000);
     string utf8_long = boost::locale::conv::utf_to_utf<char>(utf16_long);
 
-    statement st = sess << 
-        "~Microsoft SQL Server~insert into ##test1(nvchar100, ntxt) values(:short, :long)"
-        "~Oracle~insert into test1(id, nvchar100, ntxt) values(test1_seq_id.nextval, :short, :long)"
-        "~~insert into test1(nvchar100, ntxt) values(:short, :long)"
-        << utf8_short 
-        << utf8_long
-        << exec;
+    vector<long long> ids_to_check;
+
+    {
+        statement st = sess << 
+            "~Microsoft SQL Server~insert into ##test1(nvchar100, ntxt) values(:short, :long)"
+            "~Oracle~insert into test1(id, nvchar100, ntxt) values(test1_seq_id.nextval, :short, :long)"
+            "~~insert into test1(nvchar100, ntxt) values(:short, :long)"
+            << utf8_short 
+            << utf8_long
+            << exec;
     
-    long long id = sess.backend() == "oracle" ? st.sequence_last("test1_seq_id") : id = st.last_insert_id();
+        ids_to_check.push_back(sess.backend() == "oracle" ? st.sequence_last("test1_seq_id") : st.last_insert_id());
+    }
 
-    string vc;
-    string txt;
-    sess << select_test1_row_where_id << id << first_row >> into("nvchar100", vc) >> into("ntxt", txt);
+    {
+        istringstream oss_utf8_short(utf8_short);
+        istringstream oss_utf8_long(utf8_long);
 
-    BOOST_CHECK_EQUAL(utf8_short, vc);
-    BOOST_CHECK_EQUAL(utf8_long, txt);
+        statement st = sess << 
+            "~Microsoft SQL Server~insert into ##test1(nvchar100, ntxt) values(:short, :long)"
+            "~Oracle~insert into test1(id, nvchar100, ntxt) values(test1_seq_id.nextval, :short, :long)"
+            "~~insert into test1(nvchar100, ntxt) values(:short, :long)"
+            << &oss_utf8_short 
+            << &oss_utf8_long
+            << exec;
 
-    ostringstream vc_ss;
-    ostringstream txt_ss;
-    sess << select_test1_row_where_id << id << first_row >> into("nvchar100", vc_ss) >> into("ntxt", txt_ss);
+        ids_to_check.push_back(sess.backend() == "oracle" ? st.sequence_last("test1_seq_id") : st.last_insert_id());
+    }
 
-    BOOST_CHECK_EQUAL(utf8_short, vc_ss.str());
-    BOOST_CHECK_EQUAL(utf8_long, txt_ss.str());
+    BOOST_FOREACH(long long id, ids_to_check)
+    {
+        string vc;
+        string txt;
+        sess << select_test1_row_where_id << id << first_row >> into("nvchar100", vc) >> into("ntxt", txt);
+
+        BOOST_CHECK_EQUAL(utf8_short, vc);
+        BOOST_CHECK_EQUAL(utf8_long, txt);
+
+        ostringstream vc_ss;
+        ostringstream txt_ss;
+        sess << select_test1_row_where_id << id << first_row >> into("nvchar100", vc_ss) >> into("ntxt", txt_ss);
+
+        BOOST_CHECK_EQUAL(utf8_short, vc_ss.str());
+        BOOST_CHECK_EQUAL(utf8_long, txt_ss.str());
+    }
 }
 
 void test_transactions_and_cursors(session sess)

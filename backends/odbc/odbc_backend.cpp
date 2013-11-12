@@ -622,8 +622,10 @@ public:
     holder_sp operator()(const string_ref& v)
     {
         holder_sp value;
+        SQLSMALLINT sqltype = get_param_desc(bind_col_).data_type_;
+        bool bind_as_wchar = sqltype == SQL_WVARCHAR || sqltype == SQL_WVARCHAR || sqltype == SQL_WLONGVARCHAR;
 
-        if(cd_->wide_)
+        if(bind_as_wchar)
         {
             basic_string<SQLWCHAR> wstr = utf_to_utf<SQLWCHAR>(v.begin(), v.end());
 
