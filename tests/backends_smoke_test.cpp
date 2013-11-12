@@ -22,19 +22,7 @@
 using namespace std;
 using namespace edba;
 
-#define SERVER_IP "192.168.1.101"
-
-wstring utf16_text;
-string utf8_text;
-
-struct init_t
-{
-    init_t()
-    {
-        utf16_text = L"Привет Мир ( Hello world )";
-        utf8_text = boost::locale::conv::utf_to_utf<char>(utf16_text);
-    }
-} g_init;
+#define SERVER_IP "edba-test"
 
 const char* oracle_cleanup_seq = "~Oracle~drop sequence test1_seq_id~;";
 const char* oracle_cleanup_tbl = "~Oracle~drop table test1~;";
@@ -46,70 +34,75 @@ const char* create_test1_table_tpl =
     "   num numeric(18, 3), "
     "   dt datetime, "
     "   dt_small smalldatetime, "
-    "   vchar100 nvarchar(100), "
+    "   nvchar100 nvarchar(100), "
     "   vcharmax varchar(max), "
     "   vbin100 varbinary(100), "
     "   vbinmax varbinary(max), "
-    "   txt text"
+    "   txt text, "
+    "   ntxt ntext"
     "   ) "
     "~Sqlite3~create temp table test1( "
     "   id integer primary key autoincrement, "
     "   num double, "
     "   dt text, "
     "   dt_small text, "
-    "   vchar100 nvarchar(100), "
+    "   nvchar100 nvarchar(100), "
     "   vcharmax text, "
     "   vbin100 blob, "
     "   vbinmax blob, "
-    "   txt text "
+    "   txt text, "
+    "   ntxt ntext"
     "   ) "
     "~Mysql~create temporary table test1( "
     "   id integer AUTO_INCREMENT PRIMARY KEY, "
     "   num numeric(18, 3), "
     "   dt timestamp, "
     "   dt_small date, "    
-    "   vchar100 nvarchar(100), "
+    "   nvchar100 nvarchar(100), "
     "   vcharmax text, "
     "   vbin100 varbinary(100), "
     "   vbinmax blob, "
-    "   txt text "
+    "   txt text, "
+    "   ntxt text "
     "   ) "
     "~PgSQL~create temp table test1( "
     "   id serial primary key, "
     "   num numeric(18, 3), "
     "   dt timestamp, "
     "   dt_small date, "
-    "   vchar100 varchar(100), "          // postgres don`t have nvarchar
+    "   nvchar100 varchar(100), "          // postgres don`t have nvarchar
     "   vcharmax varchar(15000), "
     "   vbin100 %1%, "
     "   vbinmax %1%, "
-    "   txt text "
+    "   txt text, "
+    "   ntxt text "
     "   ) "
     "~Oracle~create table test1( "
     "   id number primary key, "
     "   num number(18, 3), "
     "   dt timestamp, "
     "   dt_small date, "
-    "   vchar100 nvarchar2(100),  "
+    "   nvchar100 nvarchar2(100),  "
     "   vcharmax varchar2(4000), " 
     "   vbin100 raw(100), "
     "   vbinmax blob, "
-    "   txt clob "
+    "   txt clob, "
+    "   ntxt clob "
     "   ) "
     "~";
 
 const char* insert_test1_data =
-    "~Microsoft SQL Server~insert into ##test1(num, dt, dt_small, vchar100, vcharmax, vbin100, vbinmax, txt) "
-    "   values(:num, :dt, :dt_small, :vchar100, :vcharmax, :vbin100, :vbinmax, :txt)"
-    "~Oracle~insert into test1(id, num, dt, dt_small, vchar100, vcharmax, vbin100, vbinmax, txt)"
-    "   values(test1_seq_id.nextval, :num, :dt, :dt_small, :vchar100, :vcharmax, :vbin100, :vbinmax, :txt)"
-    "~~insert into test1(num, dt, dt_small, vchar100, vcharmax, vbin100, vbinmax, txt)"
-    "   values(:num, :dt, :dt_small, :vchar100, :vcharmax, :vbin100, :vbinmax, :txt)"
+    "~Microsoft SQL Server~insert into ##test1(num, dt, dt_small, nvchar100, vcharmax, vbin100, vbinmax, txt) "
+    "   values(:num, :dt, :dt_small, :nvchar100, :vcharmax, :vbin100, :vbinmax, :txt)"
+    "~Oracle~insert into test1(id, num, dt, dt_small, nvchar100, vcharmax, vbin100, vbinmax, txt)"
+    "   values(test1_seq_id.nextval, :num, :dt, :dt_small, :nvchar100, :vcharmax, :vbin100, :vbinmax, :txt)"
+    "~~insert into test1(num, dt, dt_small, nvchar100, vcharmax, vbin100, vbinmax, txt)"
+    "   values(:num, :dt, :dt_small, :nvchar100, :vcharmax, :vbin100, :vbinmax, :txt)"
     "~";
 
 const char* select_test1_row_where_id = 
-    "~Microsoft SQL Server~select id, num, dt, dt_small, vchar100, vcharmax, vbin100, vbinmax, txt from ##test1 where id=:id"
-    "~~select id, num, dt, dt_small, vchar100, vcharmax, vbin100, vbinmax, txt from test1 where id=:id"
+    "~Microsoft SQL Server~select * from ##test1 where id=:id"
+    "~~select * from test1 where id=:id"
     "~";
 
 const char* drop_test1 =
@@ -165,40 +158,47 @@ void test_escaping(session sess)
 
 void test_utf8(session sess)
 {
+    wstring utf16_short = L"Привет Мир ( Hello world )";
+    string utf8_short = boost::locale::conv::utf_to_utf<char>(utf16_short);
+
+    wstring utf16_long(L'Т', 20000);
+    string utf8_long = boost::locale::conv::utf_to_utf<char>(utf16_long);
+
     statement st = sess << 
-        "~Microsoft SQL Server~insert into ##test1(vchar100, txt) values(:txt, :txt)"
-        "~Oracle~insert into test1(id, vchar100, txt) values(test1_seq_id.nextval, :txt, :txt)"
-        "~~insert into test1(vchar100, txt) values(:txt, :txt)"
-        << use("txt", utf8_text) 
+        "~Microsoft SQL Server~insert into ##test1(nvchar100, ntxt) values(:short, :long)"
+        "~Oracle~insert into test1(id, nvchar100, ntxt) values(test1_seq_id.nextval, :short, :long)"
+        "~~insert into test1(nvchar100, ntxt) values(:short, :long)"
+        << utf8_short 
+        << utf8_long
         << exec;
     
     long long id = sess.backend() == "oracle" ? st.sequence_last("test1_seq_id") : id = st.last_insert_id();
 
     string vc;
     string txt;
-    sess << select_test1_row_where_id << id << first_row >> into("vchar100", vc) >> into("txt", txt);
+    sess << select_test1_row_where_id << id << first_row >> into("nvchar100", vc) >> into("ntxt", txt);
 
-    BOOST_CHECK_EQUAL(utf8_text, vc);
-    BOOST_CHECK_EQUAL(utf8_text, txt);
+    BOOST_CHECK_EQUAL(utf8_short, vc);
+    BOOST_CHECK_EQUAL(utf8_long, txt);
 
     ostringstream vc_ss;
     ostringstream txt_ss;
-    sess << select_test1_row_where_id << id << first_row >> into("vchar100", vc_ss) >> into("txt", txt_ss);
+    sess << select_test1_row_where_id << id << first_row >> into("nvchar100", vc_ss) >> into("ntxt", txt_ss);
 
-    BOOST_CHECK_EQUAL(utf8_text, vc_ss.str());
-    BOOST_CHECK_EQUAL(utf8_text, txt_ss.str());
+    BOOST_CHECK_EQUAL(utf8_short, vc_ss.str());
+    BOOST_CHECK_EQUAL(utf8_long, txt_ss.str());
 }
 
 void test_transactions_and_cursors(session sess)
 {
     const char* INSERT_QUERY = 
-        "~Microsoft SQL Server~insert into ##test1(vchar100, txt) values(:txt, :txt)"
-        "~Oracle~insert into test1(id, vchar100, txt) values(test1_seq_id.nextval, :txt, :txt)"
-        "~~insert into test1(vchar100, txt) values(:txt, :txt)";
+        "~Microsoft SQL Server~insert into ##test1(nvchar100, txt) values(:txt, :txt)"
+        "~Oracle~insert into test1(id, nvchar100, txt) values(test1_seq_id.nextval, :txt, :txt)"
+        "~~insert into test1(nvchar100, txt) values(:txt, :txt)";
 
     const char* SELECT_QUERY = 
-        "~Microsoft SQL Server~select id, num, dt, dt_small, vchar100, vcharmax, vbin100, vbinmax, txt from ##test1 where id=:id"
-        "~~select id, num, dt, dt_small, vchar100, vcharmax, vbin100, vbinmax, txt from test1 where id=:id"
+        "~Microsoft SQL Server~select id, num, dt, dt_small, nvchar100, vcharmax, vbin100, vbinmax, txt from ##test1 where id=:id"
+        "~~select id, num, dt, dt_small, nvchar100, vcharmax, vbin100, vbinmax, txt from test1 where id=:id"
         "~";
 
     // Create and execute prepared statement inside transaction, commit transaction
@@ -231,7 +231,7 @@ void test_transactions_and_cursors(session sess)
     // odbc drivers are tend to behave wierdly in that case
     {
         transaction tr(sess);
-        row r = sess << SELECT_QUERY << id << first_row >> into("vchar100", vc) >> into("txt", txt);
+        row r = sess << SELECT_QUERY << id << first_row >> into("nvchar100", vc) >> into("txt", txt);
         tr.commit();
     }
 
@@ -241,14 +241,14 @@ void test_transactions_and_cursors(session sess)
     // rollback query
     {
         transaction tr(sess);
-        sess << SELECT_QUERY << id << first_row >> into("vchar100", vc) >> into("txt", txt);
+        sess << SELECT_QUERY << id << first_row >> into("nvchar100", vc) >> into("txt", txt);
     }
 
     BOOST_CHECK_EQUAL(vc, "3");
     BOOST_CHECK_EQUAL(txt, "3");
 
     // auto commit mode
-    sess << SELECT_QUERY << id << first_row >> into("vchar100", vc) >> into("txt", txt);
+    sess << SELECT_QUERY << id << first_row >> into("nvchar100", vc) >> into("txt", txt);
 
     BOOST_CHECK_EQUAL(vc, "3");
     BOOST_CHECK_EQUAL(txt, "3");
@@ -345,7 +345,7 @@ void test(const char* conn_string)
                 << use("num", 10.10) 
                 << use("dt", *std::gmtime(&now)) 
                 << use("dt_small", *std::gmtime(&now)) 
-                << use("vchar100", "Hello!")
+                << use("nvchar100", "Hello!")
                 << use("vcharmax", "Hello! max")
                 << use("vbin100", &short_binary_stream)
                 << use("vbinmax", &long_binary_stream)

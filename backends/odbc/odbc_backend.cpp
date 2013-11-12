@@ -14,6 +14,10 @@
 #include <boost/mpl/at.hpp>
 #include <boost/type_traits/is_arithmetic.hpp>
 #include <boost/format.hpp>
+#include <boost/multi_index_container.hpp>
+#include <boost/multi_index/random_access_index.hpp>
+#include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index/member.hpp>
 
 #include <list>
 #include <vector>
@@ -32,13 +36,39 @@ namespace mpl = boost::mpl;
 using namespace boost::locale::conv;
 using namespace boost::locale;
 using namespace std;
+using namespace boost::multi_index;
+
+namespace boost {
+    namespace locale {
+        namespace conv {
+
+            ///
+            /// Extend original utf_to_utf to support Output iterator instead of forming new basic_string
+            template<typename CharOut,typename CharIn,typename OutputIter>
+            void
+            utf_to_utf(CharIn const *begin,CharIn const *end,OutputIter output,method_type how = default_method)
+            {
+                utf::code_point c;
+                while(begin!=end) {
+                    c=utf::utf_traits<CharIn>::template decode<CharIn const *>(begin,end);
+                    if(c==utf::illegal || c==utf::incomplete) {
+                        if(how==stop)
+                            throw conversion_error();
+                    }
+                    else {
+                        utf::utf_traits<CharOut>::template encode<OutputIter>(c,output);
+                    }
+                }
+            }
+        }
+    }
+}
 
 namespace edba {
 
 struct column_info
 {
-    string name_;  // name
-    int index_;         // index
+    string name_;       // name
     SQLSMALLINT type_;  // type
 };
 
@@ -195,7 +225,13 @@ class result : public backend::result, public boost::static_visitor<bool>
 {
     static const SQLULEN MAX_READ_BUFFER_SIZE = 4096;
 
-    typedef vector<column_info> columns_set;
+    typedef multi_index_container<
+        column_info
+      , indexed_by<
+            random_access<>
+          , ordered_unique<member<column_info, std::string, &column_info::name_>, string_ref_less >
+          >
+      > columns_set;
 
 public:
     result(SQLHSTMT stmt, bool wide) 
@@ -222,7 +258,7 @@ public:
             {
                 SQLWCHAR name[257] = {0};
                 throw_on_error_("SQLDescribeColW") = SQLDescribeColW(stmt_, col + 1, name, 256, &name_length, &ci.type_, &column_size, 0, 0);
-                ci.name_ = from_utf(name, g_system_locale);
+                ci.name_ = utf_to_utf<char>(name);
             }
             else
             {
@@ -246,15 +282,11 @@ public:
             if (column_size > max_column_size)
                 max_column_size = column_size;
 
-            ci.index_ = col;
             columns_.push_back(ci);
         }
 
-        // Prepare columns_ for equal_range algorithm
-        boost::sort(columns_, string_ref_less());
-
-        max_column_size = (min)(max_column_size, MAX_READ_BUFFER_SIZE);
-        column_char_buf_.resize(max_column_size + 1);
+        max_column_size = (min)(max_column_size + 1, MAX_READ_BUFFER_SIZE);
+        column_char_buf_.resize(max_column_size);
     }
 
     ~result()
@@ -327,16 +359,30 @@ public:
 
         SQLRETURN r;
 
+        SQLSMALLINT sqltype = columns_[fetch_col_ - 1].type_;
+        bool        fetch_wchar = sqltype == SQL_WCHAR || sqltype == SQL_WVARCHAR || sqltype == SQL_WLONGVARCHAR;
+        SQLSMALLINT ctype = fetch_wchar ? SQL_C_WCHAR : SQL_C_CHAR;
+        size_t      csize = fetch_wchar ? sizeof(SQLWCHAR) : sizeof(SQLCHAR);
+
         do
         {
-            r = throw_on_error_("SQLGetData") = SQLGetData(stmt_, fetch_col_, SQL_C_CHAR, &column_char_buf_[0], column_char_buf_.size(), &indicator);
+            r = throw_on_error_("SQLGetData") = SQLGetData(stmt_, fetch_col_, ctype, &column_char_buf_[0], column_char_buf_.size(), &indicator);
 
             if (SQL_NULL_DATA == indicator)
                 return false;
 
-            SQLLEN bytes_read = (min)(indicator, (SQLLEN)column_char_buf_.size() - 1);
+            SQLLEN bytes_read = (min)(indicator, (SQLLEN)(column_char_buf_.size() - csize));
 
-            data.append(column_char_buf_.begin(), column_char_buf_.begin() + bytes_read);
+            if (fetch_wchar)
+            {
+                utf_to_utf<char>(
+                    (SQLWCHAR*)&column_char_buf_[0]
+                  , (SQLWCHAR*)(&column_char_buf_[0] + bytes_read)
+                  , std::back_inserter(data)
+                  );
+            }
+            else
+                data.append(column_char_buf_.begin(), column_char_buf_.begin() + bytes_read);
         } while(SQL_SUCCESS_WITH_INFO == r);
 
         _data->swap(data);
@@ -349,15 +395,30 @@ public:
         SQLLEN indicator;
         SQLRETURN r;
 
+        SQLSMALLINT sqltype = columns_[fetch_col_ - 1].type_;
+        bool        fetch_wchar = sqltype == SQL_WCHAR || sqltype == SQL_WVARCHAR || sqltype == SQL_WLONGVARCHAR;
+        SQLSMALLINT ctype = fetch_wchar ? SQL_C_WCHAR : SQL_C_BINARY;
+        size_t      csize = fetch_wchar ? sizeof(SQLWCHAR) : 0;
+
         do
         {
-            r = throw_on_error_("SQLGetData") = SQLGetData(stmt_, fetch_col_, SQL_C_BINARY, &column_char_buf_[0], column_char_buf_.size(), &indicator);
+            r = throw_on_error_("SQLGetData") = SQLGetData(stmt_, fetch_col_, ctype, &column_char_buf_[0], column_char_buf_.size(), &indicator);
 
             if (SQL_NULL_DATA == indicator)
                 return false;
 
-            SQLLEN bytes_read = (min)(indicator, (SQLLEN)column_char_buf_.size());
-            data->write(&column_char_buf_[0], bytes_read);
+            SQLLEN bytes_read = (min)(indicator, (SQLLEN)(column_char_buf_.size() - csize));
+
+            if (fetch_wchar)
+            {
+                utf_to_utf<char>(
+                    (SQLWCHAR*)&column_char_buf_[0]
+                  , (SQLWCHAR*)(&column_char_buf_[0] + bytes_read)
+                  , std::ostreambuf_iterator<char>(*data)
+                  );
+            }
+            else
+                data->write(&column_char_buf_[0], bytes_read);
         } while(SQL_SUCCESS_WITH_INFO == r);
 
         return true;
@@ -415,19 +476,20 @@ public:
 
     virtual int name_to_column(const string_ref& name)
     {
-        BOOST_AUTO(found, boost::equal_range(columns_, name, string_ref_less()));
-        return boost::empty(found) ? -1 : found.first->index_;
+        BOOST_AUTO(&idx, columns_.get<1>());
+        BOOST_AUTO(iter, idx.find(name));
+
+        if (iter == idx.end())
+            return -1;
+        return columns_.project<0>(iter) - columns_.begin();
     }
 
     virtual string column_to_name(int col)
     {
-        BOOST_FOREACH(columns_set::const_reference elem, columns_)
-        {
-            if (elem.index_ == col)
-                return elem.name_;
-        }
+        if ((size_t)col >= columns_.size())
+            throw invalid_column();
 
-        throw invalid_column();
+        return columns_[col].name_;
     }
 
 private:
