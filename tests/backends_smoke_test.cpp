@@ -63,7 +63,7 @@ const char* create_test1_table_tpl =
     "   vbin100 varbinary(100), "
     "   vbinmax blob, "
     "   txt text, "
-    "   ntxt text "
+    "   ntxt national varchar(20000)"
     "   ) "
     "~PgSQL~create temp table test1( "
     "   id serial primary key, "

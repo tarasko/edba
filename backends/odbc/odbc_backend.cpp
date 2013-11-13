@@ -598,7 +598,6 @@ public:
         desc.data_type_ = numeric_limits<T>::is_integer ? SQL_INTEGER : SQL_DOUBLE;
         desc.decimal_digits_ = 0;
         desc.param_size_ = sizeof(c_type);
-        desc.nullable_ = false;
 
         c_type tmp = (c_type)v;
 
@@ -862,7 +861,7 @@ private:
     static param_desc s_generic_null_desc;
 };
 
-statement::param_desc statement::s_generic_null_desc = {SQL_CHAR, 10, 0, 1};
+statement::param_desc statement::s_generic_null_desc = {SQL_CHAR, 0, 0, 1};
 
 class connection : public backend::connection, private common_data
 {
