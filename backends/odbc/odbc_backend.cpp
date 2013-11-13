@@ -44,13 +44,15 @@ namespace boost {
 
             ///
             /// Extend original utf_to_utf to support Output iterator instead of forming new basic_string
-            template<typename CharOut,typename CharIn,typename OutputIter>
+            template<typename CharOut,typename InputIter,typename OutputIter>
             void
-            utf_to_utf(CharIn const *begin,CharIn const *end,OutputIter output,method_type how = default_method)
+            utf_to_utf(InputIter begin, InputIter end, OutputIter output, method_type how = default_method)
             {
+                typedef typename std::iterator_traits<InputIter>::value_type CharIn;
+
                 utf::code_point c;
                 while(begin!=end) {
-                    c=utf::utf_traits<CharIn>::template decode<CharIn const *>(begin,end);
+                    c=utf::utf_traits<CharIn>::template decode<InputIter>(begin,end);
                     if(c==utf::illegal || c==utf::incomplete) {
                         if(how==stop)
                             throw conversion_error();
@@ -592,13 +594,17 @@ public:
         typedef typename data_pair::first c_type_id;
         typedef typename data_pair::second c_type;
 
-        SQLSMALLINT sqltype = numeric_limits<T>::is_integer ? SQL_INTEGER : SQL_DOUBLE;
+        param_desc desc;
+        desc.data_type_ = numeric_limits<T>::is_integer ? SQL_INTEGER : SQL_DOUBLE;
+        desc.decimal_digits_ = 0;
+        desc.param_size_ = sizeof(c_type);
+        desc.nullable_ = false;
 
         c_type tmp = (c_type)v;
 
         holder_sp value = boost::make_shared<holder>(0, string((const char*)&tmp, sizeof(c_type)));
 
-        do_bind(false, c_type_id::value, sqltype, *value);
+        do_bind(false, c_type_id::value, desc, *value);
 
         return value;
     }
@@ -615,28 +621,28 @@ public:
         // always work, we have to choose what type will be possible to bind null. VARCHAR is much more friendly in term of
         // conversion to different types
 
-        do_bind(true, SQL_C_DEFAULT, get_param_desc(bind_col_).data_type_, *value);
+        do_bind(true, SQL_C_DEFAULT, get_param_desc(bind_col_), *value);
         return value;
     }
 
     holder_sp operator()(const string_ref& v)
     {
         holder_sp value;
-        SQLSMALLINT sqltype = get_param_desc(bind_col_).data_type_;
-        bool bind_as_wchar = sqltype == SQL_WVARCHAR || sqltype == SQL_WVARCHAR || sqltype == SQL_WLONGVARCHAR;
+        const param_desc& desc = get_param_desc(bind_col_);
+        bool bind_as_wchar = desc.data_type_ == SQL_WVARCHAR || desc.data_type_ == SQL_WVARCHAR || desc.data_type_ == SQL_WLONGVARCHAR;
 
         if(bind_as_wchar)
         {
             basic_string<SQLWCHAR> wstr = utf_to_utf<SQLWCHAR>(v.begin(), v.end());
 
             value = boost::make_shared<holder>(0, string((const char*)&wstr[0], wstr.size() * sizeof(SQLWCHAR)));
-            do_bind(false, SQL_C_WCHAR, get_param_desc(bind_col_).data_type_, *value);
+            do_bind(false, SQL_C_WCHAR, desc, *value);
         }
         else
         {
             value = boost::make_shared<holder>();
             value->second.assign(v.begin(), v.end());
-            do_bind(false, SQL_C_CHAR, get_param_desc(bind_col_).data_type_, *value);
+            do_bind(false, SQL_C_CHAR, desc, *value);
         }
 
         return value;
@@ -645,16 +651,48 @@ public:
     holder_sp operator()(const tm& v)
     {
         holder_sp value = boost::make_shared<holder>(0, format_time(v));
-        do_bind(false, SQL_C_CHAR, SQL_TYPE_TIMESTAMP, *value);
+        
+        param_desc desc;
+        desc.data_type_ = SQL_TYPE_TIMESTAMP;
+        desc.decimal_digits_ = 0;
+        desc.param_size_ = value->second.size();
+
+        do_bind(false, SQL_C_CHAR, desc, *value);
         return value;
     }
 
     holder_sp operator()(istream* v)
     {
-        ostringstream ss;
-        ss << v->rdbuf();
-        holder_sp value = boost::make_shared<holder>(0, ss.str());
-        do_bind(false, SQL_C_BINARY, SQL_LONGVARBINARY, *value);
+        const param_desc& desc = get_param_desc(bind_col_);
+        SQLSMALLINT ctype;
+        switch(desc.data_type_)
+        {
+            case SQL_WCHAR:
+            case SQL_WVARCHAR:
+            case SQL_WLONGVARCHAR:
+                ctype = SQL_C_WCHAR;
+                break;
+            case SQL_CHAR:
+            case SQL_VARCHAR:
+            case SQL_LONGVARCHAR:
+                ctype = SQL_C_CHAR;
+                break;
+            default:
+                ctype = SQL_C_BINARY;
+                break;
+        }
+
+        holder_sp value = boost::make_shared<holder>(0, string());
+        if (ctype == SQL_C_WCHAR)
+        {
+            wstring res;
+            utf_to_utf<wchar_t>(istreambuf_iterator<char>(*v), istreambuf_iterator<char>(), back_inserter(res));
+            value->second.assign((const char*)&res[0], res.size() * sizeof(wchar_t));
+        }
+        else
+            value->second.assign(istreambuf_iterator<char>(*v), istreambuf_iterator<char>());
+
+        do_bind(false, ctype, desc, *value);
         return value;
     }
 
@@ -764,7 +802,7 @@ private:
             return params_desc_[column - 1];
     }
 
-    void do_bind(bool null, SQLSMALLINT ctype, SQLSMALLINT sqltype, holder& value)
+    void do_bind(bool null, SQLSMALLINT ctype, const param_desc& desc, holder& value)
     {
         if(null)
         {
@@ -773,7 +811,7 @@ private:
                 bind_col_,
                 SQL_PARAM_INPUT,
                 ctype,
-                sqltype, // for null
+                desc.data_type_, // for null
                 10, // COLUMNSIZE
                 0, //  Presision
                 0, // string
@@ -793,9 +831,9 @@ private:
                 bind_col_,
                 SQL_PARAM_INPUT,
                 ctype,
-                sqltype,
-                column_size, // COLUMNSIZE
-                0, //  Presision
+                desc.data_type_,
+                desc.param_size_, // COLUMNSIZE
+                desc.decimal_digits_, //  Presision
                 (void*)value.second.c_str(), // string
                 value.second.size(),
                 &value.first);
