@@ -2,6 +2,7 @@
 #define EDBA_ERRORS_H
 
 #include <stdexcept>
+#include <string>
 
 namespace edba {
 
@@ -36,7 +37,8 @@ public:
 ///
 class null_value_fetch : public edba_error {
 public:
-    null_value_fetch() : edba_error("edba::null_value_fetch attempt fetch null column")
+    null_value_fetch(const std::string& column_name) 
+      : edba_error("edba::null_value_fetch attempt to fetch null value from column " + column_name)
     {
     }
 };
@@ -45,7 +47,7 @@ public:
 ///
 class empty_row_access : public edba_error {
 public:
-    empty_row_access() : edba_error("edba::empty_row_access attempt to fetch from empty column")
+    empty_row_access() : edba_error("edba::empty_row_access unable to get row from empty rowset")
     {
     }
 };

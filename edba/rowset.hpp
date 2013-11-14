@@ -32,22 +32,42 @@ class row
     row(const backend::connection_ptr& conn
       , const backend::statement_ptr& stmt
       , const backend::result_ptr& res
-      );
+      )
+      : res_(res)
+      , stmt_(stmt)
+      , conn_(conn)
+      , current_col_(0)
+    {
+    }
 
 public:
     ///
     /// Return true if the column number \a col (starting from 0) has NULL value
     ///
-    bool is_null(int col) const;
+    bool is_null(int col) const
+    {
+        return res_->is_null(col);
+    }
+
     ///
     /// Return true if the column named \a n has NULL value
     ///
-    bool is_null(const string_ref& n) const;
+    bool is_null(const string_ref& n) const
+    {
+        int c = res_->name_to_column(n);
+        if (c < 0)
+            throw invalid_column();
+
+        res_->is_null(c);
+    }
 
     ///
     /// Reset current column index to 0
     ///
-    void rewind_column() const;
+    void rewind_column() const
+    {
+        current_col_ = 0;
+    }
 
     ///
     /// Fetch a value from column \a col (starting from 0) into \a v. Returns false
@@ -56,7 +76,10 @@ public:
     /// If the data type is not same it tries to cast the data, if casting fails or the
     /// data is out of the type range, throws bad_value_cast().
     ///
-    bool fetch(int col, const fetch_types_variant& v) const;
+    bool fetch(int col, const fetch_types_variant& v) const
+    {
+        return res_->fetch(col, v);
+    }
 
     ///
     /// Fetch a value from column \a col (starting from 0) into \a v. Returns false
@@ -66,7 +89,10 @@ public:
     /// data is out of the type range, throws bad_value_cast().
     ///
     template<typename T>
-    bool fetch(int col, T& v) const;
+    bool fetch(int col, T& v) const
+    {
+        return fetch_conversion<T>::fetch(*this, col, v);
+    }
 
     ///
     /// Fetch a value from column named \a n into \a v. Returns false
@@ -78,7 +104,13 @@ public:
     /// If the \a n value is invalid throws invalid_column exception
     ///
     template<typename T>
-    bool fetch(const string_ref& n, T& v) const;
+    bool fetch(const string_ref& n, T& v) const
+    {
+        int c = res_->name_to_column(n);
+        if (c < 0)
+            throw invalid_column();
+        return fetch(c, v);
+    }
 
     ///
     /// Fetch a value from the next column in the row starting from the first one. Returns false
@@ -93,7 +125,15 @@ public:
     /// automatically.
     ///
     template<typename T>
-    bool fetch(T& v) const;
+    bool fetch(T& v) const
+    {
+        int old_current_col = current_col_;
+        bool res = fetch(current_col_, v);
+        if (old_current_col == current_col_)
+            ++current_col_;
+
+        return res;
+    }
 
     ///
     /// Get a value of type \a T from column named \a name (starting from 0). If the column
@@ -101,7 +141,12 @@ public:
     /// if the column value cannot be converted to type T (see fetch functions) it throws bad_value_cast.
     ///
     template<typename T>
-    T get(const string_ref& name) const;
+    T get(const string_ref& name) const
+    {
+        T v = T();
+        get(name, v);
+        return v;
+    }
 
     ///
     /// Get a value of type \a T from column named \a name (starting from 0). If the column
@@ -109,7 +154,11 @@ public:
     /// if the column value cannot be converted to type T (see fetch functions) it throws bad_value_cast.
     ///
     template<typename T>
-    void get(const string_ref& name, T& value) const;
+    void get(const string_ref& name, T& value) const
+    {
+        if(!fetch(name, value))
+            throw null_value_fetch(std::string(name.begin(), name.end()));
+    }
 
     ///
     /// Get a value of type \a T from column \a col (starting from 0). If the column
@@ -117,7 +166,12 @@ public:
     /// if the column value cannot be converted to type T (see fetch functions) it throws bad_value_cast.
     ///
     template<typename T>
-    T get(int col) const;
+    T get(int col) const
+    {
+        T v = T();
+        get(col, v);
+        return v;
+    }
 
     ///
     /// Get a value of type \a T from column \a col (starting from 0). If the column
@@ -125,7 +179,36 @@ public:
     /// if the column value cannot be converted to type T (see fetch functions) it throws bad_value_cast.
     ///
     template<typename T>
-    void get(int col, T& value) const;
+    void get(int col, T& value) const
+    {
+        if(!fetch(col, value))
+            throw null_value_fetch(res_->column_to_name(col));
+    }
+
+    ///
+    /// Get a value of type \a T from next column. If the column
+    /// is null throws null_value_fetch(), if the column index is invalid throws invalid_column,
+    /// if the column value cannot be converted to type T (see fetch functions) it throws bad_value_cast.
+    ///
+    template<typename T>
+    T get() const
+    {
+        T v = T();
+        get(v);
+        return v;
+    }
+
+    ///
+    /// Get a value of type \a T from next column. If the column
+    /// is null throws null_value_fetch(), if the column index is invalid throws invalid_column,
+    /// if the column value cannot be converted to type T (see fetch functions) it throws bad_value_cast.
+    ///
+    template<typename T>
+    void get(T& value) const
+    {
+        if(!fetch(value))
+            throw null_value_fetch(res_->column_to_name(current_col_ - 1));
+    }
 
 private:
     backend::result_ptr res_;
@@ -133,100 +216,6 @@ private:
     backend::connection_ptr conn_;
     mutable int current_col_;
 };
-
-// -------- row implementation ---------
-
-inline row::row(
-    const backend::connection_ptr& conn
-  , const backend::statement_ptr& stmt
-  , const backend::result_ptr& res
-  )
-  : res_(res)
-  , stmt_(stmt)
-  , conn_(conn)
-  , current_col_(0)
-{
-}
-
-inline bool row::is_null(int col) const
-{
-    return res_->is_null(col);
-}
-
-inline bool row::is_null(const string_ref& n) const
-{
-    int c = res_->name_to_column(n);
-    if (c < 0)
-        throw invalid_column();
-
-    res_->is_null(c);
-}
-
-inline void row::rewind_column() const
-{
-    current_col_ = 0;
-}
-
-inline bool row::fetch(int col, const fetch_types_variant& v) const
-{
-    return res_->fetch(col, v);
-}
-
-template<typename T>
-bool row::fetch(int col, T& v) const
-{
-    return fetch_conversion<T>::fetch(*this, col, v);
-}
-
-template<typename T>
-bool row::fetch(const string_ref& n, T& v) const
-{
-    int c = res_->name_to_column(n);
-    if (c < 0)
-        throw invalid_column();
-    return fetch(c, v);
-}
-
-template<typename T>
-bool row::fetch(T& v) const
-{
-    int old_current_col = current_col_;
-    bool res = fetch(current_col_, v);
-    if (old_current_col == current_col_)
-        ++current_col_;
-
-    return res;
-}
-
-template<typename T>
-T row::get(const string_ref& name) const
-{
-    T v = T();
-    get(name, v);
-    return v;
-}
-
-template<typename T>
-void row::get(const string_ref& name, T& v) const
-{
-    if(!fetch(name, v))
-        throw null_value_fetch();
-}
-
-template<typename T>
-T row::get(int col) const
-{
-    T v = T();
-    get(col, v);
-    return v;
-}
-
-template<typename T>
-void row::get(int col, T& v) const
-{
-    if(!fetch(col, v))
-        throw null_value_fetch();
-}
 
 // -------- free functions ---------
 
@@ -254,9 +243,7 @@ detail::tag<int, T&> into(int index, T& v)
 template<typename T1, typename T2>
 const row& operator>>(const row& r, detail::tag<T1, T2> tag)
 {
-    if(!r.fetch(tag.first_, tag.second_))
-        throw null_value_fetch();
-
+    r.get(tag.first_, tag.second_);
     return r;
 }
 
@@ -268,9 +255,7 @@ const row& operator>>(const row& r, detail::tag<T1, T2> tag)
 template<typename T>
 const row& operator>>(const row& r, T& v)
 {
-    if(!r.fetch(v))
-        throw null_value_fetch();
-
+    r.get(v);;
     return r;
 }
 
@@ -463,7 +448,7 @@ void rowset_iterator<T>::increment()
     {
         rs_->row_.rewind_column();
         if (!fetch_conversion<mutable_value_type>::fetch(rs_->row_, 0, const_cast<mutable_reference>(rs_->value_)))
-            throw null_value_fetch();
+            throw null_value_fetch(rs_->row_.res_->column_to_name(0));
     }
     else
         rs_ = 0;
