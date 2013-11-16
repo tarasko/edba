@@ -5,33 +5,49 @@
 #include <boost/foreach.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/exception/diagnostic_information.hpp>
+#include <boost/atomic/atomic.hpp>
 
 #include <boost/test/unit_test.hpp>
 
 using namespace std;
 using namespace edba;
 
-string test_string = "fuck fuck fuck";
+const size_t DB_POOL_SIZE = 1;
+const size_t THREAD_POOL_SIZE = 4;
+
+boost::atomic<size_t> total_initialized_sessions = 0;
 
 void init_session(session& sess)
 {
-    statement st = sess << "insert into test(txt) values(:val)";
-
-    transaction tr(sess);
-    for (int i = 0; i < 100; ++i)
-        st << test_string << exec << reset;
-
-    tr.commit();
+    total_initialized_sessions++;
 }
 
 void thread_proc(session_pool& pool)
 {
+    string test_string = "fuck fuck fuck";
+
     try
     {
-        for (int i = 0; i < 1000; ++i)
         {
             session sess = pool.open();
-            rowset<string> rs = sess << "select txt from test";
+
+            statement st = sess << 
+                "~Microsoft SQL Server~insert into ##test(txt) values(:val)"
+                "~~insert into test(txt) values(:val)";
+
+            transaction tr(sess);
+            for (int i = 0; i < 100; ++i)
+                st << test_string << exec << reset;
+
+            tr.commit();
+        }
+
+        for (int i = 0; i < 1000; ++i)
+        {
+            rowset<string> rs = pool.open() << 
+                "~Microsoft SQL Server~select txt from ##test"
+                "~~select txt from test";
+
             BOOST_FOREACH(const string& s, rs)
                 BOOST_ASSERT(s == test_string);
         }
@@ -45,21 +61,42 @@ void thread_proc(session_pool& pool)
 template<typename Driver>
 void run_pool_test(const char* conn_str)
 {
-    monitor m;
-    session_pool pool(Driver(), conn_str, 4);
+    session_pool pool(Driver(), conn_str, DB_POOL_SIZE);
+
+    total_initialized_sessions = 0;
+    pool.invoke_on_connect(&init_session);
 
     pool.open().once() << 
         "~Microsoft SQL Server~create table ##test(txt varchar(20))"
         "~Sqlite3~create temp table test(txt varchar(20))" << exec;
 
-    pool.invoke_on_connect(&init_session);
-
     // Create 4 worker threads and let them concurrently read from database
     boost::thread_group tg;
-    for(int i = 0; i < 8; ++i)
+    for(int i = 0; i < THREAD_POOL_SIZE; ++i)
         tg.create_thread(boost::bind(thread_proc, boost::ref(pool)));
 
     tg.join_all();
+
+    BOOST_CHECK_LE(total_initialized_sessions, DB_POOL_SIZE);
+}
+
+void throw_something(session sess)
+{
+    throw std::logic_error("intentional error");
+}
+
+// Regression, check that deadlock doesn`t occur when user init_session function throw exception
+BOOST_AUTO_TEST_CASE(SessionPoolExceptionFromSessionInit)
+{
+    session_pool pool(driver::sqlite3(), "db=test.db", DB_POOL_SIZE);
+
+    pool.invoke_on_connect(&throw_something);
+
+    BOOST_CHECK_THROW((pool.open().once() << 
+        "~Microsoft SQL Server~create table ##test(txt varchar(20))"
+        "~Sqlite3~create temp table test(txt varchar(20))" << exec)
+      , std::logic_error
+      );
 }
 
 BOOST_AUTO_TEST_CASE(SessionPoolSqlite3)

@@ -240,8 +240,8 @@ private:
     friend class session;
 
     int placeholder_;
-    backend::connection_ptr conn_;
     backend::statement_ptr stmt_;
+    backend::connection_ptr conn_;
 };
 
 // ------ statement implementation ------
@@ -254,8 +254,8 @@ inline statement::statement(
   , const backend::statement_ptr& stmt
   ) 
     : placeholder_(1)
-    , conn_(conn)
     , stmt_(stmt)
+    , conn_(conn)
 {
 }
 inline void statement::reset()

@@ -442,7 +442,7 @@ public:
         if(r == SQL_NO_DATA)
             return false;
 
-        throw_on_error_("SQLGetData") = r;
+        throw_on_error_("SQLFetch") = r;
 
         return false;
     }
