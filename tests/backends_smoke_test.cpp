@@ -55,7 +55,7 @@ const char* create_test1_table_tpl =
     "   txt text, "
     "   ntxt ntext"
     "   ) "
-    "~Mysql~create temporary table test1( "
+    "~Mysql~create temporary table test1( " /*  */
     "   id integer AUTO_INCREMENT PRIMARY KEY, "
     "   num numeric(18, 3), "
     "   dt timestamp, "

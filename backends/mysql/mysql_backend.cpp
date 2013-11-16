@@ -941,18 +941,14 @@ public:
             }
         }
 #endif
-        std::string set_charset_dir = ci.get_copy("set_charset_dir", "");
-        if(!set_charset_dir.empty()) {
-            mysql_set_option(MYSQL_SET_CHARSET_DIR, set_charset_dir.c_str());
-        }
-        std::string set_charset_name = ci.get_copy("set_charset_name", "");
-        if(!set_charset_name.empty()) {
-            mysql_set_option(MYSQL_SET_CHARSET_NAME, set_charset_name.c_str());
-        }
+
         std::string shared_memory_base_name = ci.get_copy("shared_memory_base_name", "");
         if(!shared_memory_base_name.empty()) {
             mysql_set_option(MYSQL_SHARED_MEMORY_BASE_NAME, shared_memory_base_name.c_str());
         }
+
+        // Always use utf-8 charset
+        mysql_set_option(MYSQL_SET_CHARSET_NAME, "utf8");
 
         if(!mysql_real_connect(conn_,phost,puser,ppassword,pdatabase,port,punix_socket,0)) {
             std::string err="unknown";
