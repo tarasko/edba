@@ -220,7 +220,7 @@ private:
     mutable int current_col_;
 };
 
-// -------- free functions ---------
+// -------- free functions related to row ---------
 
 ///
 /// \brief Fetch value by column name
@@ -296,22 +296,60 @@ class rowset_iterator
 public:
     typedef typename base_type::reference reference;
 
-    rowset_iterator(rowset_type* rs = 0);
+    rowset_iterator(rowset_type* rs = 0)
+      : rs_(rs)
+    {
+        increment();
+    }
 
     ///
     /// Copy construction and conversion from mutable to const iterator
     ///
     template<typename T1>
-    rowset_iterator(rowset_iterator<T1> other, typename boost::enable_if< boost::is_convertible<T1*, T*> >::type* = 0);
+    rowset_iterator(rowset_iterator<T1> other, typename boost::enable_if< boost::is_convertible<T1*, T*> >::type* = 0)
+      : rs_(other.rs_)
+    {
+    }
 
-    boost::tribool has_next() const;
+    boost::tribool has_next() const
+    {
+        backend::result_iface::next_row nr = rs_->row_.res_->has_next();
+        if (backend::result_iface::next_row_exists == nr)
+            return true;
+        else if (backend::result_iface::last_row_reached == nr)
+            return false;
+        else
+            return boost::tribool();
+    }
 
 private:
     friend class boost::iterator_core_access;
 
-    reference dereference() const;
-    void increment();
-    bool equal(rowset_iterator const& other) const;
+    reference dereference() const
+    {
+        BOOST_ASSERT(rs_ && "Attempt to dereference end rowset_iterator");
+        return static_cast<T&>(rs_->value_);
+    }
+
+    void increment()
+    {
+        if (!rs_)
+            return;
+
+        if (rs_->row_.res_->next())
+        {
+            rs_->row_.rewind_column();
+            if (!fetch_conversion<mutable_value_type>::fetch(rs_->row_, 0, const_cast<mutable_reference>(rs_->value_)))
+                throw null_value_fetch(rs_->row_.res_->column_to_name(0));
+        }
+        else
+            rs_ = 0;
+    }
+
+    bool equal(rowset_iterator const& other) const
+    {
+        return rs_ == other.rs_;
+    }
 
     rowset_type* rs_;
 };
@@ -336,55 +374,112 @@ public:
         const backend::connection_ptr& conn
       , const backend::statement_ptr& stmt
       , const backend::result_ptr& res
-      );
+      )
+      : row_(conn, stmt, res)
+      , opened_(false)
+    {
+    }
 
     ///
     /// Open rowset for traversion and return begin iterator
     ///
-    iterator begin();
+    iterator begin()
+    {
+        if (opened_)
+            throw multiple_rowset_traverse("attempt to open rowset_iterator twice");
+
+        iterator iter(this);
+        opened_ = true;
+        return iter;
+    }
+
     ///
     /// Open rowset for traversion and return begin iterator
     ///
-    const_iterator begin() const;
+    const_iterator begin() const
+    {
+        if (opened_)
+            throw multiple_rowset_traverse("attempt to open rowset_iterator twice");
+
+        const_iterator iter(this);
+        opened_ = true;
+        return iter;
+    }
+
     ///
     /// Return end iterator for rowset
     ///
-    iterator end();
+    iterator end()
+    {
+        return iterator();
+    }
+
     ///
     /// Return end iterator for rowset
     ///
-    const_iterator end() const;
+    const_iterator end() const
+    {
+        return const_iterator();
+    }
 
     ///
     /// Provide conversion between rowset`s of different types.
     ///
     template<typename T1>
-    operator rowset<T1>() const;
+    operator rowset<T1>() const
+    {
+        return rowset<T1>(row_.conn_, row_.stmt_, row_.res_);
+    }
 
     ///
     /// Return total number of rows in rowset, or -1 if backend doesn`t provide this information
     ///
-    boost::uint64_t rows() const;
+    boost::uint64_t rows() const
+    {
+        return row_.res_->rows();
+    }
 
     ///
     /// Return number of columns in rowset
     ///
-    int columns() const;
+    int columns() const
+    {
+        return row_.res_->cols();
+    }
 
     ///
     /// Get column name by index. Throw invalid_column or error
     ///
-    std::string column_name(int col) const;
+    std::string column_name(int col) const
+    {
+        if (col < 0 || col >= columns())
+            throw invalid_column();
+
+        return row_.res_->column_to_name(col);
+    }
 
     ///
     /// Get column index by name. Throw invalid_column or error
     ///
-    int column_index(const string_ref& n) const;
+    int column_index(const string_ref& n) const
+    {
+        int c = row_.res_->name_to_column(n);
+        if (c < 0)
+            throw invalid_column();
+
+        return c;
+    }
 
     ///
     /// Return column index by name or -1 if column with provided name doesn`t exists
     ///
-    int find_column(const string_ref& name) const;
+    int find_column(const string_ref& name) const
+    {
+        int c = row_.res_->name_to_column(name);
+        if (c < 0)
+            return -1;
+        return c;
+    }
 
 private:
     row row_;
@@ -392,38 +487,6 @@ private:
 };
 
 // -------- rowset_iterator<T> implementation ---------
-
-template<typename T>
-rowset_iterator<T>::rowset_iterator(rowset_type* rs) : rs_(rs)
-{
-    increment();
-}
-
-template<typename T>
-template<typename T1>
-rowset_iterator<T>::rowset_iterator(rowset_iterator<T1> other, typename boost::enable_if< boost::is_convertible<T1*, T*> >::type*)
-    : rs_(other.rs_)
-{
-}
-
-template<typename T>
-boost::tribool rowset_iterator<T>::has_next() const
-{
-    backend::result_iface::next_row nr = rs_->row_.res_->has_next();
-    if (backend::result_iface::next_row_exists == nr)
-        return true;
-    else if (backend::result_iface::last_row_reached == nr)
-        return false;
-    else
-        return boost::tribool();
-}
-
-template<typename T>
-typename rowset_iterator<T>::reference rowset_iterator<T>::dereference() const
-{
-    BOOST_ASSERT(rs_ && "Attempt to dereference end rowset_iterator");
-    return static_cast<T&>(rs_->value_);
-}
 
 // row_iterator::dereference specialization for row. We should not call fetch, instead we just return stored row object;
 template<>
@@ -441,22 +504,6 @@ inline rowset_iterator<const row>::reference rowset_iterator<const row>::derefer
     return rs_->row_;
 }
 
-template<typename T>
-void rowset_iterator<T>::increment()
-{
-    if (!rs_)
-        return;
-
-    if (rs_->row_.res_->next())
-    {
-        rs_->row_.rewind_column();
-        if (!fetch_conversion<mutable_value_type>::fetch(rs_->row_, 0, const_cast<mutable_reference>(rs_->value_)))
-            throw null_value_fetch(rs_->row_.res_->column_to_name(0));
-    }
-    else
-        rs_ = 0;
-}
-
 template<>
 inline void rowset_iterator<row>::increment()
 {
@@ -466,7 +513,7 @@ inline void rowset_iterator<row>::increment()
     if (rs_->row_.res_->next())
         rs_->row_.rewind_column();
     else
-        rs_ = 0;
+        rs_ = 0; 
 }
 
 template<>
@@ -479,107 +526,6 @@ inline void rowset_iterator<const row>::increment()
         rs_->row_.rewind_column();
     else
         rs_ = 0;
-}
-
-template<typename T>
-bool rowset_iterator<T>::equal(rowset_iterator<T> const& other) const
-{
-    return rs_ == other.rs_;
-}
-
-// -------- rowset implementation ---------
-
-template<typename T>
-rowset<T>::rowset(
-    const backend::connection_ptr& conn
-  , const backend::statement_ptr& stmt
-  , const backend::result_ptr& res
-  )
-  : row_(conn, stmt, res)
-  , opened_(false)
-{
-}
-
-template<typename T>
-typename rowset<T>::iterator rowset<T>::begin()
-{
-    if (opened_)
-        throw multiple_rowset_traverse("Impossible to open rowset_iterator twice");
-
-    iterator iter(this);
-    opened_ = true;
-    return iter;
-}
-
-template<typename T>
-typename rowset<T>::const_iterator rowset<T>::begin() const
-{
-    if (opened_)
-        throw multiple_rowset_traverse("Impossible to open rowset_iterator twice");
-
-    const_iterator iter(this);
-    opened_ = true;
-    return iter;
-}
-
-
-template<typename T>
-typename rowset<T>::iterator rowset<T>::end()
-{
-    return iterator();
-}
-
-template<typename T>
-typename rowset<T>::const_iterator rowset<T>::end() const
-{
-    return const_iterator();
-}
-
-template<typename T>
-template<typename T1>
-rowset<T>::operator rowset<T1>() const
-{
-    return rowset<T1>(row_.conn_, row_.stmt_, row_.res_);
-}
-
-template<typename T>
-boost::uint64_t rowset<T>::rows() const
-{
-    return row_.res_->rows();
-}
-
-template<typename T>
-int rowset<T>::columns() const
-{
-    return row_.res_->cols();
-}
-
-template<typename T>
-std::string rowset<T>::column_name(int col) const
-{
-    if (col < 0 || col >= columns())
-        throw invalid_column();
-
-    return row_.res_->column_to_name(col);
-}
-
-template<typename T>
-int rowset<T>::column_index(const string_ref& n) const
-{
-    int c = row_.res_->name_to_column(n);
-    if (c < 0)
-        throw invalid_column();
-
-    return c;
-}
-
-template<typename T>
-int rowset<T>::find_column(const string_ref& name) const
-{
-    int c = row_.res_->name_to_column(name);
-    if (c < 0)
-        return -1;
-    return c;
 }
 
 /// Specialization of fetch_conversion for native types.

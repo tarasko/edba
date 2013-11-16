@@ -175,7 +175,7 @@ void test_string_truncation(session sess)
     {
         rowset<> rs = sess << 
             "~Microsoft SQL Server~select * from ##test1 where vchar10=:txt"
-            "~~select * from ##test1 where vchar10=:txt"
+            "~~select * from test1 where vchar10=:txt"
             << string(15, 't');
 
         BOOST_CHECK(boost::empty(rs));
@@ -184,7 +184,7 @@ void test_string_truncation(session sess)
     {
         rowset<> rs = sess << 
             "~Microsoft SQL Server~select * from ##test1 where vchar10=:txt"
-            "~~select * from ##test1 where vchar10=:txt"
+            "~~select * from test1 where vchar10=:txt"
             << string(5, 't');
 
         BOOST_CHECK(!boost::empty(rs));
@@ -231,7 +231,7 @@ void test_utf8(session sess)
 
     const char* select_query = 
         "~Microsoft SQL Server~select nvchar100, ntxt from ##test1 where id=:id"
-        "~~select * from ##test1 where id=:id";
+        "~~select * from test1 where id=:id";
 
     BOOST_FOREACH(long long id, ids_to_check)
     {
