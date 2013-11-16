@@ -94,6 +94,11 @@ struct statement_stat
 
     void reset_bindings();
 
+    session_stat* parent_stat() const
+    {
+        return session_stat_;
+    }
+
 private:
     /// Parent session statistics object
     session_stat* session_stat_;

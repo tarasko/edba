@@ -701,10 +701,10 @@ public:
         statement_ptr st;
 
         if (sequence.empty() && !cd_->last_insert_id_.empty())
-            st.reset(new statement(cd_, 0, cd_->last_insert_id_, false));
+            st.reset(new statement(cd_, stat_.parent_stat(), cd_->last_insert_id_, false));
         else if (!sequence.empty() && !cd_->sequence_last_.empty())
         {
-            st.reset(new statement(cd_, 0, cd_->sequence_last_, false));
+            st.reset(new statement(cd_, stat_.parent_stat(), cd_->sequence_last_, false));
             st->bind(1, sequence);
         }
         else

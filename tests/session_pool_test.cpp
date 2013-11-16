@@ -82,6 +82,9 @@ void run_pool_test(const char* conn_str)
     tg.join_all();
 
     BOOST_CHECK_LE(total_initialized_sessions, DB_POOL_SIZE);
+
+    BOOST_TEST_MESSAGE(conn_str);
+    BOOST_TEST_MESSAGE("session pool total exec time: " << pool.total_execution_time());
 }
 
 void throw_something(session sess)

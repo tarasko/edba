@@ -39,11 +39,17 @@ public:
     /// If there is no free sessions and max_pool_size limit exceeded then wait until someone will release session.
     ///
     session open();
+    
     ///
     /// Get session from pool or create new one if there is no free sessions and max_pool_size limit is not exceeded.
     /// If there is no free sessions and max_pool_size limit exceeded then return false and leave sess untouched
     ///
     bool try_open(session& sess);
+
+    ///
+    /// Return total time in seconds spent by all session on query and statement execution
+    ///
+    double total_execution_time();
 
 private:
     struct connection_proxy;
@@ -61,6 +67,7 @@ private:
     conn_info conn_info_;
     int conn_left_unopened_;
     session_monitor* sm_;
+    double total_sec_;
 
     conn_init_callback conn_init_callback_;
 
@@ -75,6 +82,7 @@ session_pool::session_pool(Driver driver, const char* conn_string, int max_pool_
     , conn_info_(conn_string)
     , conn_left_unopened_(max_pool_size)
     , sm_(sm)
+    , total_sec_(0.0)
 {
     pool_.reserve(max_pool_size);
 }

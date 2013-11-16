@@ -651,7 +651,7 @@ public:
         query += name;
         query += ".currval from dual";
 
-        statement st(query, envhp_, throw_on_error_.errhp_, svchp_, 0);
+        statement st(query, envhp_, throw_on_error_.errhp_, svchp_, stat_.parent_stat());
         backend::result_ptr res = st.run_query();
         res->next();
         long long id;

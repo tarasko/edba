@@ -77,7 +77,7 @@ public:
     ///
     void run_exec();
 
-private:    
+protected:    
     statement_stat stat_; 
 };
 

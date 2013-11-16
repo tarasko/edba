@@ -6,13 +6,16 @@ namespace edba {
 struct session_pool::connection_proxy : backend::connection_iface
 {
     connection_proxy(session_pool& pool, const backend::connection_ptr& conn) 
-        : pool_(pool), conn_(conn) 
-    {
+      : pool_(pool)
+      , conn_(conn)
+      , exec_time_on_init_(conn->total_execution_time())
+    {        
     }
     
     ~connection_proxy()
     {
         mutex::scoped_lock g(pool_.pool_guard_);
+        pool_.total_sec_ += conn_->total_execution_time() - exec_time_on_init_;
         pool_.pool_.push_back(conn_);
         pool_.pool_max_cv_.notify_one();
     }
@@ -90,6 +93,7 @@ struct session_pool::connection_proxy : backend::connection_iface
 private:
     session_pool& pool_;
     backend::connection_ptr conn_;
+    double exec_time_on_init_;
 };
 
 void session_pool::invoke_on_connect(const conn_init_callback& callback)
@@ -158,6 +162,12 @@ bool session_pool::try_open(session& sess)
         return false;
 
     return true;
+}
+
+double session_pool::total_execution_time()
+{
+    mutex::scoped_lock g(pool_guard_);
+    return total_sec_;
 }
 
 backend::connection_ptr session_pool::create_proxy(const backend::connection_ptr& conn)
