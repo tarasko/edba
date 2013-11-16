@@ -35,6 +35,7 @@ const char* create_test1_table_tpl =
     "   dt datetime, "
     "   dt_small smalldatetime, "
     "   nvchar100 nvarchar(100), "
+    "   vchar10 varchar(10), "
     "   vcharmax varchar(max), "
     "   vbin100 varbinary(100), "
     "   vbinmax varbinary(max), "
@@ -47,6 +48,7 @@ const char* create_test1_table_tpl =
     "   dt text, "
     "   dt_small text, "
     "   nvchar100 nvarchar(100), "
+    "   vchar10 varchar(10), "
     "   vcharmax text, "
     "   vbin100 blob, "
     "   vbinmax blob, "
@@ -59,6 +61,7 @@ const char* create_test1_table_tpl =
     "   dt timestamp, "
     "   dt_small date, "    
     "   nvchar100 nvarchar(100), "
+    "   vchar10 varchar(10), "
     "   vcharmax text, "
     "   vbin100 varbinary(100), "
     "   vbinmax blob, "
@@ -71,6 +74,7 @@ const char* create_test1_table_tpl =
     "   dt timestamp, "
     "   dt_small date, "
     "   nvchar100 varchar(100), "          // postgres don`t have nvarchar
+    "   vchar10 varchar(10), "
     "   vcharmax varchar(15000), "
     "   vbin100 %1%, "
     "   vbinmax %1%, "
@@ -83,6 +87,7 @@ const char* create_test1_table_tpl =
     "   dt timestamp, "
     "   dt_small date, "
     "   nvchar100 nvarchar2(100),  "
+    "   vchar10 varchar2(10), "
     "   vcharmax varchar2(4000), " 
     "   vbin100 raw(100), "
     "   vbinmax blob, "
@@ -101,8 +106,8 @@ const char* insert_test1_data =
     "~";
 
 const char* select_test1_row_where_id = 
-    "~Microsoft SQL Server~select * from ##test1 where id=:id"
-    "~~select * from test1 where id=:id"
+    "~Microsoft SQL Server~select id, num, dt, dt_small, nvchar100, vcharmax, vbin100, vbinmax, txt from ##test1 where id=:id"
+    "~~select id, num, dt, dt_small, nvchar100, vcharmax, vbin100, vbinmax, txt from test1 where id=:id"
     "~";
 
 const char* drop_test1 =
@@ -156,6 +161,37 @@ void test_escaping(session sess)
     }
 }
 
+// Regression case occured with odbc driver
+// Shouldn`t throw exception
+void test_string_truncation(session sess)
+{
+    sess << 
+        "~Microsoft SQL Server~insert into ##test1(vchar10) values(:txt)"
+        "~Oracle~insert into test1(id, vchar10) values(test1_seq_id.nextval, :txt)"
+        "~~insert into test1(vchar10) values(:txt)"
+        << string(5, 't')
+        << exec;
+
+    {
+        rowset<> rs = sess << 
+            "~Microsoft SQL Server~select * from ##test1 where vchar10=:txt"
+            "~~select * from ##test1 where vchar10=:txt"
+            << string(15, 't');
+
+        BOOST_CHECK(boost::empty(rs));
+    }
+
+    {
+        rowset<> rs = sess << 
+            "~Microsoft SQL Server~select * from ##test1 where vchar10=:txt"
+            "~~select * from ##test1 where vchar10=:txt"
+            << string(5, 't');
+
+        BOOST_CHECK(!boost::empty(rs));
+    }
+}
+
+
 void test_utf8(session sess)
 {
     wstring utf16_short = L"Привет Мир ( Hello world )";
@@ -193,18 +229,22 @@ void test_utf8(session sess)
         ids_to_check.push_back(sess.backend() == "oracle" ? st.sequence_last("test1_seq_id") : st.last_insert_id());
     }
 
+    const char* select_query = 
+        "~Microsoft SQL Server~select nvchar100, ntxt from ##test1 where id=:id"
+        "~~select * from ##test1 where id=:id";
+
     BOOST_FOREACH(long long id, ids_to_check)
     {
         string vc;
         string txt;
-        sess << select_test1_row_where_id << id << first_row >> into("nvchar100", vc) >> into("ntxt", txt);
+        sess << select_query << id << first_row >> into("nvchar100", vc) >> into("ntxt", txt);
 
         BOOST_CHECK_EQUAL(utf8_short, vc);
         BOOST_CHECK_EQUAL(utf8_long, txt);
 
         ostringstream vc_ss;
         ostringstream txt_ss;
-        sess << select_test1_row_where_id << id << first_row >> into("nvchar100", vc_ss) >> into("ntxt", txt_ss);
+        sess << select_query << id << first_row >> into("nvchar100", vc_ss) >> into("ntxt", txt_ss);
 
         BOOST_CHECK_EQUAL(utf8_short, vc_ss.str());
         BOOST_CHECK_EQUAL(utf8_long, txt_ss.str());
@@ -471,6 +511,7 @@ void test(const char* conn_string)
         test_transactions_and_cursors(sess);
         test_escaping(sess);
         test_utf8(sess);
+        test_string_truncation(sess);
 
         sess.exec_batch(drop_test1);
     }

@@ -820,20 +820,29 @@ private:
         else
         {
             value.first = value.second.size();
-            size_t column_size = value.second.size();
+            size_t column_size = desc.param_size_;
+            
+            // Mumbo-jumbo with column size
+            // I hate ODBC. Some related docs
+            // http://msdn.microsoft.com/en-us/library/ms711786(v=vs.85).aspx
+
             if(ctype == SQL_C_WCHAR)
-                column_size/=2;
+                column_size = value.second.size()/2;
+            else if(ctype == SQL_C_CHAR)
+                column_size = value.second.size();
+
             if(value.second.empty())
-                column_size=1;
+                column_size = 1;
+
             throw_on_error_("SQLBindParameter") = SQLBindParameter(
                 stmt_.get(),
                 bind_col_,
                 SQL_PARAM_INPUT,
                 ctype,
                 desc.data_type_,
-                desc.param_size_, // COLUMNSIZE
-                desc.decimal_digits_, //  Presision
-                (void*)value.second.c_str(), // string
+                column_size,                    // Column size
+                desc.decimal_digits_,           // Precision
+                (void*)value.second.c_str(),    // string
                 value.second.size(),
                 &value.first);
         }

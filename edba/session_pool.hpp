@@ -5,7 +5,7 @@
 #include <edba/conn_info.hpp>
 
 #include <boost/function.hpp>
-#include <boost/thread/mutex.hpp>
+#include <boost/thread/recursive_mutex.hpp>
 #include <boost/thread/condition_variable.hpp>
 
 namespace edba {
@@ -49,6 +49,7 @@ private:
     struct connection_proxy;
 
     typedef std::vector< backend::connection_ptr > pool_type;
+    typedef boost::mutex mutex;
 
     backend::connection_ptr create_proxy(const backend::connection_ptr& conn);
 
@@ -64,7 +65,7 @@ private:
     conn_init_callback conn_init_callback_;
 
     pool_type pool_;
-    boost::mutex pool_guard_;
+    mutex pool_guard_;
     boost::condition_variable pool_max_cv_;
 };
 

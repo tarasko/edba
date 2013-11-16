@@ -12,7 +12,7 @@ struct session_pool::connection_proxy : backend::connection_iface
     
     ~connection_proxy()
     {
-        boost::mutex::scoped_lock g(pool_.pool_guard_);
+        mutex::scoped_lock g(pool_.pool_guard_);
         pool_.pool_.push_back(conn_);
         pool_.pool_max_cv_.notify_one();
     }
@@ -89,13 +89,13 @@ private:
 
 void session_pool::invoke_on_connect(const conn_init_callback& callback)
 {
-    boost::mutex::scoped_lock g(pool_guard_);
+    mutex::scoped_lock g(pool_guard_);
     conn_init_callback_ = callback;
 }
 
 session session_pool::open()
 {
-    boost::mutex::scoped_lock g(pool_guard_);
+    mutex::scoped_lock g(pool_guard_);
 
     if (!pool_.empty())  // take connection from pool
     {
@@ -106,10 +106,14 @@ session session_pool::open()
     else if (pool_.empty() && conn_left_unopened_) // we can create new connection
     {
         backend::connection_ptr conn = conn_create_callback_(conn_info_, sm_);
-        session sess(create_proxy(conn));
-        if (conn_init_callback_)
-            conn_init_callback_(sess);
 
+        if (conn_init_callback_)
+            // Don`t use proxy wrapper over connection because in case of exception in conn_init_callback_
+            // proxy wrapper will try to lock non-recursive pool mutex, and we will get deadlock.
+            conn_init_callback_(session(conn));
+
+        // Now we can construct session using proxy connection
+        session sess(create_proxy(conn));
         --conn_left_unopened_;
 
         return sess;
@@ -127,7 +131,7 @@ session session_pool::open()
 
 bool session_pool::try_open(session& sess)
 {
-    boost::mutex::scoped_lock g(pool_guard_);
+    mutex::scoped_lock g(pool_guard_);
 
     if (!pool_.empty())  // take connection from pool
     {
@@ -137,10 +141,10 @@ bool session_pool::try_open(session& sess)
     else if (pool_.empty() && conn_left_unopened_) // we can create new connection
     {
         backend::connection_ptr conn = conn_create_callback_(conn_info_, sm_);
-        session tmp(create_proxy(conn));
         if (conn_init_callback_)
-            conn_init_callback_(tmp);
+            conn_init_callback_(session(conn));
 
+        session tmp(create_proxy(conn));
         --conn_left_unopened_;
 
         sess = tmp;
