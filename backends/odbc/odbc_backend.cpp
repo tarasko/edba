@@ -519,11 +519,11 @@ class statement : public backend::bind_by_name_helper, public boost::static_visi
 public:
     statement(
         const common_data* cd
-      , session_monitor* sm
+      , session_stat* stat
       , const string_ref& q
       , bool prepared
       )
-      : backend::bind_by_name_helper(sm, q, backend::question_marker())
+      : backend::bind_by_name_helper(stat, q, backend::question_marker())
       , cd_(cd)
       , prepared_(prepared)
       , throw_on_error_(cd->wide_, 0, SQL_HANDLE_STMT)
@@ -1021,7 +1021,7 @@ public:
 
     statement_ptr real_prepare(const string_ref& q, bool prepared)
     {
-        return boost::intrusive_ptr<statement>(new statement(this, sm_, q, prepared));
+        return boost::intrusive_ptr<statement>(new statement(this, &stat_, q, prepared));
     }
 
     virtual backend::statement_ptr prepare_statement_impl(const string_ref& q)

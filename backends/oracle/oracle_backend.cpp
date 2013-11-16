@@ -510,8 +510,8 @@ private:
 class statement : public backend::statement, public boost::static_visitor<>
 {
 public:
-    statement(const string_ref& query, OCIEnv* envhp, OCIError* errhp, OCISvcCtx* svchp, session_monitor* sm)
-      : backend::statement(sm)
+    statement(const string_ref& query, OCIEnv* envhp, OCIError* errhp, OCISvcCtx* svchp, session_stat* stat)
+      : backend::statement(stat)
       , envhp_(envhp)
       , svchp_(svchp)
       , throw_on_error_(errhp)
@@ -840,7 +840,7 @@ public:
 
     virtual backend::statement_ptr prepare_statement_impl(const string_ref& q)
     {
-        return backend::statement_ptr(new statement(q, envhp_.get(), errhp_.get(), svcp_.get(), sm_));
+        return backend::statement_ptr(new statement(q, envhp_.get(), errhp_.get(), svcp_.get(), &stat_));
     }
 
     virtual backend::statement_ptr create_statement_impl(const string_ref& q)

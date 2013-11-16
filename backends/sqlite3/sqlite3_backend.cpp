@@ -16,18 +16,18 @@
 #include <stdlib.h>
 #include <string.h>
 
-namespace edba { namespace sqlite3_backend {
+namespace edba { namespace backend { namespace sqlite_3 { namespace {
 
-static std::string g_backend_name("sqlite3");
-static std::string g_engine_name("sqlite3");
-static int g_ver_major = (sqlite3_libversion_number() / 1000) % 1000;
-static int g_ver_minor = sqlite3_libversion_number() % 1000;
-static std::string g_description = std::string("SQLite Version ") + sqlite3_libversion();
+std::string g_backend_name("sqlite3");
+std::string g_engine_name("sqlite3");
+int g_ver_major = (sqlite3_libversion_number() / 1000) % 1000;
+int g_ver_minor = sqlite3_libversion_number() % 1000;
+std::string g_description = std::string("SQLite Version ") + sqlite3_libversion();
 
 class result : public backend::result, public boost::static_visitor<>
 {
 public:
-    result(sqlite3_stmt *st,sqlite3 *conn) :
+    result(sqlite3_stmt *st, sqlite3 *conn) :
         st_(st),
         conn_(conn),
         cols_(-1)
@@ -178,8 +178,8 @@ private:
 class statement : public backend::statement, public boost::static_visitor<>
 {
 public:
-    statement(const string_ref& query, sqlite3* conn, session_monitor* sm) :
-        backend::statement(sm),
+    statement(const string_ref& query, sqlite3* conn, session_stat* stat) :
+        backend::statement(stat),
         st_(0),
         conn_(conn),
         reset_(true)
@@ -387,7 +387,7 @@ public:
     }
     virtual backend::statement_ptr prepare_statement_impl(const string_ref& q)
     {
-        return backend::statement_ptr(new statement(q, conn_, sm_));
+        return backend::statement_ptr(new statement(q, conn_, &stat_));
     }
     virtual backend::statement_ptr create_statement_impl(const string_ref& q)
     {
@@ -449,11 +449,11 @@ private:
     sqlite3 *conn_;
 };
 
-}} // edba, sqlite3_backend
+}}}} // edba, backend, sqlite3, anonymous
 
 extern "C" {
     EDBA_DRIVER_API edba::backend::connection *edba_sqlite3_get_connection(const edba::conn_info& cs, edba::session_monitor* sm)
     {
-        return new edba::sqlite3_backend::connection(cs, sm);
+        return new edba::backend::sqlite_3::connection(cs, sm);
     }
 }

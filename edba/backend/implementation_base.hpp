@@ -2,6 +2,7 @@
 #define EDBA_BACKEND_IMPLEMENTATION_BASE_HPP
 
 #include <edba/backend/interfaces.hpp>
+#include <edba/backend/statistics.hpp>
 #include <edba/conn_info.hpp>
 
 #include <vector>
@@ -17,7 +18,7 @@ class result : public result_iface
 class EDBA_API statement : public statement_iface
 {
 protected:
-    statement(session_monitor* sm);
+    statement(session_stat* stat);
 
     ///
     /// Bind variant value to column \a col (starting from 1).
@@ -76,16 +77,8 @@ public:
     ///
     void run_exec();
 
-private:
-    /// Callback for library user to track certain library events. Can be 0.
-    session_monitor* sm_; 
-
-    /// Accumulator for string representation of bounded parameters
-    /// Used in session_monitor calls
-    std::ostringstream bindings_;
-
-    /// Enable bindings object to serialize and record bindings
-    bool enable_recording_;
+private:    
+    statement_stat stat_; 
 };
 
 class EDBA_API connection : public connection_iface 
@@ -173,13 +166,15 @@ public:
     ///
     void rollback();
 
+    double total_execution_time() const;
+
 protected:
     typedef std::vector< std::pair<std::string, statement_ptr > > stmt_map;
 
     void before_destroy();
     string_ref select_statement(const string_ref& _q);
 
-    session_monitor* sm_;                         // Session monitor
+    session_stat stat_;
     stmt_map cache_;                              // Statement cache
     boost::any specific_data_;                    // Connection specific data
     unsigned expand_conditionals_ : 1;            // If true then process query as list of backend specific queries

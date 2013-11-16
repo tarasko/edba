@@ -18,9 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-namespace edba { namespace postgresql_backend {
-
-namespace {
+namespace edba { namespace backend { namespace postgres { namespace {
 
 const std::string g_backend("PgSQL");
 const std::string g_engine("PgSQL");
@@ -45,8 +43,6 @@ struct common_data
 
 void emptyNoticeProcessor(void *, const char *)
 {
-}
-
 }
 
 class pqerror : public edba_error
@@ -277,8 +273,8 @@ public:
         }
     }
 
-    statement(const common_data* data, const string_ref& src_query, unsigned long long prepared_id, session_monitor* sm)
-      : backend::bind_by_name_helper(sm, src_query, backend::postgresql_style_marker())
+    statement(const common_data* data, const string_ref& src_query, unsigned long long prepared_id, session_stat* stat)
+      : backend::bind_by_name_helper(stat, src_query, backend::postgresql_style_marker())
       , data_(data)
       , res_(0)
       , params_values_(bindings_count())
@@ -702,11 +698,11 @@ public:
     }
     virtual backend::statement_ptr prepare_statement_impl(const string_ref& q)
     {
-        return backend::statement_ptr(new statement(this,q,++prepared_id_, sm_));
+        return backend::statement_ptr(new statement(this,q,++prepared_id_, &stat_));
     }
     virtual backend::statement_ptr create_statement_impl(const string_ref& q)
     {
-        return backend::statement_ptr(new statement(this,q,0, sm_));
+        return backend::statement_ptr(new statement(this,q,0, &stat_));
     }
     virtual void exec_batch_impl(const string_ref& q)
     {
@@ -750,12 +746,12 @@ private:
     std::string description_;
 };
 
-}} // namespace edba, postgresql_backend
+}}}} // namespace edba, backend, postgres, anonymous
 
 
 extern "C" {
     EDBA_DRIVER_API edba::backend::connection *edba_postgresql_get_connection(const edba::conn_info& cs, edba::session_monitor* sm)
     {
-        return new edba::postgresql_backend::connection(cs, sm);
+        return new edba::backend::postgres::connection(cs, sm);
     }
 }

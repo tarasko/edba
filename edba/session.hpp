@@ -129,6 +129,11 @@ public:
     ///
     const std::string& description();
 
+    /// 
+    /// Return total time in seconds spent on executing statements and queries
+    ///
+    double total_execution_time() const;
+
     ///
     /// Equality operator
     ///
@@ -252,6 +257,10 @@ inline void session::version(int& major, int& minor)
 inline const std::string& session::description()
 {
     return conn_->description();
+}
+inline double session::total_execution_time() const
+{
+    return conn_->total_execution_time();
 }
 
 }

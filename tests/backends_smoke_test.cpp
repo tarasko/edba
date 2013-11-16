@@ -1,5 +1,3 @@
-#include "monitor.hpp"
-
 #include <edba/edba.hpp>
 #include <edba/types_support/boost_optional.hpp>
 
@@ -29,7 +27,7 @@ const char* oracle_cleanup_tbl = "~Oracle~drop table test1~;";
 
 const char* create_test1_table_tpl = 
     "~Oracle~create sequence test1_seq_id~;"
-    "~Microsoft SQL Server~create table ##test1( "
+    "~Microsoft SQL Server~create table #test1( "
     "   id int identity(1, 1) primary key clustered, "
     "   num numeric(18, 3), "
     "   dt datetime, "
@@ -97,7 +95,7 @@ const char* create_test1_table_tpl =
     "~";
 
 const char* insert_test1_data =
-    "~Microsoft SQL Server~insert into ##test1(num, dt, dt_small, nvchar100, vcharmax, vbin100, vbinmax, txt) "
+    "~Microsoft SQL Server~insert into #test1(num, dt, dt_small, nvchar100, vcharmax, vbin100, vbinmax, txt) "
     "   values(:num, :dt, :dt_small, :nvchar100, :vcharmax, :vbin100, :vbinmax, :txt)"
     "~Oracle~insert into test1(id, num, dt, dt_small, nvchar100, vcharmax, vbin100, vbinmax, txt)"
     "   values(test1_seq_id.nextval, :num, :dt, :dt_small, :nvchar100, :vcharmax, :vbin100, :vbinmax, :txt)"
@@ -106,14 +104,14 @@ const char* insert_test1_data =
     "~";
 
 const char* select_test1_row_where_id = 
-    "~Microsoft SQL Server~select id, num, dt, dt_small, nvchar100, vcharmax, vbin100, vbinmax, txt from ##test1 where id=:id"
+    "~Microsoft SQL Server~select id, num, dt, dt_small, nvchar100, vcharmax, vbin100, vbinmax, txt from #test1 where id=:id"
     "~~select id, num, dt, dt_small, nvchar100, vcharmax, vbin100, vbinmax, txt from test1 where id=:id"
     "~";
 
 const char* drop_test1 =
     "~Oracle~drop sequence test1_seq_id"
     "~Oracle~drop table test1"
-    "~Microsoft SQL Server~drop table ##test1"
+    "~Microsoft SQL Server~drop table #test1"
     "~~drop table test1"
     "~";
 
@@ -166,15 +164,15 @@ void test_escaping(session sess)
 void test_string_truncation(session sess)
 {
     sess << 
-        "~Microsoft SQL Server~insert into ##test1(vchar10) values(:txt)"
-        "~Oracle~insert into test1(id, vchar10) values(test1_seq_id.nextval, :txt)"
-        "~~insert into test1(vchar10) values(:txt)"
+        "~Microsoft SQL Server~insert into #test1(vchar10) values(:vchar10)"
+        "~Oracle~insert into test1(id, vchar10) values(test1_seq_id.nextval, :vchar10)"
+        "~~insert into test1(vchar10) values(:vchar10)"
         << string(5, 't')
         << exec;
 
     {
         rowset<> rs = sess << 
-            "~Microsoft SQL Server~select * from ##test1 where vchar10=:txt"
+            "~Microsoft SQL Server~select * from #test1 where vchar10=:txt"
             "~~select * from test1 where vchar10=:txt"
             << string(15, 't');
 
@@ -183,7 +181,7 @@ void test_string_truncation(session sess)
 
     {
         rowset<> rs = sess << 
-            "~Microsoft SQL Server~select * from ##test1 where vchar10=:txt"
+            "~Microsoft SQL Server~select * from #test1 where vchar10=:txt"
             "~~select * from test1 where vchar10=:txt"
             << string(5, 't');
 
@@ -204,9 +202,9 @@ void test_utf8(session sess)
 
     {
         statement st = sess << 
-            "~Microsoft SQL Server~insert into ##test1(nvchar100, ntxt) values(:short, :long)"
-            "~Oracle~insert into test1(id, nvchar100, ntxt) values(test1_seq_id.nextval, :short, :long)"
-            "~~insert into test1(nvchar100, ntxt) values(:short, :long)"
+            "~Microsoft SQL Server~insert into #test1(nvchar100, ntxt) values(:nvchar100, :ntxt)"
+            "~Oracle~insert into test1(id, nvchar100, ntxt) values(test1_seq_id.nextval, :nvchar100, :ntxt)"
+            "~~insert into test1(nvchar100, ntxt) values(:nvchar100, :ntxt)"
             << utf8_short 
             << utf8_long
             << exec;
@@ -219,9 +217,9 @@ void test_utf8(session sess)
         istringstream oss_utf8_long(utf8_long);
 
         statement st = sess << 
-            "~Microsoft SQL Server~insert into ##test1(nvchar100, ntxt) values(:short, :long)"
-            "~Oracle~insert into test1(id, nvchar100, ntxt) values(test1_seq_id.nextval, :short, :long)"
-            "~~insert into test1(nvchar100, ntxt) values(:short, :long)"
+            "~Microsoft SQL Server~insert into #test1(nvchar100, ntxt) values(:nvchar100, :ntxt)"
+            "~Oracle~insert into test1(id, nvchar100, ntxt) values(test1_seq_id.nextval, :nvchar100, :ntxt)"
+            "~~insert into test1(nvchar100, ntxt) values(:nvchar100, :ntxt)"
             << &oss_utf8_short 
             << &oss_utf8_long
             << exec;
@@ -230,7 +228,7 @@ void test_utf8(session sess)
     }
 
     const char* select_query = 
-        "~Microsoft SQL Server~select nvchar100, ntxt from ##test1 where id=:id"
+        "~Microsoft SQL Server~select nvchar100, ntxt from #test1 where id=:id"
         "~~select * from test1 where id=:id";
 
     BOOST_FOREACH(long long id, ids_to_check)
@@ -254,12 +252,12 @@ void test_utf8(session sess)
 void test_transactions_and_cursors(session sess)
 {
     const char* INSERT_QUERY = 
-        "~Microsoft SQL Server~insert into ##test1(nvchar100, txt) values(:txt, :txt)"
+        "~Microsoft SQL Server~insert into #test1(nvchar100, txt) values(:txt, :txt)"
         "~Oracle~insert into test1(id, nvchar100, txt) values(test1_seq_id.nextval, :txt, :txt)"
         "~~insert into test1(nvchar100, txt) values(:txt, :txt)";
 
     const char* SELECT_QUERY = 
-        "~Microsoft SQL Server~select id, num, dt, dt_small, nvchar100, vcharmax, vbin100, vbinmax, txt from ##test1 where id=:id"
+        "~Microsoft SQL Server~select id, num, dt, dt_small, nvchar100, vcharmax, vbin100, vbinmax, txt from #test1 where id=:id"
         "~~select id, num, dt, dt_small, nvchar100, vcharmax, vbin100, vbinmax, txt from test1 where id=:id"
         "~";
 
@@ -368,8 +366,7 @@ void test(const char* conn_string)
 
         BOOST_TEST_MESSAGE("Run backend test for " << conn_string);
 
-        monitor sm;
-        session sess(Driver(), conn_string, 0);
+        session sess(Driver(), conn_string);
 
         test_incorrect_query(sess);
         test_empty_query(sess);
@@ -468,11 +465,11 @@ void test(const char* conn_string)
         }
 
         sess.exec_batch(
-            "~Microsoft SQL Server~insert into ##test1(num) values(10.2)"
+            "~Microsoft SQL Server~insert into #test1(num) values(10.2)"
             "~Oracle~insert into test1(id, num) values(test1_seq_id.nextval, 10.2)"
             "~~insert into test1(num) values(10.2)"
             "~;"
-            "~Microsoft SQL Server~insert into ##test1(num) values(10.3)"
+            "~Microsoft SQL Server~insert into #test1(num) values(10.3)"
             "~Oracle~insert into test1(id, num) values(test1_seq_id.nextval, 10.3)"
             "~~insert into test1(num) values(10.3)"
             "~");
@@ -480,7 +477,7 @@ void test(const char* conn_string)
         // Try to bind non prepared statement
         // Test once helper 
         sess.once() << 
-            "~Microsoft SQL Server~insert into ##test1(num) values(:num)"
+            "~Microsoft SQL Server~insert into #test1(num) values(:num)"
             "~Oracle~insert into test1(id, num) values(test1_seq_id.nextval, :num)"
             "~~insert into test1(num) values(:num)"
             "~"
@@ -489,7 +486,7 @@ void test(const char* conn_string)
 
         // Exec when part of parameters are nulls
         sess.once() << 
-            "~Microsoft SQL Server~insert into ##test1(num, dt, dt_small) values(:num, :dt, :dt_small)"
+            "~Microsoft SQL Server~insert into #test1(num, dt, dt_small) values(:num, :dt, :dt_small)"
             "~Oracle~insert into test1(id, num, dt, dt_small) values(test1_seq_id.nextval, :num, :dt, :dt_small)"
             "~~insert into test1(num, dt, dt_small) values(:num, :dt, :dt_small)"
             "~"
@@ -501,7 +498,7 @@ void test(const char* conn_string)
         {
             // Regression case: rowset doesn`t support non class types
             rowset<int> rs = sess << 
-                "~Microsoft SQL Server~select id from ##test1"
+                "~Microsoft SQL Server~select id from #test1"
                 "~~select id from test1"
                 "~";
 
@@ -544,7 +541,7 @@ BOOST_AUTO_TEST_CASE(SQLite3)
 
 BOOST_AUTO_TEST_CASE(Postgres)
 {
-    test<edba::driver::postgresql>("user=postgres; password=1; host=" SERVER_IP "; port=5432; dbname=test; @blob=bytea");
+    test<edba::driver::postgresql>("user=postgres; password=1; host=" SERVER_IP "; port=5432; dbname=test;");
 }
 
 BOOST_AUTO_TEST_CASE(PostgresLo)

@@ -40,8 +40,8 @@ class bind_by_name_helper : public statement
 public:
     typedef boost::function<void(std::ostream& os, int col)> print_func_type;
 
-    bind_by_name_helper(session_monitor* sm, const string_ref& sql, const print_func_type& print_func)
-      : statement(sm)
+    bind_by_name_helper(session_stat* st, const string_ref& sql, const print_func_type& print_func)
+      : statement(st)
     {
         std::ostringstream patched_query;
         

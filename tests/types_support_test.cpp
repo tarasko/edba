@@ -45,7 +45,7 @@ void print_test_table(session sess)
     rowset<tuple_type> rs = sess.once() << "select id, dt, txt from test";
 
     BOOST_FOREACH(const tuple_type& t, rs)
-        cout << t << endl;
+        BOOST_TEST_MESSAGE(t);
 }
 
 struct types_support_fixture

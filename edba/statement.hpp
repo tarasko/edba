@@ -125,7 +125,6 @@ public:
     ///
     /// Get the number of affected rows by the last statement, 
     ///
-    ///
     /// If the statement is actually query, the behavior is undefined and may vary between backends.
     ///
     /// Return 0 for empty statements

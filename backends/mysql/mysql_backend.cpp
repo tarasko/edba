@@ -20,7 +20,7 @@
 
 #include <mysql.h>
 
-namespace edba { namespace mysql_backend {
+namespace edba { namespace backend { namespace mysql { namespace {
 
 std::string g_backend_and_engine = "mysql";
 
@@ -223,8 +223,8 @@ private:
 class statement : public backend::bind_by_name_helper, public boost::static_visitor<>
 {
 public:
-    statement(const string_ref& q, MYSQL *conn, session_monitor* sm)
-      : backend::bind_by_name_helper(sm, q, backend::question_marker())
+    statement(const string_ref& q, MYSQL *conn, session_stat* stat)
+      : backend::bind_by_name_helper(stat, q, backend::question_marker())
       , conn_(conn)
       , params_no_(0)
     {
@@ -645,8 +645,8 @@ class statement : public backend::bind_by_name_helper, public boost::static_visi
     };
 
 public:
-    statement(const string_ref& q, MYSQL *conn, session_monitor* sm) :
-        backend::bind_by_name_helper(sm, q, backend::question_marker())
+    statement(const string_ref& q, MYSQL *conn, session_stat* stat) :
+        backend::bind_by_name_helper(stat, q, backend::question_marker())
       , stmt_(0)
       , params_count_(0)
     {
@@ -1037,11 +1037,11 @@ public:
     ///
     virtual backend::statement_ptr prepare_statement_impl(const string_ref& q)
     {
-        return backend::statement_ptr(new prep::statement(q, conn_, sm_));
+        return backend::statement_ptr(new prep::statement(q, conn_, &stat_));
     }
     virtual backend::statement_ptr create_statement_impl(const string_ref& q)
     {
-        return backend::statement_ptr(new unprep::statement(q, conn_, sm_));
+        return backend::statement_ptr(new unprep::statement(q, conn_, &stat_));
     }
     ///
     /// Escape a string for inclusion in SQL query. May throw not_supported_by_backend() if not supported by backend.
@@ -1098,13 +1098,13 @@ private:
     std::string description_;
 };
 
-}} // edba, backend
+}}}} // edba, backend, mysql, anonymous
 
 extern "C" {
 
 EDBA_DRIVER_API edba::backend::connection *edba_mysql_get_connection(const edba::conn_info& cs, edba::session_monitor* sm)
 {
-    return new edba::mysql_backend::connection(cs, sm);
+    return new edba::backend::mysql::connection(cs, sm);
 }
 
 }

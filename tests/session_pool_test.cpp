@@ -19,6 +19,10 @@ boost::atomic<size_t> total_initialized_sessions = 0;
 
 void init_session(session& sess)
 {
+    sess.once() << 
+        "~Microsoft SQL Server~create table #test(txt varchar(20))"
+        "~~create temp table test(txt varchar(20))" << exec;
+
     total_initialized_sessions++;
 }
 
@@ -32,7 +36,7 @@ void thread_proc(session_pool& pool)
             session sess = pool.open();
 
             statement st = sess << 
-                "~Microsoft SQL Server~insert into ##test(txt) values(:val)"
+                "~Microsoft SQL Server~insert into #test(txt) values(:val)"
                 "~~insert into test(txt) values(:val)";
 
             transaction tr(sess);
@@ -45,7 +49,7 @@ void thread_proc(session_pool& pool)
         for (int i = 0; i < 100; ++i)
         {
             rowset<string> rs = pool.open() << 
-                "~Microsoft SQL Server~select txt from ##test"
+                "~Microsoft SQL Server~select txt from #test"
                 "~~select txt from test";
 
             BOOST_FOREACH(const string& s, rs)
@@ -66,9 +70,9 @@ void run_pool_test(const char* conn_str)
     total_initialized_sessions = 0;
     pool.invoke_on_connect(&init_session);
 
-    pool.open().once() << 
-        "~Microsoft SQL Server~create table ##test(txt varchar(20))"
-        "~Sqlite3~create temp table test(txt varchar(20))" << exec;
+    //pool.open().once() << 
+    //    "~Microsoft SQL Server~create table ##test(txt varchar(20))"
+    //    "~~create temp table test(txt varchar(20))" << exec;
 
     // Create 4 worker threads and let them concurrently read from database
     boost::thread_group tg;

@@ -202,6 +202,10 @@ struct connection_iface : public ref_cnt
     /// Get human readable string describing SQL Server, usefull for logging
     ///
     virtual const std::string& description() = 0;
+    ///
+    /// Return total time spent on executing queries and statements
+    ///
+    virtual double total_execution_time() const = 0;
 };
 
 }} // namespace edba, backend

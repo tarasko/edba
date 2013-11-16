@@ -72,6 +72,8 @@ set(sources
   edba/backend/interfaces.hpp
   edba/backend/implementation_base.hpp
   edba/backend/implementation_base.cpp
+  edba/backend/statistics.hpp
+  edba/backend/statistics.cpp
   edba/driver/odbc.hpp
   edba/driver/sqlite3.hpp
   edba/driver/mysql.hpp

@@ -69,125 +69,47 @@ connect_function_type get_connect_function(const char* path, const char* entry_f
     return f;
 }
 
-namespace {
-
-struct dump_to_ostream : boost::static_visitor<>
-{
-    dump_to_ostream(std::ostream& os) : os_(os) {}
-
-    template<typename T>
-    void operator()(const T& v)
-    {
-        os_ << '\'' << v << '\'';
-    }
-
-    void operator()(null_type)
-    {
-        os_ << "(NULL)";
-    }
-
-    void operator()(const std::tm& v)
-    {
-        os_ << '\'' << format_time(v) << '\'';
-    }
-
-    void operator()(std::istream*)
-    {
-        os_ << "(BLOB)";
-    }
-
-private:
-    std::ostream& os_;
-};
-
-}
-
 //////////////
 //statement
 //////////////
 
-statement::statement(session_monitor* sm)
-    : sm_(sm)
-    , enable_recording_(false)
+statement::statement(session_stat* sess_stat)
+  : stat_(sess_stat)
 {
 }
 
 void statement::bind(int col, const bind_types_variant& val)
 {
     bind_impl(col, val);
-    if (sm_)
-    {
-        bindings_ << '[' << col << ", ";
-        dump_to_ostream vis(bindings_);
-        val.apply_visitor(vis);
-        bindings_ << ']';
-    }
+    stat_.bind(col, val);
 }
 
 void statement::bind(const string_ref& name, const bind_types_variant& val)
 {
     bind_impl(name, val);
-    if (sm_)
-    {
-        bindings_ << "['" << name << "', ";
-        dump_to_ostream vis(bindings_);
-        val.apply_visitor(vis);
-        bindings_ << ']';
-    }
+    stat_.bind(name, val);
 }
 
 void statement::bindings_reset()
 {
     bindings_reset_impl();
-    if (sm_)
-        bindings_.str("");
+    stat_.reset_bindings();
 }
 
 result_ptr statement::run_query()
 {
-    if (sm_)
+    result_ptr r;
     {
-        result_ptr r;
-        std::string bindings = bindings_.str();
-        boost::timer t;
-        try 
-        {
-            r = query_impl();
-        }
-        catch(...)
-        {
-            sm_->query_executed(patched_query().c_str(), bindings, false, t.elapsed(), 0);
-            throw;
-        }
-
-        // TODO: Add way to evaluate number of rows
-        sm_->query_executed(patched_query().c_str(), bindings, true, t.elapsed(), r->rows());
-        return r;
+        statement_stat::measure_query m(&stat_, &patched_query(), &r);
+        r = query_impl();
     }
-    else
-        return query_impl();
+    return r;
 }
 
 void statement::run_exec()
 {
-    if (sm_)
-    {
-        std::string bindings = bindings_.str();
-        boost::timer t;
-        try 
-        {
-            exec_impl();
-        }
-        catch(...)
-        {
-            sm_->statement_executed(patched_query().c_str(), bindings, false, t.elapsed(), 0);
-            throw;
-        }
-
-        sm_->statement_executed(patched_query().c_str(), bindings, true, t.elapsed(), affected());
-    }
-    else
-        exec_impl();
+    statement_stat::measure_statement m(&stat_, &patched_query(), this);
+    exec_impl();
 }
 
 //////////////
@@ -272,10 +194,10 @@ boost::any& connection::get_specific()
 void connection::begin()
 {
     begin_impl();
-
-    if(sm_) try 
+    
+    try 
     { 
-        sm_->transaction_started(); 
+        stat_.transaction_started();
     } 
     catch(...)
     {
@@ -286,24 +208,21 @@ void connection::begin()
 void connection::commit()
 {
     commit_impl();
-
-    if(sm_) 
-        sm_->transaction_committed();
+    stat_.transaction_commited();
 }
+
 void connection::rollback()
 {
     rollback_impl();
-
-    if(sm_) try
-    {
-        sm_->transaction_reverted();
-    }
-    catch(...)
-    {
-    }
+    stat_.transaction_reverted();
 }
 
-connection::connection(conn_info const &info, session_monitor* sm) : sm_(sm)
+double connection::total_execution_time() const
+{
+    return stat_.total_execution_time();
+}
+
+connection::connection(conn_info const &info, session_monitor* sm) : stat_(sm)
 {
     const std::locale& loc = std::locale::classic();
     string_ref exp_cond = info.get("@expand_conditionals", "on");
