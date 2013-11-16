@@ -68,7 +68,7 @@ const char* create_test1_table_tpl =
     "   txt text, "
     "   ntxt national varchar(20000)"
     "   ) "
-    "~PgSQL~create temp table test1( "
+    "~PgSQL~create temp table test1( " /*  */
     "   id serial primary key, "
     "   num numeric(18, 3), "
     "   dt timestamp, "

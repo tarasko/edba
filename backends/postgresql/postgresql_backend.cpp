@@ -28,6 +28,10 @@ const std::string g_engine("PgSQL");
 const int BYTEA_IDENTIFIER_TYPE = 17;
 const int OID_IDENTIFIER_TYPE = 26;
 
+void emptyNoticeProcessor(void *, const char *)
+{
+}
+
 }
 
 typedef enum {
@@ -240,6 +244,29 @@ public:
         binary_param
     } param_type;
 
+    static void do_simple_exec(PGconn* conn, char const *s)
+    {
+        PGresult* r = PQexec(conn, s);
+
+        BOOST_SCOPE_EXIT((r))
+        {
+            PQclear(r);
+        } BOOST_SCOPE_EXIT_END
+
+        switch(PQresultStatus(r))
+        {
+        case PGRES_COMMAND_OK:
+        case PGRES_EMPTY_QUERY:
+        case PGRES_TUPLES_OK:
+        case PGRES_COPY_OUT:
+        case PGRES_COPY_IN:
+        case PGRES_NONFATAL_ERROR:
+            break;
+        default:
+            throw pqerror(r, "PQexec failed");
+        }
+    }
+
     statement(PGconn *conn, const string_ref& src_query, blob_type b, unsigned long long prepared_id, session_monitor* sm)
       : backend::bind_by_name_helper(sm, src_query, backend::postgresql_style_marker())
       , res_(0)
@@ -361,14 +388,26 @@ public:
         }
         else
         {
-            Oid id = InvalidOid;
+            Oid oid = InvalidOid;
+
+            // All lob operations should be inside transaction
+            // http://web.archiveorange.com/archive/v/KRdh2pENAWi9JrZH1bke
+            do_simple_exec(conn_, "begin");
+
+            BOOST_SCOPE_EXIT((conn_))
+            {
+                const char* query = std::uncaught_exception() ? "rollback" : "commit";
+                try { do_simple_exec(conn_, query); }
+                catch(...) { }
+            } BOOST_SCOPE_EXIT_END
+
             try
             {
-                id = lo_creat(conn_, INV_READ | INV_WRITE);
-                if(InvalidOid == id)
+                oid = lo_creat(conn_, INV_READ | INV_WRITE);
+                if(InvalidOid == oid)
                     throw pqerror(conn_, "failed to create large object");
 
-                int fd = lo_open(conn_, id, INV_WRITE);
+                int fd = lo_open(conn_, oid, INV_WRITE);
                 if(fd < 0)
                     throw pqerror(conn_, "failed to open large object for writing");
 
@@ -392,11 +431,11 @@ public:
                         break;
                 }
 
-                bind(bind_col_, id);
+                bind(bind_col_, oid);
             }
             catch(...) {
-                if(id != InvalidOid)
-                    lo_unlink(conn_,id);
+                if(oid != InvalidOid)
+                    lo_unlink(conn_, oid);
                 throw;
             }
         }
@@ -612,6 +651,10 @@ public:
             throw;
         }
 
+        // Get rid of spam in stderr.
+        // TODO: Probably it should be forwarded to session monitor
+        PQsetNoticeProcessor(conn_, &emptyNoticeProcessor, 0);
+
         // prepare human readable description
         int major;
         int minor;
@@ -627,41 +670,18 @@ public:
         PQfinish(conn_);
     }
 
-
-    void do_simple_exec(char const *s)
-    {
-        PGresult* r = PQexec(conn_,s);
-
-        BOOST_SCOPE_EXIT((r))
-        {
-            PQclear(r);
-        } BOOST_SCOPE_EXIT_END
-
-        switch(PQresultStatus(r))
-        {
-        case PGRES_COMMAND_OK:
-        case PGRES_EMPTY_QUERY:
-        case PGRES_TUPLES_OK:
-        case PGRES_COPY_OUT:
-        case PGRES_COPY_IN:
-        case PGRES_NONFATAL_ERROR:
-            break;
-        default:
-            throw pqerror(r, "PQexec failed");
-        }
-    }
     virtual void begin_impl()
     {
-        do_simple_exec("begin");
+        statement::do_simple_exec(conn_, "begin");
     }
     virtual void commit_impl()
     {
-        do_simple_exec("commit");
+        statement::do_simple_exec(conn_, "commit");
     }
     virtual void rollback_impl()
     {
         try {
-            do_simple_exec("rollback");
+            statement::do_simple_exec(conn_, "rollback");
         }
         catch(...) {}
     }
@@ -676,12 +696,12 @@ public:
     virtual void exec_batch_impl(const string_ref& q)
     {
         if (expand_conditionals_)
-            do_simple_exec(q.begin());
+            statement::do_simple_exec(conn_, q.begin());
         else
         {
             // copy whole string to make it null terminated :(
             std::string tmp(q.begin(), q.end());
-            do_simple_exec(tmp.c_str());
+            statement::do_simple_exec(conn_, tmp.c_str());
         }
     }
 
