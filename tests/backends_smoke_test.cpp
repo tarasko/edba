@@ -68,7 +68,7 @@ const char* create_test1_table_tpl =
     "   txt text, "
     "   ntxt national varchar(20000)"
     "   ) "
-    "~PgSQL~create temp table test1( " /*  */
+    "~PgSQL~create temp table test1( " /* */
     "   id serial primary key, "
     "   num numeric(18, 3), "
     "   dt timestamp, "
@@ -544,11 +544,11 @@ BOOST_AUTO_TEST_CASE(SQLite3)
 
 BOOST_AUTO_TEST_CASE(Postgres)
 {
-    test<edba::driver::postgresql>("user=postgres; password=1; host=" SERVER_IP "; port=5432; dbname=test");
+    test<edba::driver::postgresql>("user=postgres; password=1; host=" SERVER_IP "; port=5432; dbname=test; @blob=bytea");
 }
 
-BOOST_AUTO_TEST_CASE(PostgresBytea)
+BOOST_AUTO_TEST_CASE(PostgresLo)
 {
-    test<edba::driver::postgresql>("user=postgres; password=1; host=" SERVER_IP "; port=5432; dbname=test; @blob=bytea");
+    test<edba::driver::postgresql>("user=postgres; password=1; host=" SERVER_IP "; port=5432; dbname=test; @blob=lo");
 }
 

@@ -28,16 +28,26 @@ const std::string g_engine("PgSQL");
 const int BYTEA_IDENTIFIER_TYPE = 17;
 const int OID_IDENTIFIER_TYPE = 26;
 
+typedef enum {
+    lo_type,
+    bytea_type
+} blob_type;
+
+/// Data owned by connection object by also required by statement object
+struct common_data
+{
+    common_data() : conn_(0), inside_transaction_(false), blob_(bytea_type) {}
+
+    PGconn* conn_;
+    bool inside_transaction_;
+    blob_type blob_;
+};
+
 void emptyNoticeProcessor(void *, const char *)
 {
 }
 
 }
-
-typedef enum {
-    lo_type,
-    bytea_type
-} blob_type;
 
 class pqerror : public edba_error
 {
@@ -267,11 +277,10 @@ public:
         }
     }
 
-    statement(PGconn *conn, const string_ref& src_query, blob_type b, unsigned long long prepared_id, session_monitor* sm)
+    statement(const common_data* data, const string_ref& src_query, unsigned long long prepared_id, session_monitor* sm)
       : backend::bind_by_name_helper(sm, src_query, backend::postgresql_style_marker())
+      , data_(data)
       , res_(0)
-      , conn_(conn)
-      , blob_(b)
       , params_values_(bindings_count())
       , params_pvalues_(bindings_count(), 0)
       , params_plengths_(bindings_count(), 0)
@@ -285,7 +294,7 @@ public:
             ss << "edba_psqlstmt_" << prepared_id;
             prepared_id_ = ss.str();
 
-            PGresult* r = PQprepare(conn_, prepared_id_.c_str(), patched_query().c_str(), 0, 0);
+            PGresult* r = PQprepare(data_->conn_, prepared_id_.c_str(), patched_query().c_str(), 0, 0);
 
             if(!r)
                 throw pqerror("Failed to create prepared statement object!");
@@ -313,7 +322,7 @@ public:
             if(!prepared_id_.empty())
             {
                 std::string stmt = "DEALLOCATE " + prepared_id_;
-                res_ = PQexec(conn_, stmt.c_str());
+                res_ = PQexec(data_->conn_, stmt.c_str());
 
                 if(res_)
                 {
@@ -379,7 +388,7 @@ public:
 
     void operator()(std::istream* in)
     {
-        if(blob_ == bytea_type)
+        if(data_->blob_ == bytea_type)
         {
             std::ostringstream ss;
             ss << in->rdbuf();
@@ -392,28 +401,32 @@ public:
 
             // All lob operations should be inside transaction
             // http://web.archiveorange.com/archive/v/KRdh2pENAWi9JrZH1bke
-            do_simple_exec(conn_, "begin");
+            if (!data_->inside_transaction_)
+                do_simple_exec(data_->conn_, "begin");
 
-            BOOST_SCOPE_EXIT((conn_))
+            BOOST_SCOPE_EXIT((data_))
             {
-                const char* query = std::uncaught_exception() ? "rollback" : "commit";
-                try { do_simple_exec(conn_, query); }
-                catch(...) { }
+                if (!data_->inside_transaction_)
+                {
+                    const char* query = std::uncaught_exception() ? "rollback" : "commit";
+                    try { do_simple_exec(data_->conn_, query); }
+                    catch(...) { }
+                }
             } BOOST_SCOPE_EXIT_END
 
             try
             {
-                oid = lo_creat(conn_, INV_READ | INV_WRITE);
+                oid = lo_creat(data_->conn_, INV_READ | INV_WRITE);
                 if(InvalidOid == oid)
-                    throw pqerror(conn_, "failed to create large object");
+                    throw pqerror(data_->conn_, "failed to create large object");
 
-                int fd = lo_open(conn_, oid, INV_WRITE);
+                int fd = lo_open(data_->conn_, oid, INV_WRITE);
                 if(fd < 0)
-                    throw pqerror(conn_, "failed to open large object for writing");
+                    throw pqerror(data_->conn_, "failed to open large object for writing");
 
-                BOOST_SCOPE_EXIT((conn_)(fd))
+                BOOST_SCOPE_EXIT((data_)(fd))
                 {
-                    lo_close(conn_, fd);
+                    lo_close(data_->conn_, fd);
                 } BOOST_SCOPE_EXIT_END
 
                 char buf[4096];
@@ -423,9 +436,9 @@ public:
                     std::streamsize bytes_read = in->gcount();
                     if(bytes_read > 0)
                     {
-                        int n = lo_write(conn_, fd, buf, (size_t)bytes_read);
+                        int n = lo_write(data_->conn_, fd, buf, (size_t)bytes_read);
                         if(n < 0)
-                            throw pqerror(conn_,"failed writing to large object");
+                            throw pqerror(data_->conn_, "failed writing to large object");
                     }
                     if(bytes_read < int(sizeof(buf)))
                         break;
@@ -435,7 +448,7 @@ public:
             }
             catch(...) {
                 if(oid != InvalidOid)
-                    lo_unlink(conn_, oid);
+                    lo_unlink(data_->conn_, oid);
                 throw;
             }
         }
@@ -493,7 +506,7 @@ public:
 
         if(prepared_id_.empty()) {
             res_ = PQexecParams(
-                conn_,
+                data_->conn_,
                 patched_query().c_str(),
                 bindings_count(),
                 0, // param types
@@ -505,7 +518,7 @@ public:
         }
         else {
             res_ = PQexecPrepared(
-                conn_,
+                data_->conn_,
                 prepared_id_.c_str(),
                 bindings_count(),
                 pvalues,
@@ -523,7 +536,7 @@ public:
         {
         case PGRES_TUPLES_OK:
         {
-            boost::intrusive_ptr<result> ptr(new result(res_,conn_));
+            boost::intrusive_ptr<result> ptr(new result(res_, data_->conn_));
             res_ = 0;
             return ptr;
         }
@@ -541,7 +554,7 @@ public:
         switch(PQresultStatus(res_))
         {
         case PGRES_TUPLES_OK:
-            throw pqerror("Query used instread of statement");
+            throw pqerror("Query used instead of statement");
             break;
         case PGRES_COMMAND_OK:
             break;
@@ -555,11 +568,11 @@ public:
         long long rowid;
         try {
             if (sequence.empty())
-                res = PQexec( conn_, "SELECT lastval()" );
+                res = PQexec(data_->conn_, "SELECT lastval()");
             else
             {
                 char const * const param_ptr = sequence.c_str();
-                res = PQexecParams(	conn_,
+                res = PQexecParams(data_->conn_,
                     "SELECT currval($1)",
                     1, // 1 param
                     0, // types
@@ -604,10 +617,10 @@ private:
         if(col < 1 || col > int(bindings_count()))
             throw invalid_placeholder();
     }
+
+    const common_data* data_;
     PGresult *res_;
-    PGconn *conn_;
     std::string prepared_id_;
-    blob_type blob_;
 
     std::vector<std::string> params_values_;
     std::vector<char const *> params_pvalues_;
@@ -616,16 +629,15 @@ private:
     int bind_col_;
 };
 
-class connection : public backend::connection
+class connection : public backend::connection, private common_data
 {
 public:
     connection(conn_info const &ci, session_monitor* sm) :
         backend::connection(ci, sm),
-        conn_(0),
         prepared_id_(0)
     {
         std::string pq = ci.pgsql_conn_string();
-        string_ref blob = ci.get("@blob","lo");
+        string_ref blob = ci.get("@blob","bytea");
 
         if(boost::algorithm::iequals(blob, "bytea"))
             blob_ = bytea_type;
@@ -634,15 +646,16 @@ public:
         else
             throw pqerror("@blob property should be either lo or bytea");
 
-        conn_ = 0;
-        try {
+        try 
+        {
             conn_ = PQconnectdb(pq.c_str());
             if(!conn_)
                 throw pqerror("failed to create connection object");
             if(PQstatus(conn_)!=CONNECTION_OK)
                 throw pqerror(conn_, "failed to connect ");
         }
-        catch(...) {
+        catch(...) 
+        {
             if(conn_) {
                 PQfinish(conn_);
                 conn_ = 0;
@@ -662,7 +675,6 @@ public:
         char buf[256];
         EDBA_SNPRINTF(buf, 256, "PostgreSQL version %d.%d, user is '%s'", major, minor, PQuser(conn_));
         description_ = buf;
-
     }
 
     virtual ~connection()
@@ -673,10 +685,12 @@ public:
     virtual void begin_impl()
     {
         statement::do_simple_exec(conn_, "begin");
+        inside_transaction_ = true;
     }
     virtual void commit_impl()
     {
         statement::do_simple_exec(conn_, "commit");
+        inside_transaction_ = false;
     }
     virtual void rollback_impl()
     {
@@ -684,14 +698,15 @@ public:
             statement::do_simple_exec(conn_, "rollback");
         }
         catch(...) {}
+        inside_transaction_ = false;
     }
     virtual backend::statement_ptr prepare_statement_impl(const string_ref& q)
     {
-        return backend::statement_ptr(new statement(conn_,q,blob_,++prepared_id_, sm_));
+        return backend::statement_ptr(new statement(this,q,++prepared_id_, sm_));
     }
     virtual backend::statement_ptr create_statement_impl(const string_ref& q)
     {
-        return backend::statement_ptr(new statement(conn_,q,blob_,0, sm_));
+        return backend::statement_ptr(new statement(this,q,0, sm_));
     }
     virtual void exec_batch_impl(const string_ref& q)
     {
@@ -731,9 +746,7 @@ public:
         return description_;
     }
 private:
-    PGconn *conn_;
     unsigned long long prepared_id_;
-    blob_type blob_;
     std::string description_;
 };
 
