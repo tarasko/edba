@@ -12,8 +12,8 @@
 using namespace std;
 using namespace edba;
 
-const size_t DB_POOL_SIZE = 1;
-const size_t THREAD_POOL_SIZE = 4;
+const size_t DB_POOL_SIZE = 4;
+const size_t THREAD_POOL_SIZE = 8;
 
 boost::atomic<size_t> total_initialized_sessions = 0;
 
@@ -42,7 +42,7 @@ void thread_proc(session_pool& pool)
             tr.commit();
         }
 
-        for (int i = 0; i < 1000; ++i)
+        for (int i = 0; i < 100; ++i)
         {
             rowset<string> rs = pool.open() << 
                 "~Microsoft SQL Server~select txt from ##test"

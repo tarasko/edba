@@ -239,9 +239,12 @@ private:
 
     friend class session;
 
-    int placeholder_;
-    backend::statement_ptr stmt_;
+    // Note that order of members is not random.
+    // It is very important to destroy statement at first and only then connection
+
     backend::connection_ptr conn_;
+    backend::statement_ptr stmt_;
+    int placeholder_;
 };
 
 // ------ statement implementation ------
@@ -253,9 +256,9 @@ inline statement::statement(
     const backend::connection_ptr& conn
   , const backend::statement_ptr& stmt
   ) 
-    : placeholder_(1)
+    : conn_(conn)
     , stmt_(stmt)
-    , conn_(conn)
+    , placeholder_(1)
 {
 }
 inline void statement::reset()

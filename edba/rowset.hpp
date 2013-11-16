@@ -211,9 +211,12 @@ public:
     }
 
 private:
-    backend::result_ptr res_;
-    backend::statement_ptr stmt_;
+    // Note that order of members is not random.
+    // It is very important to destroy result set then statement then connection
+
     backend::connection_ptr conn_;
+    backend::statement_ptr stmt_;
+    backend::result_ptr res_;
     mutable int current_col_;
 };
 
