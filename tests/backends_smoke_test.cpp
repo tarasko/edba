@@ -27,7 +27,7 @@ const char* oracle_cleanup_tbl = "~Oracle~drop table test1~;";
 
 const char* create_test1_table_tpl = 
     "~Oracle~create sequence test1_seq_id~;"
-    "~Microsoft SQL Server~create table #test1( "
+    "~Microsoft SQL Server~create table test1( "
     "   id int identity(1, 1) primary key clustered, "
     "   num numeric(18, 3), "
     "   dt datetime, "
@@ -40,7 +40,7 @@ const char* create_test1_table_tpl =
     "   txt text, "
     "   ntxt ntext"
     "   ) "
-    "~Sqlite3~create temp table test1( "
+    "~Sqlite3~create table test1( "
     "   id integer primary key autoincrement, "
     "   num double, "
     "   dt text, "
@@ -53,7 +53,7 @@ const char* create_test1_table_tpl =
     "   txt text, "
     "   ntxt ntext"
     "   ) "
-    "~Mysql~create temporary table test1( " /*  */
+    "~Mysql~create table test1( " /*  */
     "   id integer AUTO_INCREMENT PRIMARY KEY, "
     "   num numeric(18, 3), "
     "   dt timestamp, "
@@ -66,7 +66,7 @@ const char* create_test1_table_tpl =
     "   txt text, "
     "   ntxt national varchar(20000)"
     "   ) "
-    "~PgSQL~create temp table test1( " /* */
+    "~PgSQL~create table test1( "
     "   id serial primary key, "
     "   num numeric(18, 3), "
     "   dt timestamp, "
@@ -95,46 +95,51 @@ const char* create_test1_table_tpl =
     "~";
 
 const char* insert_test1_data =
-    "~Microsoft SQL Server~insert into #test1(num, dt, dt_small, nvchar100, vcharmax, vbin100, vbinmax, txt) "
-    "   values(:num, :dt, :dt_small, :nvchar100, :vcharmax, :vbin100, :vbinmax, :txt)"
     "~Oracle~insert into test1(id, num, dt, dt_small, nvchar100, vcharmax, vbin100, vbinmax, txt)"
     "   values(test1_seq_id.nextval, :num, :dt, :dt_small, :nvchar100, :vcharmax, :vbin100, :vbinmax, :txt)"
     "~~insert into test1(num, dt, dt_small, nvchar100, vcharmax, vbin100, vbinmax, txt)"
     "   values(:num, :dt, :dt_small, :nvchar100, :vcharmax, :vbin100, :vbinmax, :txt)"
     "~";
 
-const char* select_test1_row_where_id = 
-    "~Microsoft SQL Server~select id, num, dt, dt_small, nvchar100, vcharmax, vbin100, vbinmax, txt from #test1 where id=:id"
-    "~~select id, num, dt, dt_small, nvchar100, vcharmax, vbin100, vbinmax, txt from test1 where id=:id"
-    "~";
+void init_database(const conn_info& ci, session sess)
+{
+    // Cleanup tables created by previous test instances
+    // Oracle may also have indexes
+    try {sess.exec_batch("~Oracle~drop sequence test1_seq_id~;");} catch(...) {}
+    try {sess.exec_batch("drop table test1");} catch(...) {}
 
-const char* drop_test1 =
-    "~Oracle~drop sequence test1_seq_id"
-    "~Oracle~drop table test1"
-    "~Microsoft SQL Server~drop table #test1"
-    "~~drop table test1"
-    "~";
+    const char* postgres_lob_type;
+    if (ci.has("@blob") && boost::iequals(ci.get("@blob"), "bytea"))
+        postgres_lob_type = "bytea";
+    else
+        postgres_lob_type = "oid";
 
-const char* create_test_escaping = 
-    "~Microsoft SQL Server~create table ##test_escaping(txt nvarchar(100))"
-    "~Sqlite3~create temp table test_escaping(txt nvarchar(100)) "
-    "~Mysql~create temporary table test_escaping(txt nvarchar(100))"
-    "~PgSQL~create temp table test_escaping(txt varchar(100))"
-    "~Oracle~create table test_escaping( txt nvarchar2(100) )"
-    "~";
+    std::string create_test1_table = boost::str(boost::format(create_test1_table_tpl) % postgres_lob_type);
 
-const char* insert_into_test_escaping_tpl = 
-    "~Microsoft SQL Server~insert into ##test_escaping(txt) values('%1%')"
-    "~~insert into test_escaping(txt) values('%1%')"
-    "~";
-
-const char* select_from_test_escaping = 
-    "~Microsoft SQL Server~select txt from ##test_escaping"
-    "~~select txt from test_escaping"
-    "~";
+    // Create table
+    sess.exec_batch(create_test1_table);
+}
 
 void test_escaping(session sess)
 {
+    const char* create_test_escaping = 
+        "~Microsoft SQL Server~create table #test_escaping(txt nvarchar(100))"
+        "~Sqlite3~create temp table test_escaping(txt nvarchar(100)) "
+        "~Mysql~create temporary table test_escaping(txt nvarchar(100))"
+        "~PgSQL~create temp table test_escaping(txt varchar(100))"
+        "~Oracle~create table test_escaping( txt nvarchar2(100) )"
+        "~";
+
+    const char* insert_into_test_escaping_tpl = 
+        "~Microsoft SQL Server~insert into #test_escaping(txt) values('%1%')"
+        "~~insert into test_escaping(txt) values('%1%')"
+        "~";
+
+    const char* select_from_test_escaping = 
+        "~Microsoft SQL Server~select txt from #test_escaping"
+        "~~select txt from test_escaping"
+        "~";
+
     try 
     {
         try { sess.once() << "~Oracle~drop table test_escaping~" << exec; } catch(...) {}
@@ -164,7 +169,6 @@ void test_escaping(session sess)
 void test_string_truncation(session sess)
 {
     sess << 
-        "~Microsoft SQL Server~insert into #test1(vchar10) values(:vchar10)"
         "~Oracle~insert into test1(id, vchar10) values(test1_seq_id.nextval, :vchar10)"
         "~~insert into test1(vchar10) values(:vchar10)"
         << string(5, 't')
@@ -172,7 +176,6 @@ void test_string_truncation(session sess)
 
     {
         rowset<> rs = sess << 
-            "~Microsoft SQL Server~select * from #test1 where vchar10=:txt"
             "~~select * from test1 where vchar10=:txt"
             << string(15, 't');
 
@@ -181,7 +184,6 @@ void test_string_truncation(session sess)
 
     {
         rowset<> rs = sess << 
-            "~Microsoft SQL Server~select * from #test1 where vchar10=:txt"
             "~~select * from test1 where vchar10=:txt"
             << string(5, 't');
 
@@ -202,7 +204,6 @@ void test_utf8(session sess)
 
     {
         statement st = sess << 
-            "~Microsoft SQL Server~insert into #test1(nvchar100, ntxt) values(:nvchar100, :ntxt)"
             "~Oracle~insert into test1(id, nvchar100, ntxt) values(test1_seq_id.nextval, :nvchar100, :ntxt)"
             "~~insert into test1(nvchar100, ntxt) values(:nvchar100, :ntxt)"
             << utf8_short 
@@ -226,7 +227,6 @@ void test_utf8(session sess)
         istringstream oss_utf8_long(utf8_long);
 
         statement st = sess << 
-            "~Microsoft SQL Server~insert into #test1(nvchar100, ntxt) values(:nvchar100, :ntxt)"
             "~Oracle~insert into test1(id, nvchar100, ntxt) values(test1_seq_id.nextval, :nvchar100, :ntxt)"
             "~~insert into test1(nvchar100, ntxt) values(:nvchar100, :ntxt)"
             << &oss_utf8_short 
@@ -237,7 +237,6 @@ void test_utf8(session sess)
     }
 
     const char* select_query = 
-        "~Microsoft SQL Server~select nvchar100, ntxt from #test1 where id=:id"
         "~~select * from test1 where id=:id";
 
     BOOST_FOREACH(long long id, ids_to_check)
@@ -261,12 +260,10 @@ void test_utf8(session sess)
 void test_transactions_and_cursors(session sess)
 {
     const char* INSERT_QUERY = 
-        "~Microsoft SQL Server~insert into #test1(nvchar100, txt) values(:txt, :txt)"
         "~Oracle~insert into test1(id, nvchar100, txt) values(test1_seq_id.nextval, :txt, :txt)"
         "~~insert into test1(nvchar100, txt) values(:txt, :txt)";
 
     const char* SELECT_QUERY = 
-        "~Microsoft SQL Server~select id, num, dt, dt_small, nvchar100, vcharmax, vbin100, vbinmax, txt from #test1 where id=:id"
         "~~select id, num, dt, dt_small, nvchar100, vcharmax, vbin100, vbinmax, txt from test1 where id=:id"
         "~";
 
@@ -344,19 +341,6 @@ void test_empty_query(session sess)
 template<typename Driver>
 void test(const char* conn_string)
 {
-    // Workaround for postgres lobs
-    conn_info ci(conn_string);
-    const char* postgres_lob_type;
-    if (ci.has("@blob") && boost::iequals(ci.get("@blob"), "bytea"))
-        postgres_lob_type = "bytea";
-    else
-        postgres_lob_type = "oid";
-
-    std::string oracle_cleanup_seq = "~Oracle~drop sequence test1_seq_id~;";
-    std::string oracle_cleanup_tbl = "~Oracle~drop table test1~;";
-
-    std::string create_test1_table = boost::str(boost::format(create_test1_table_tpl) % postgres_lob_type);
-
     std::string short_binary("binary");
     std::string long_binary(10000, 't');
 
@@ -377,16 +361,10 @@ void test(const char* conn_string)
 
         session sess(Driver(), conn_string);
 
+        init_database(conn_info(conn_string), sess);
+        
         test_incorrect_query(sess);
         test_empty_query(sess);
-
-        // Cleanup previous oracle testing
-        // Oracle don`t have temporary tables
-        try {sess.exec_batch(oracle_cleanup_seq);} catch(...) {}
-        try {sess.exec_batch(oracle_cleanup_tbl);} catch(...) {}
-
-        // Create table
-        sess.exec_batch(create_test1_table);
 
         // Transaction for inserting data. Postgresql backend require explicit transaction if you want to bind blobs.
         long long id;
@@ -449,7 +427,7 @@ void test(const char* conn_string)
         {
             transaction tr(sess);
 
-            row r = sess << select_test1_row_where_id << id << first_row;
+            row r = sess << "select id, num, dt, dt_small, nvchar100, vcharmax, vbin100, vbinmax, txt from test1 where id=:id" << id << first_row;
     
             int id;
             double num;
@@ -474,11 +452,9 @@ void test(const char* conn_string)
         }
 
         sess.exec_batch(
-            "~Microsoft SQL Server~insert into #test1(num) values(10.2)"
             "~Oracle~insert into test1(id, num) values(test1_seq_id.nextval, 10.2)"
             "~~insert into test1(num) values(10.2)"
             "~;"
-            "~Microsoft SQL Server~insert into #test1(num) values(10.3)"
             "~Oracle~insert into test1(id, num) values(test1_seq_id.nextval, 10.3)"
             "~~insert into test1(num) values(10.3)"
             "~");
@@ -486,7 +462,6 @@ void test(const char* conn_string)
         // Try to bind non prepared statement
         // Test once helper 
         sess.once() << 
-            "~Microsoft SQL Server~insert into #test1(num) values(:num)"
             "~Oracle~insert into test1(id, num) values(test1_seq_id.nextval, :num)"
             "~~insert into test1(num) values(:num)"
             "~"
@@ -495,7 +470,6 @@ void test(const char* conn_string)
 
         // Exec when part of parameters are nulls
         sess.once() << 
-            "~Microsoft SQL Server~insert into #test1(num, dt, dt_small) values(:num, :dt, :dt_small)"
             "~Oracle~insert into test1(id, num, dt, dt_small) values(test1_seq_id.nextval, :num, :dt, :dt_small)"
             "~~insert into test1(num, dt, dt_small) values(:num, :dt, :dt_small)"
             "~"
@@ -507,7 +481,6 @@ void test(const char* conn_string)
         {
             // Regression case: rowset doesn`t support non class types
             rowset<int> rs = sess << 
-                "~Microsoft SQL Server~select id from #test1"
                 "~~select id from test1"
                 "~";
 
@@ -518,8 +491,6 @@ void test(const char* conn_string)
         test_escaping(sess);
         test_utf8(sess);
         test_string_truncation(sess);
-
-        sess.exec_batch(drop_test1);
     }
 }
 
