@@ -179,9 +179,7 @@ public:
         return stmt_->affected();
     }
 
-    /// Fetch a single row from the query. Unlike query(), you should not call result::next()
-    /// function as it is already called. You may check if the data was fetched using result::empty()
-    /// function.
+    /// Fetch a single row from the query.
     ///
     /// If the result set consists of more then one row it throws multiple_rows_query exception, however some backends
     /// may ignore this.

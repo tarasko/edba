@@ -20,19 +20,31 @@
 [def __boost_preprocessor__ [@http://www.boost.org/doc/libs/1_54_0/libs/preprocessor/doc/index.html Boost.Preprocessor]]
 [def __boost_mpl__ [@http://www.boost.org/doc/libs/1_54_0/libs/mpl/doc/index.html Boost.MPL]]
 
-[def __sp__			 [classref edba::session_pool session_pool]]
-[def __sp_open__     [memberref edba::session_pool::open session_pool::open]]
-[def __sp_try_open__ [memberref edba::session_pool::try_open session_pool::try_open]]
+[def __sp__			 [classref edba::session_pool]]
+[def __sp_open__     [memberref edba::session_pool::open]]
+[def __sp_try_open__ [memberref edba::session_pool::try_open]]
 
 [def __st_bind__      [memberref edba::statement::bind(int edba::statement::bind]]
 [def __st_bind_null__ [memberref edba::statement::bind(int edba::statement::bind_null]]
+[def __st_query__      [memberref edba::statement::bind(int edba::statement::query]]
+[def __st_first_row__  [memberref edba::statement::first_row]]
+
+[def __rs__			 [classref edba::rowset]]
+[def __rs_begin__    [memberref edba::rowset::begin]]
+
+[def __r__			 [classref edba::row]]
+[def __r_get__		[memberref edba::row::fetch(int edba::statement::get]]
+[def __r_fetch__		[memberref edba::row::fetch(int edba::statement::fetch]]
+
+[def __empty_row_access__  [classref edba::empty_row_access]]
+[def __multiple_rows_query__ [classref edba::multiple_rows_query]]
 
 [section Introduction]
 
 [@https://github.com/tarasko/cppan] library repository page
 [endsect]
 
-[section Tutorial]
+[section:tutorial Tutorial]
 
 [section Hello World]
 Let`s start from simple example
@@ -76,7 +88,7 @@ Represent user "joe" and password "d'eep secret".
 [br]
 There are special keys that used as internal edba options rather then connection options. Such keys are always start with @ symbol. For example: 
 ``
-database=test;user=joe;password='d''eep secret';@use_prepared=off`.
+database=test;user=joe;password='d''eep secret';@use_prepared=off
 ``
 See [link edba.options Connection String Options] section for the list of all edba core and backends options
 
@@ -155,6 +167,93 @@ statement st = sess
 [endsect]
 
 [section Fetching query results]
+The result is represented by __rs__ class. It stores the query result. To execute query, either call 
+__st_query__ function or just convert statement to __rs__
+
+``
+edba::statement st = sess << "SELECT name,age FROM students";
+edba::rowset<> rs = st.query();
+
+// or simply
+edba::rowset<> rs = sess << "SELECT name,age FROM students";
+``
+__rs__ is template class with default argument equal to __r__
+
+``
+template<typename T = row> class rowset { ... };
+``
+
+That means rowset<> is a collection of __r__ objects. Each row object represents fetched tuple in generic way and allows 
+to get particular values using __r_fetch__ and __r_get__ methods. 
+[br]
+__rs__ type implement SinglePassRange concept defined by Boost.Range and thus allows you to iterate rows either using 
+BOOST_FOREACH or C++11 range based for operator.
+
+``
+edba::rowset<> rs = sess << "SELECT name,age FROM students";
+BOOST_FOREACH(row r, rs)  // if C++11, can be for(row r : rs)
+{
+	int id = r.get<int>();  // throws exception if id is null
+	string name;
+	if(!r.fetch(name))      // return false if name is null
+		...
+}
+``
+You may fetch data either sequentally as in example above or by explicitly providing column name or index (starts for 0)
+``
+string name = r.get<string>(1);
+// or
+string name = r.get<string>("name");
+``
+Syntactic sugar is available as well
+``
+int id;
+string name;
+r >> id >> name;
+// or explicitly by index or column name
+r >> into(0, id) >> into("name", name)
+``
+[heading Fetching a Single Row]
+Sometimes it is useful to fetch a single row of data and not iterate over it. 
+This can be done using __st_first_row__ function that works like __st_query__ but also calls __rs_begin__  
+In case when __rs__ is empty or contains multiple rows exceptions will be thrown (__empty_row_access__ or __multiple_rows_query__)
+``
+string name;
+int age;
+edba::rowset<> rs = sess 
+	<< "SELECT name, age FROM students WHERE id=:id" << 10 << edba::first_row >> name >> age;
+``
+[heading Rowset of Different Types]
+You may instantiate __rs__ with any type supported by edba. 
+``
+#include <edba/types_support/std_tuple.hpp> // Enable support for C++11 std::tuple
+
+...
+
+typedef std::tuple<
+	int,          // id
+	std::string,  // name
+	int,          // age
+	double        // gpa
+> student_info;
+
+// Select students with gpa > 4.0
+edba::rowset<student_info> rs = sess << "SELECT id, name, age, gpa FROM students WHERE gpa > :gpa" << 4.0;
+
+// Copy everything to vector
+std::vector<student_info> students(rs.begin(), rs.end());
+
+...
+
+// Now select only 20 years old students
+edba::rowset<int> rs = sess << "SELECT id FROM students WHERE age = :age" << 20;
+
+// Copy everything to vector
+std::vector<int> ids(rs.begin(), rs.end());
+``
+Check [link edba.tutorial.types Extending Types Support] section for more information about supported types and how to make edba 
+understand your application types
+
 [endsect]
 
 [section Using Session Pool]
@@ -166,7 +265,7 @@ statement st = sess
 [section Escaping Strings]
 [endsect]
 
-[section Extending Types Support]
+[section:types Extending Types Support]
 [endsect]
 
 [section Syntax for Database Specific Statements]
