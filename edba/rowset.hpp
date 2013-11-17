@@ -355,7 +355,7 @@ private:
 };
 
 ///
-/// Represent select query result set. Omplements SinglePassRange concept. rowset can be iterated only once. 
+/// Represent select query result set. Implements SinglePassRange concept. rowset can be iterated only once. 
 /// That means when begin has been called once, all subsequent calls to begin will give undefined behavior.
 ///
 template<typename T = row>
