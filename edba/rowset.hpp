@@ -355,8 +355,8 @@ private:
 };
 
 ///
-/// Represent select query result set. Has range interface, implements Single Pass Range concept. rowset can be iterated
-/// only once. That means when begin has been called once, all subsequent calls to begin will give undefined behavior.
+/// Represent select query result set. Omplements SinglePassRange concept. rowset can be iterated only once. 
+/// That means when begin has been called once, all subsequent calls to begin will give undefined behavior.
 ///
 template<typename T = row>
 class rowset : private boost::mpl::if_<boost::is_same<T, row>, null_type, detail::value_holder<T> >::type
