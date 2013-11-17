@@ -489,7 +489,7 @@ public:
     virtual string column_to_name(int col)
     {
         if ((size_t)col >= columns_.size())
-            throw invalid_column();
+            throw invalid_column(col);
 
         return columns_[col].name_;
     }
@@ -559,7 +559,7 @@ public:
         stmt_ = boost::move(stmt);
     }
 
-    virtual void bindings_reset_impl()
+    virtual void reset_bindings_impl()
     {
         // Don`t try to use SQLCloseCursor here because in case when statement cursor is not open, SQLCloseCursor will
         // turn your statement object into invalid state, and further operations will be impossible.

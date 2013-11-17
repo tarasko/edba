@@ -56,7 +56,7 @@ public:
     {
         int c = res_->name_to_column(n);
         if (c < 0)
-            throw invalid_column();
+            throw invalid_column(std::string(n.begin(), n.end()));
 
         res_->is_null(c);
     }
@@ -108,7 +108,7 @@ public:
     {
         int c = res_->name_to_column(n);
         if (c < 0)
-            throw invalid_column();
+            throw invalid_column(std::string(n.begin(), n.end()));
         return fetch(c, v);
     }
 

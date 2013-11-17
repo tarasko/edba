@@ -223,7 +223,7 @@ private:
     void check(int c)
     {
         if(c < 0 || c>= cols_)
-            throw invalid_column();
+            throw invalid_column(c);
     }
 
     bool do_isnull(int col)
@@ -332,7 +332,7 @@ public:
         }
     }
 
-    virtual void bindings_reset_impl()
+    virtual void reset_bindings_impl()
     {
         if(res_)
         {

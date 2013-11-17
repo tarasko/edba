@@ -35,7 +35,7 @@ protected:
     ///
     /// Reset all bindings
     ///
-    virtual void bindings_reset_impl() = 0;
+    virtual void reset_bindings_impl() = 0;
 
     ///
     /// Return SQL Query result, MAY throw edba_error if the statement is not a query
@@ -65,7 +65,7 @@ public:
     ///
     /// Reset all bindings to initial state
     ///
-    void bindings_reset();
+    void reset_bindings();
 
     ///
     /// Return SQL Query result, MAY throw edba_error if the statement is not a query

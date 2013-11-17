@@ -482,7 +482,7 @@ public:
     virtual std::string column_to_name(int col)
     {
         if (col < 0 || (unsigned)col >= columns_size_)
-            throw invalid_column();
+            throw invalid_column(col);
 
         return columns_[col].name_;
     }
@@ -553,7 +553,7 @@ public:
         bind_bounds_.back().name_.assign(name.begin(), name.end());
     }
 
-    virtual void bindings_reset_impl()
+    virtual void reset_bindings_impl()
     {
         bind_bounds_.clear();
         bind_buf_.clear();

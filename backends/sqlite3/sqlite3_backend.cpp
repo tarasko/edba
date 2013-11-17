@@ -58,7 +58,7 @@ public:
     virtual bool fetch(int col, const fetch_types_variant& v)
     {
         if(col < 0 || col >= cols_)
-            throw invalid_column();
+            throw invalid_column(col);
 
         if(sqlite3_column_type(st_,col) == SQLITE_NULL)
             return false;
@@ -121,7 +121,7 @@ public:
     virtual bool is_null(int col)
     {
         if(col < 0 || col >= cols_)
-            throw invalid_column();
+            throw invalid_column(col);
 
         return sqlite3_column_type(st_, col) == SQLITE_NULL;
     }
@@ -157,7 +157,7 @@ public:
     virtual std::string column_to_name(int col)
     {
         if(col < 0 || col >= cols_)
-            throw invalid_column();
+            throw invalid_column(col);
 
         char const *name = sqlite3_column_name(st_,col);
         if(!name) {
@@ -204,7 +204,7 @@ public:
         }
     }
 
-    virtual void bindings_reset_impl()
+    virtual void reset_bindings_impl()
     {
         reset_stat();
         sqlite3_clear_bindings(st_);
@@ -228,7 +228,7 @@ public:
         bind_col_ = sqlite3_bind_parameter_index(st_, name.c_str());
 
         if (!bind_col_)
-            throw invalid_column();
+            throw invalid_column(std::string(_name.begin(), _name.end()));
 
         v.apply_visitor(*this);
     }

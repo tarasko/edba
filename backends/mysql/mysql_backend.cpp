@@ -160,7 +160,7 @@ public:
     virtual std::string column_to_name(int col)
     {
         if(col < 0 || col >=cols_)
-            throw invalid_column();
+            throw invalid_column(col);
         if(!res_)
             throw empty_row_access();
         MYSQL_FIELD *flds=mysql_fetch_fields(res_);
@@ -196,7 +196,7 @@ private:
         if(!res_)
             throw empty_row_access();
         if(col < 0 || col >= cols_)
-            throw invalid_column();
+            throw invalid_column(col);
         return row_[col];
     }
 
@@ -205,7 +205,7 @@ private:
         if(!res_)
             throw empty_row_access();
         if(col < 0 || col >= cols_)
-            throw invalid_column();
+            throw invalid_column(col);
         unsigned long *lengths = mysql_fetch_lengths(res_);
         if(lengths==0)
             throw edba_myerror("Can't get length of column");
@@ -250,7 +250,7 @@ public:
         reset_params();
     }
 
-    virtual void bindings_reset_impl()
+    virtual void reset_bindings_impl()
     {
     }
 
@@ -539,7 +539,7 @@ public:
     virtual std::string column_to_name(int col)
     {
         if(col < 0 || col >=cols_)
-            throw invalid_column();
+            throw invalid_column(col);
         MYSQL_FIELD *flds=mysql_fetch_fields(meta_);
         if(!flds) {
             throw edba_myerror("Internal error empty fileds");
@@ -579,7 +579,7 @@ private:
     bind_data &at(int col)
     {
         if(col < 0 || col >= cols_)
-            throw invalid_column();
+            throw invalid_column(col);
         if(bind_data_.empty())
             throw edba_myerror("Attempt to access data without fetching it first");
         return bind_data_.at(col);
@@ -677,7 +677,7 @@ public:
         mysql_stmt_close(stmt_);
     }
 
-    virtual void bindings_reset_impl()
+    virtual void reset_bindings_impl()
     {
         reset_data();
         mysql_stmt_reset(stmt_);

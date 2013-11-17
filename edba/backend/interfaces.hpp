@@ -97,7 +97,7 @@ struct statement_iface : ref_cnt
     ///
     /// Reset all bindings to initial state
     ///
-    virtual void bindings_reset() = 0;
+    virtual void reset_bindings() = 0;
 
     ///
     /// Return query that is scheduled for execution by backend after all possible transformations

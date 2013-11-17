@@ -90,9 +90,9 @@ void statement::bind(const string_ref& name, const bind_types_variant& val)
     stat_.bind(name, val);
 }
 
-void statement::bindings_reset()
+void statement::reset_bindings()
 {
-    bindings_reset_impl();
+    reset_bindings_impl();
     stat_.reset_bindings();
 }
 
@@ -152,7 +152,7 @@ statement_ptr connection::prepare_statement(const string_ref& _q)
     }
     else
     {
-        found.first->second->bindings_reset();
+        found.first->second->reset_bindings();
         return found.first->second;
     }
 }
