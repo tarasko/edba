@@ -89,6 +89,17 @@ struct error_checker
     OCIError* errhp_;
 };
 
+// Owned by connection object, used by statement and result objects too
+struct common_data
+{
+    common_data() : inside_trans_(false) {}
+
+    oci_handle_env             envhp_;
+    oci_handle_error           errhp_;
+    oci_handle_service_context svcp_;
+    bool                       inside_trans_;
+};
+
 struct column
 {
     std::string name_;
@@ -510,15 +521,14 @@ private:
 class statement : public backend::statement, public boost::static_visitor<>
 {
 public:
-    statement(const string_ref& query, OCIEnv* envhp, OCIError* errhp, OCISvcCtx* svchp, session_stat* stat)
+    statement(const string_ref& query, const common_data* cd, session_stat* stat)
       : backend::statement(stat)
-      , envhp_(envhp)
-      , svchp_(svchp)
-      , throw_on_error_(errhp)
+      , cd_(cd)
+      , throw_on_error_(cd->errhp_.get())
       , query_(query.begin(), query.end())
     {
         throw_on_error_ = OCIStmtPrepare2(
-            svchp_
+            cd_->svcp_.get()
           , stmtp_.ptr()
           , throw_on_error_.errhp_
           , (const OraText*)query.begin()
@@ -577,11 +587,11 @@ public:
     void operator()(const std::tm& v)
     {
         oci_desc_datetime dt;
-        throw_on_error_ = OCIDescriptorAlloc(envhp_, dt.ptr().as_void(), OCI_DTYPE_TIMESTAMP, 0, 0);
+        throw_on_error_ = OCIDescriptorAlloc(cd_->envhp_.get(), dt.ptr().as_void(), OCI_DTYPE_TIMESTAMP, 0, 0);
         dt_holder_.push_back(boost::move(dt));
 
         throw_on_error_ = OCIDateTimeConstruct(
-            envhp_
+            cd_->envhp_.get()
           , throw_on_error_.errhp_
           , dt_holder_.back().get()
           , v.tm_year + 1900
@@ -600,11 +610,11 @@ public:
     void operator()(std::istream* v) 
     {
         oci_desc_lob lob;
-        throw_on_error_ = OCIDescriptorAlloc(envhp_, lob.ptr().as_void(), OCI_DTYPE_LOB, 0, 0);
-        throw_on_error_ = OCILobCreateTemporary(svchp_, throw_on_error_.errhp_, lob.get(), OCI_DEFAULT, OCI_DEFAULT, OCI_TEMP_BLOB, FALSE, OCI_DURATION_STATEMENT);
+        throw_on_error_ = OCIDescriptorAlloc(cd_->envhp_.get(), lob.ptr().as_void(), OCI_DTYPE_LOB, 0, 0);
+        throw_on_error_ = OCILobCreateTemporary(cd_->svcp_.get(), throw_on_error_.errhp_, lob.get(), OCI_DEFAULT, OCI_DEFAULT, OCI_TEMP_BLOB, FALSE, OCI_DURATION_STATEMENT);
         
         ub4 chunk_size;
-        throw_on_error_ = OCILobGetChunkSize(svchp_, throw_on_error_.errhp_, lob.get(), &chunk_size);
+        throw_on_error_ = OCILobGetChunkSize(cd_->svcp_.get(), throw_on_error_.errhp_, lob.get(), &chunk_size);
 
         std::vector<char> buf(chunk_size);
         for(;;) 
@@ -612,7 +622,7 @@ public:
             v->read(&buf[0], buf.size());
             oraub8 bytes_read = static_cast<oraub8>(v->gcount());
             if(bytes_read > 0)
-                throw_on_error_ = OCILobWriteAppend2(svchp_, throw_on_error_.errhp_, lob.get(), &bytes_read, 0, &buf[0], bytes_read, OCI_ONE_PIECE, 0, 0, OCI_DEFAULT, SQLCS_IMPLICIT);
+                throw_on_error_ = OCILobWriteAppend2(cd_->svcp_.get(), throw_on_error_.errhp_, lob.get(), &bytes_read, 0, &buf[0], bytes_read, OCI_ONE_PIECE, 0, 0, OCI_DEFAULT, SQLCS_IMPLICIT);
             
             if(bytes_read < buf.size())
                 break;
@@ -640,9 +650,13 @@ public:
 
         bind_unbinded_params();
 
-        throw_on_error_ = OCIStmtExecute(svchp_, stmtp_.get(), throw_on_error_.errhp_, 0, 0, 0, 0, OCI_STMT_SCROLLABLE_READONLY);
+        throw_on_error_ = OCIStmtExecute(cd_->svcp_.get(), stmtp_.get(), throw_on_error_.errhp_, 0, 0, 0, 0, OCI_STMT_SCROLLABLE_READONLY);
         
-        return backend::result_ptr(new result(envhp_, svchp_, throw_on_error_.errhp_, stmtp_.get()));
+        // emulate auto-commit when we are not inside transaction
+        if (!cd_->inside_trans_)
+            throw_on_error_ = OCITransCommit(cd_->svcp_.get(), throw_on_error_.errhp_, OCI_DEFAULT);
+
+        return backend::result_ptr(new result(cd_->envhp_.get(), cd_->svcp_.get(), throw_on_error_.errhp_, stmtp_.get()));
     }
 
     virtual long long sequence_last(std::string const &name)
@@ -651,7 +665,7 @@ public:
         query += name;
         query += ".currval from dual";
 
-        statement st(query, envhp_, throw_on_error_.errhp_, svchp_, stat_.parent_stat());
+        statement st(query, cd_, stat_.parent_stat());
         backend::result_ptr res = st.run_query();
         res->next();
         long long id;
@@ -667,7 +681,11 @@ public:
 
         bind_unbinded_params();
 
-        throw_on_error_ = OCIStmtExecute(svchp_, stmtp_.get(), throw_on_error_.errhp_, 1, 0, 0, 0, OCI_DEFAULT);
+        throw_on_error_ = OCIStmtExecute(cd_->svcp_.get(), stmtp_.get(), throw_on_error_.errhp_, 1, 0, 0, 0, OCI_DEFAULT);
+
+        // emulate auto-commit when we are not inside transaction
+        if (!cd_->inside_trans_)
+            throw_on_error_ = OCITransCommit(cd_->svcp_.get(), throw_on_error_.errhp_, OCI_DEFAULT);
     }
 
     virtual unsigned long long affected()
@@ -765,8 +783,7 @@ private:
         }
     }
 
-    OCIEnv* envhp_;
-    OCISvcCtx* svchp_;
+    const common_data* cd_;
     oci_handle_statement stmtp_;
     error_checker throw_on_error_;
     std::string query_;
@@ -790,7 +807,7 @@ private:
     int bind_col_;
 };
 
-class connection : public backend::connection 
+class connection : public backend::connection, private common_data
 {
 public:
     connection(const conn_info& ci, session_monitor* si) : backend::connection(ci, si)
@@ -825,22 +842,30 @@ public:
 
     virtual void begin_impl()
     {
-        // throw_on_error_ = OCITransStart(svcp_.get(), errhp_.get(), 0, OCI_TRANS_NEW);
+        // OCI works always in manual commit mode
+        // so we need to emulate auto-commit after each statement not wrapped by transaction,
+        // and stop emulating when begin_impl was explicitly called
+
+        if (inside_trans_)
+            throw edba_error("nested transactions are not supported by oracle backend");
+        inside_trans_ = true;
     }
 
     virtual void commit_impl() 
     {
         throw_on_error_ = OCITransCommit(svcp_.get(), errhp_.get(), OCI_DEFAULT);
+        inside_trans_ = false;
     }
 
     virtual void rollback_impl()
     {
         OCITransRollback(svcp_.get(), errhp_.get(), OCI_DEFAULT); // do not throw exception on error
+        inside_trans_ = false;
     }
 
     virtual backend::statement_ptr prepare_statement_impl(const string_ref& q)
     {
-        return backend::statement_ptr(new statement(q, envhp_.get(), errhp_.get(), svcp_.get(), &stat_));
+        return backend::statement_ptr(new statement(q, this, &stat_));
     }
 
     virtual backend::statement_ptr create_statement_impl(const string_ref& q)
@@ -905,10 +930,6 @@ public:
     }
 
 private:
-    oci_handle_env             envhp_;
-    oci_handle_error           errhp_;
-    oci_handle_service_context svcp_;
-
     error_checker throw_on_error_;
     sword lasterror_;
     std::string description_;

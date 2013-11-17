@@ -212,6 +212,15 @@ void test_utf8(session sess)
         ids_to_check.push_back(sess.backend() == "oracle" ? st.sequence_last("test1_seq_id") : st.last_insert_id());
     }
 
+    // Oracle require explicit specification which type we going to bind: BLOB or CLOB, 
+    // istreams in oracle backend are always bound as BLOBs, that is why you can`t bind to anything except blob columns 
+    // in database. Actually the same problem we have with odbc drivers that don`t support SQLDescribeParam. 
+    // Fortunally MSSQL driver support it.
+    // 
+    // Check this issue 
+    // https://github.com/tarasko/edba/issues/13
+    // May be you want to help and implement it?
+    if (sess.backend() != "oracle")
     {
         istringstream oss_utf8_short(utf8_short);
         istringstream oss_utf8_long(utf8_long);
