@@ -349,7 +349,7 @@ private:
     std::string &at(int col)
     {
         if(col < 1 || col > params_no_)
-            throw invalid_placeholder();
+            throw invalid_column(col-1);
 
         return params_[col-1];
     }
@@ -789,7 +789,7 @@ private:
     param &at(int col)
     {
         if(col < 1 || col > params_count_)
-            throw invalid_placeholder();
+            throw invalid_column(col - 1);
         return params_[col-1];
     }
 

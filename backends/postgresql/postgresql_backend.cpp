@@ -611,7 +611,7 @@ private:
     void check(int col)
     {
         if(col < 1 || col > int(bindings_count()))
-            throw invalid_placeholder();
+            throw invalid_column(col - 1);
     }
 
     const common_data* data_;

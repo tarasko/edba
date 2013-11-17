@@ -23,7 +23,7 @@ protected:
     ///
     /// Bind variant value to column \a col (starting from 1).
     ///
-    /// Should throw invalid_placeholder() if the value of col is out of range. May
+    /// Should throw invalid_column() if the value of col is out of range. May
     /// ignore if it is impossible to know whether the placeholder exists without special
     /// support from back-end.
     ///

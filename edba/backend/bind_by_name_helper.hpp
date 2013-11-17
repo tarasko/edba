@@ -96,7 +96,7 @@ private:
         BOOST_AUTO(iter_pair, boost::equal_range(name_map_, name, string_ref_less()));
 
         if (boost::empty(iter_pair))
-            throw invalid_placeholder();
+            throw invalid_column(std::string(name.begin(), name.end()));
 
         BOOST_FOREACH(const name_map_type::value_type& entry, iter_pair)
             bind_impl(entry.second, v);

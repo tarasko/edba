@@ -319,7 +319,7 @@ private:
     void check_bind(int v)
     {
         if(v==SQLITE_RANGE) {
-            throw invalid_placeholder();
+            throw invalid_column(bind_col_);
         }
         if(v!=SQLITE_OK) {
             throw edba_error(sqlite3_errmsg(conn_));

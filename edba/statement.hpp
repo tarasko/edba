@@ -42,7 +42,7 @@ public:
     ///
     /// Placeholders are marked as ':placeholdername' in the query.
     /// If placeholder index is higher then the number placeholders is the statement it
-    /// may throw invalid_placeholder exception.
+    /// may throw invalid_column exception.
     ///
     /// If placeholder was not binded the behavior is undefined and may vary between different backends.
     ///
@@ -60,7 +60,7 @@ public:
     ///
     /// Placeholders are marked as ':placeholdername' in the query.
     /// If placeholder index is higher then the number placeholders is the statement it
-    /// may throw invalid_placeholder exception.
+    /// may throw invalid_column exception.
     ///
     /// If placeholder was not binded the behavior is undefined and may vary between different backends.
     ///
@@ -76,7 +76,7 @@ public:
     /// Bind a value \a v to the placeholder by name.
     ///
     /// Placeholders are marked as ':placeholdername' in the query.
-    /// If placeholder name is invalid then it may throw invalid_placeholder exception
+    /// If placeholder name is invalid then it may throw invalid_column exception
     ///
     /// If placeholder was not binded the behavior is undefined and may vary between different backends.
     ///
@@ -93,7 +93,7 @@ public:
     /// Bind a value \a v to the placeholder by name.
     ///
     /// Placeholders are marked as ':placeholdername' in the query.
-    /// If placeholder name is invalid then it may throw invalid_placeholder exception
+    /// If placeholder name is invalid then it may throw invalid_column exception
     ///
     /// If placeholder was not binded the behavior is undefined and may vary between different backends.
     ///
@@ -110,7 +110,7 @@ public:
     ///
     /// Placeholders are marked as ':placeholdername' in the query.
     /// If number of calls is higher then the number placeholders is the statement it
-    /// may throw invalid_placeholder exception.
+    /// may throw invalid_column exception.
     ///
     /// If placeholder was not binded the behavior is undefined and may vary between different backends.
     ///

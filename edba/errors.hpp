@@ -54,21 +54,12 @@ class invalid_column : public edba_error
 {
 public:
     invalid_column(const std::string& name) 
-      : edba_error("edba::invalid_column attempt access by invalid column name: " + name)
+      : edba_error("edba::invalid_column attempt to bind or fetch by invalid column name: " + name)
     {
     }
 
     invalid_column(const int& col) 
-      : edba_error("edba::invalid_column attempt access by invalid column index " + boost::lexical_cast<std::string>(col))
-    {
-    }
-};
-
-/// \brief trying to fetch a value using invalid placeholder
-class invalid_placeholder : public edba_error 
-{
-public:
-    invalid_placeholder() : edba_error("edba::invalid_placeholder attempt bind to invalid placeholder")
+      : edba_error("edba::invalid_column attempt to bind or fetch by invalid column index " + boost::lexical_cast<std::string>(col))
     {
     }
 };

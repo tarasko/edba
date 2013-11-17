@@ -411,7 +411,7 @@ public:
     void operator()(std::tm* v)
     {
         if (SQLT_DAT != columns_[fetch_col_].type_)
-            throw invalid_placeholder();
+            throw invalid_column(fetch_col_);
 
         oci_desc_datetime dt;
         throw_on_error_ = OCIDescriptorAlloc(envhp_, dt.ptr().as_void(), OCI_DTYPE_TIMESTAMP, 0, 0);

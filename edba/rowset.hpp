@@ -453,7 +453,7 @@ public:
     std::string column_name(int col) const
     {
         if (col < 0 || col >= columns())
-            throw invalid_column();
+            throw invalid_column(col);
 
         return row_.res_->column_to_name(col);
     }
@@ -465,7 +465,7 @@ public:
     {
         int c = row_.res_->name_to_column(n);
         if (c < 0)
-            throw invalid_column();
+            throw invalid_column(std::string(n.begin(), n.end()));
 
         return c;
     }
