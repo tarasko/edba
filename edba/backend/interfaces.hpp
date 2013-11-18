@@ -186,6 +186,7 @@ struct connection_iface : public ref_cnt
     /// Escape a string for inclusion in SQL query. May throw not_supported_by_backend() if not supported by backend.
     ///
     virtual std::string escape(const string_ref& str) = 0;
+
     ///
     /// Get the name of the edba backend, for example sqlite3, odbc
     ///
@@ -206,6 +207,10 @@ struct connection_iface : public ref_cnt
     /// Return total time spent on executing queries and statements
     ///
     virtual double total_execution_time() const = 0;
+    ///
+    /// Return conn_info object provided for connection during construction
+    ///
+    virtual const conn_info& connection_info() const = 0;
 };
 
 }} // namespace edba, backend

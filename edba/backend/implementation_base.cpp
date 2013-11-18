@@ -222,7 +222,14 @@ double connection::total_execution_time() const
     return stat_.total_execution_time();
 }
 
-connection::connection(conn_info const &info, session_monitor* sm) : stat_(sm)
+const conn_info& connection::connection_info() const
+{
+    return info_;
+}
+
+connection::connection(conn_info const &info, session_monitor* sm) 
+  : info_(info)
+  , stat_(sm)
 {
     const std::locale& loc = std::locale::classic();
     string_ref exp_cond = info.get("@expand_conditionals", "on");

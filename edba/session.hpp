@@ -220,6 +220,14 @@ public:
         return conn_->total_execution_time();
     }
     
+    const conn_info& connection_info() const
+    {
+        if (!conn_)
+            throw empty_session("connection_info");
+
+        return conn_->connection_info();
+    }
+
     /// Equality operator
     friend bool operator==(const session& s1, const session& s2)
     {

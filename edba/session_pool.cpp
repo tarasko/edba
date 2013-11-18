@@ -90,6 +90,11 @@ struct session_pool::connection_proxy : backend::connection_iface
         return conn_->total_execution_time();
     }
 
+    virtual const conn_info& connection_info() const
+    {
+        return conn_->connection_info();
+    }
+
 private:
     session_pool& pool_;
     backend::connection_ptr conn_;

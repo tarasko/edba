@@ -151,22 +151,12 @@ public:
 
     // API 
 
-    ///
-    /// Start new isolated transaction. Would not be called
-    /// withing other transaction on current connection.
-    ///
     void begin();
-    ///
-    /// Commit the transaction, you may assume that is called after begin()
-    /// was called.
-    ///
     void commit();
-    ///
-    /// Rollback the transaction. MUST never throw!!!
-    ///
     void rollback();
 
     double total_execution_time() const;
+    const conn_info& connection_info() const;
 
 protected:
     typedef std::vector< std::pair<std::string, statement_ptr > > stmt_map;
@@ -174,6 +164,7 @@ protected:
     void before_destroy();
     string_ref select_statement(const string_ref& _q);
 
+    conn_info info_;
     session_stat stat_;
     stmt_map cache_;                              // Statement cache
     boost::any specific_data_;                    // Connection specific data

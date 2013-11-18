@@ -109,10 +109,10 @@ void init_database(const conn_info& ci, session sess)
     try {sess.exec_batch("drop table test1");} catch(...) {}
 
     const char* postgres_lob_type;
-    if (ci.has("@blob") && boost::iequals(ci.get("@blob"), "bytea"))
-        postgres_lob_type = "bytea";
-    else
+    if (ci.has("@blob") && boost::iequals(ci.get("@blob"), "lo"))
         postgres_lob_type = "oid";
+    else
+        postgres_lob_type = "bytea";
 
     std::string create_test1_table = boost::str(boost::format(create_test1_table_tpl) % postgres_lob_type);
 
@@ -213,6 +213,10 @@ void test_utf8(session sess)
         ids_to_check.push_back(sess.backend() == "oracle" ? st.sequence_last("test1_seq_id") : st.last_insert_id());
     }
 
+    bool postgres_with_lo = sess.backend() == "PgSQL" && 
+        sess.connection_info().has("@blob") && 
+        sess.connection_info().get("@blob") == string("lo");
+
     // Oracle require explicit specification which type we going to bind: BLOB or CLOB, 
     // istreams in oracle backend are always bound as BLOBs, that is why you can`t bind to anything except blob columns 
     // in database. Actually the same problem we have with odbc drivers that don`t support SQLDescribeParam. 
@@ -221,7 +225,7 @@ void test_utf8(session sess)
     // Check this issue 
     // https://github.com/tarasko/edba/issues/13
     // May be you want to help and implement it?
-    if (sess.backend() != "oracle")
+    if (sess.backend() != "oracle" && !postgres_with_lo)
     {
         istringstream oss_utf8_short(utf8_short);
         istringstream oss_utf8_long(utf8_long);
