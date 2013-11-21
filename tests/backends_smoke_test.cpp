@@ -25,7 +25,7 @@ using namespace edba;
 const char* oracle_cleanup_seq = "~Oracle~drop sequence test1_seq_id~;";
 const char* oracle_cleanup_tbl = "~Oracle~drop table test1~;";
 
-const char* create_test1_table_tpl = 
+const char* create_test1_table_tpl =
     "~Oracle~create sequence test1_seq_id~;"
     "~Microsoft SQL Server~create table test1( "
     "   id int identity(1, 1) primary key clustered, "
@@ -57,7 +57,7 @@ const char* create_test1_table_tpl =
     "   id integer AUTO_INCREMENT PRIMARY KEY, "
     "   num numeric(18, 3), "
     "   dt timestamp, "
-    "   dt_small date, "    
+    "   dt_small date, "
     "   nvchar100 nvarchar(100), "
     "   vchar10 varchar(10), "
     "   vcharmax text, "
@@ -86,7 +86,7 @@ const char* create_test1_table_tpl =
     "   dt_small date, "
     "   nvchar100 nvarchar2(100),  "
     "   vchar10 varchar2(10), "
-    "   vcharmax varchar2(4000), " 
+    "   vcharmax varchar2(4000), "
     "   vbin100 raw(100), "
     "   vbinmax blob, "
     "   txt clob, "
@@ -122,7 +122,7 @@ void init_database(const conn_info& ci, session sess)
 
 void test_escaping(session sess)
 {
-    const char* create_test_escaping = 
+    const char* create_test_escaping =
         "~Microsoft SQL Server~create table #test_escaping(txt nvarchar(100))"
         "~Sqlite3~create temp table test_escaping(txt nvarchar(100)) "
         "~Mysql~create temporary table test_escaping(txt nvarchar(100))"
@@ -130,17 +130,17 @@ void test_escaping(session sess)
         "~Oracle~create table test_escaping( txt nvarchar2(100) )"
         "~";
 
-    const char* insert_into_test_escaping_tpl = 
+    const char* insert_into_test_escaping_tpl =
         "~Microsoft SQL Server~insert into #test_escaping(txt) values('%1%')"
         "~~insert into test_escaping(txt) values('%1%')"
         "~";
 
-    const char* select_from_test_escaping = 
+    const char* select_from_test_escaping =
         "~Microsoft SQL Server~select txt from #test_escaping"
         "~~select txt from test_escaping"
         "~";
 
-    try 
+    try
     {
         try { sess.once() << "~Oracle~drop table test_escaping~" << exec; } catch(...) {}
 
@@ -168,14 +168,14 @@ void test_escaping(session sess)
 // Shouldn`t throw exception
 void test_string_truncation(session sess)
 {
-    sess << 
+    sess <<
         "~Oracle~insert into test1(id, vchar10) values(test1_seq_id.nextval, :vchar10)"
         "~~insert into test1(vchar10) values(:vchar10)"
         << string(5, 't')
         << exec;
 
     {
-        rowset<> rs = sess << 
+        rowset<> rs = sess <<
             "~~select * from test1 where vchar10=:txt"
             << string(15, 't');
 
@@ -183,7 +183,7 @@ void test_string_truncation(session sess)
     }
 
     {
-        rowset<> rs = sess << 
+        rowset<> rs = sess <<
             "~~select * from test1 where vchar10=:txt"
             << string(5, 't');
 
@@ -197,32 +197,32 @@ void test_utf8(session sess)
     wstring utf16_short = L"Привет Мир ( Hello world )";
     string utf8_short = boost::locale::conv::utf_to_utf<char>(utf16_short);
 
-    wstring utf16_long(L'Т', 20000);
+    wstring utf16_long(L'р', 20000);
     string utf8_long = boost::locale::conv::utf_to_utf<char>(utf16_long);
 
     vector<long long> ids_to_check;
 
     {
-        statement st = sess << 
+        statement st = sess <<
             "~Oracle~insert into test1(id, nvchar100, ntxt) values(test1_seq_id.nextval, :nvchar100, :ntxt)"
             "~~insert into test1(nvchar100, ntxt) values(:nvchar100, :ntxt)"
-            << utf8_short 
+            << utf8_short
             << utf8_long
             << exec;
-    
+
         ids_to_check.push_back(sess.backend() == "oracle" ? st.sequence_last("test1_seq_id") : st.last_insert_id());
     }
 
-    bool postgres_with_lo = sess.backend() == "PgSQL" && 
-        sess.connection_info().has("@blob") && 
+    bool postgres_with_lo = sess.backend() == "PgSQL" &&
+        sess.connection_info().has("@blob") &&
         sess.connection_info().get("@blob") == string("lo");
 
-    // Oracle require explicit specification which type we going to bind: BLOB or CLOB, 
-    // istreams in oracle backend are always bound as BLOBs, that is why you can`t bind to anything except blob columns 
-    // in database. Actually the same problem we have with odbc drivers that don`t support SQLDescribeParam. 
+    // Oracle require explicit specification which type we going to bind: BLOB or CLOB,
+    // istreams in oracle backend are always bound as BLOBs, that is why you can`t bind to anything except blob columns
+    // in database. Actually the same problem we have with odbc drivers that don`t support SQLDescribeParam.
     // Fortunally MSSQL driver support it.
-    // 
-    // Check this issue 
+    //
+    // Check this issue
     // https://github.com/tarasko/edba/issues/13
     // May be you want to help and implement it?
     if (sess.backend() != "oracle" && !postgres_with_lo)
@@ -230,17 +230,17 @@ void test_utf8(session sess)
         istringstream oss_utf8_short(utf8_short);
         istringstream oss_utf8_long(utf8_long);
 
-        statement st = sess << 
+        statement st = sess <<
             "~Oracle~insert into test1(id, nvchar100, ntxt) values(test1_seq_id.nextval, :nvchar100, :ntxt)"
             "~~insert into test1(nvchar100, ntxt) values(:nvchar100, :ntxt)"
-            << &oss_utf8_short 
+            << &oss_utf8_short
             << &oss_utf8_long
             << exec;
 
         ids_to_check.push_back(sess.backend() == "oracle" ? st.sequence_last("test1_seq_id") : st.last_insert_id());
     }
 
-    const char* select_query = 
+    const char* select_query =
         "~~select * from test1 where id=:id";
 
     BOOST_FOREACH(long long id, ids_to_check)
@@ -263,11 +263,11 @@ void test_utf8(session sess)
 
 void test_transactions_and_cursors(session sess)
 {
-    const char* INSERT_QUERY = 
+    const char* INSERT_QUERY =
         "~Oracle~insert into test1(id, nvchar100, txt) values(test1_seq_id.nextval, :txt, :txt)"
         "~~insert into test1(nvchar100, txt) values(:txt, :txt)";
 
-    const char* SELECT_QUERY = 
+    const char* SELECT_QUERY =
         "~~select id, num, dt, dt_small, nvchar100, vcharmax, vbin100, vbinmax, txt from test1 where id=:id"
         "~";
 
@@ -366,7 +366,7 @@ void test(const char* conn_string)
         session sess(Driver(), conn_string);
 
         init_database(conn_info(conn_string), sess);
-        
+
         test_incorrect_query(sess);
         test_empty_query(sess);
 
@@ -375,12 +375,12 @@ void test(const char* conn_string)
         {
             transaction tr(sess);
 
-            // Compile statement for inserting data 
+            // Compile statement for inserting data
             statement st = sess << insert_test1_data;
 
             // Exec when part of parameters are nulls
             st << reset
-                << 10.10 
+                << 10.10
                 << null
                 << *std::gmtime(&now)
                 << null
@@ -392,9 +392,9 @@ void test(const char* conn_string)
 
             // Bind data to statement and execute two times
             st << reset
-                << use("num", 10.10) 
-                << use("dt", *std::gmtime(&now)) 
-                << use("dt_small", *std::gmtime(&now)) 
+                << use("num", 10.10)
+                << use("dt", *std::gmtime(&now))
+                << use("dt_small", *std::gmtime(&now))
                 << use("nvchar100", "Hello!")
                 << use("vcharmax", "Hello! max")
                 << use("vbin100", &short_binary_stream)
@@ -410,7 +410,7 @@ void test(const char* conn_string)
 
             // Exec with all null types
             st << reset
-               << null 
+               << null
                << null
                << null
                << null
@@ -432,7 +432,7 @@ void test(const char* conn_string)
             transaction tr(sess);
 
             row r = sess << "select id, num, dt, dt_small, nvchar100, vcharmax, vbin100, vbinmax, txt from test1 where id=:id" << id << first_row;
-    
+
             int id;
             double num;
             std::tm tm1, tm2;
@@ -464,16 +464,16 @@ void test(const char* conn_string)
             "~");
 
         // Try to bind non prepared statement
-        // Test once helper 
-        sess.once() << 
+        // Test once helper
+        sess.once() <<
             "~Oracle~insert into test1(id, num) values(test1_seq_id.nextval, :num)"
             "~~insert into test1(num) values(:num)"
             "~"
-            << use("num", 10.5) 
+            << use("num", 10.5)
             << exec;
 
         // Exec when part of parameters are nulls
-        sess.once() << 
+        sess.once() <<
             "~Oracle~insert into test1(id, num, dt, dt_small) values(test1_seq_id.nextval, :num, :dt, :dt_small)"
             "~~insert into test1(num, dt, dt_small) values(:num, :dt, :dt_small)"
             "~"
@@ -484,7 +484,7 @@ void test(const char* conn_string)
 
         {
             // Regression case: rowset doesn`t support non class types
-            rowset<int> rs = sess << 
+            rowset<int> rs = sess <<
                 "~~select id from test1"
                 "~";
 

@@ -17,7 +17,7 @@ class EDBA_API session_pool
 {
 public:
     typedef boost::function<backend::connection_ptr(const conn_info& ci, session_monitor* sm)> conn_create_callback;
-    typedef boost::function<void(session&)> conn_init_callback;
+    typedef boost::function<void(session)> conn_init_callback;
 
     ///
     /// Construct pool of session with max limit.
@@ -39,7 +39,7 @@ public:
     /// If there is no free sessions and max_pool_size limit exceeded then wait until someone will release session.
     ///
     session open();
-    
+
     ///
     /// Get session from pool or create new one if there is no free sessions and max_pool_size limit is not exceeded.
     /// If there is no free sessions and max_pool_size limit exceeded then return false and leave sess untouched

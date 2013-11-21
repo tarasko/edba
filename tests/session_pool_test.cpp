@@ -15,11 +15,11 @@ using namespace edba;
 const size_t DB_POOL_SIZE = 4;
 const size_t THREAD_POOL_SIZE = 8;
 
-boost::atomic<size_t> total_initialized_sessions = 0;
+boost::atomic<size_t> total_initialized_sessions(size_t(0));
 
 void init_session(session& sess)
 {
-    sess.once() << 
+    sess.once() <<
         "~Microsoft SQL Server~create table #test(txt varchar(20))"
         "~~create temp table test(txt varchar(20))" << exec;
 
@@ -35,7 +35,7 @@ void thread_proc(session_pool& pool)
         {
             session sess = pool.open();
 
-            statement st = sess << 
+            statement st = sess <<
                 "~Microsoft SQL Server~insert into #test(txt) values(:val)"
                 "~~insert into test(txt) values(:val)";
 
@@ -48,7 +48,7 @@ void thread_proc(session_pool& pool)
 
         for (int i = 0; i < 100; ++i)
         {
-            rowset<string> rs = pool.open() << 
+            rowset<string> rs = pool.open() <<
                 "~Microsoft SQL Server~select txt from #test"
                 "~~select txt from test";
 
@@ -70,7 +70,7 @@ void run_pool_test(const char* conn_str)
     total_initialized_sessions = 0;
     pool.invoke_on_connect(&init_session);
 
-    //pool.open().once() << 
+    //pool.open().once() <<
     //    "~Microsoft SQL Server~create table ##test(txt varchar(20))"
     //    "~~create temp table test(txt varchar(20))" << exec;
 
@@ -99,7 +99,7 @@ BOOST_AUTO_TEST_CASE(SessionPoolExceptionFromSessionInit)
 
     pool.invoke_on_connect(&throw_something);
 
-    BOOST_CHECK_THROW((pool.open().once() << 
+    BOOST_CHECK_THROW((pool.open().once() <<
         "~Microsoft SQL Server~create table ##test(txt varchar(20))"
         "~Sqlite3~create temp table test(txt varchar(20))" << exec)
       , std::logic_error

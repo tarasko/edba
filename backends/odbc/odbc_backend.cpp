@@ -81,6 +81,8 @@ string_ref to_string_ref(const column_info& ci)
 
 namespace backend { namespace odbc { namespace {
 
+const SQLULEN MAX_READ_BUFFER_SIZE = 4096;
+
 // Deallocator type for detail::handle wrapper
 struct handle_deallocator
 {
@@ -203,7 +205,7 @@ struct error_checker
                 SQLCHAR msg_buf[SQL_MAX_MESSAGE_LENGTH + 2] = {0};
                 SQLCHAR stat[SQL_SQLSTATE_SIZE + 1] = {0};
                 SQLRETURN r = SQLGetDiagRecA(type_, h_, rec++, stat, &err, msg_buf, sizeof(msg_buf), &len);
-                
+
                 if(r == SQL_SUCCESS || r == SQL_SUCCESS_WITH_INFO)
                 {
                     if(!msg.empty())
@@ -221,12 +223,8 @@ struct error_checker
     }
 };
 
-
-
 class result : public backend::result, public boost::static_visitor<bool>
 {
-    static const SQLULEN MAX_READ_BUFFER_SIZE = 4096;
-
     typedef multi_index_container<
         column_info
       , indexed_by<
@@ -236,7 +234,7 @@ class result : public backend::result, public boost::static_visitor<bool>
       > columns_set;
 
 public:
-    result(SQLHSTMT stmt, bool wide) 
+    result(SQLHSTMT stmt, bool wide)
         : stmt_(stmt)
         , wide_(wide)
         , throw_on_error_(wide, stmt, SQL_HANDLE_STMT)
@@ -295,15 +293,15 @@ public:
     {
         // Don`t try to use SQLCloseCursor here because in case when statement cursor is not open, SQLCloseCursor will
         // turn your statement object into invalid state, and further operations will be impossible.
-        // I found that when SELECT was done inside of transaction and SQLEndTran had closed statement cursor before 
+        // I found that when SELECT was done inside of transaction and SQLEndTran had closed statement cursor before
         // we got to ~result. ~result had used SQLCloseCursor that days.
 
-        // I`ve wasted  2 days trying figure out why statement in cache become broken and SQLExecute always fail with 
+        // I`ve wasted  2 days trying figure out why statement in cache become broken and SQLExecute always fail with
         // "incorrect cursor state".
 
         // Checkout out this article
         // http://msdn.microsoft.com/en-us/library/ms713402(v=vs.85).aspx
-        // Read carefully about SQLCloseCursor 
+        // Read carefully about SQLCloseCursor
         // http://msdn.microsoft.com/en-us/library/ms709301(v=vs.85).aspx
         // and take care of youself
 
@@ -458,7 +456,7 @@ public:
         char buf[4];
         SQLLEN indicator;
         SQLRETURN r = SQLGetData(stmt_, col + 1, SQL_C_DEFAULT, buf, 0, &indicator);
-        
+
         if (!SQL_SUCCEEDED(r))
             throw_on_error_("SQLGetData") = SQLGetData(stmt_, col + 1, SQL_C_DEFAULT, buf, sizeof(buf), &indicator);
 
@@ -563,15 +561,15 @@ public:
     {
         // Don`t try to use SQLCloseCursor here because in case when statement cursor is not open, SQLCloseCursor will
         // turn your statement object into invalid state, and further operations will be impossible.
-        // I found that when SELECT was done inside of transaction and SQLEndTran had closed statement cursor before 
+        // I found that when SELECT was done inside of transaction and SQLEndTran had closed statement cursor before
         // we got to ~result. ~result had used SQLCloseCursor that days.
 
-        // I`ve wasted  2 days trying figure out why statement in cache become broken and SQLExecute always fail with 
+        // I`ve wasted  2 days trying figure out why statement in cache become broken and SQLExecute always fail with
         // "incorrect cursor state".
 
         // Checkout out this article
         // http://msdn.microsoft.com/en-us/library/ms713402(v=vs.85).aspx
-        // Read carefully about SQLCloseCursor 
+        // Read carefully about SQLCloseCursor
         // http://msdn.microsoft.com/en-us/library/ms709301(v=vs.85).aspx
         // and take care of youself
 
@@ -613,10 +611,10 @@ public:
         holder_sp value = boost::make_shared<holder>();
 
         // All sql types are compatible with either SQL_VARCHAR or SQL_VARBINARY.
-        // Null binding doesn`t work if specified sqltype is incompatible with actual type in database, because conversion 
+        // Null binding doesn`t work if specified sqltype is incompatible with actual type in database, because conversion
         // of VARCHAR null to VARBINARY null is impossible :) I have tried this on mssql 2008 native client driver.
         //
-        // Thus if SQLDescribeParam is not supported by particular driver, we can`t implement binding of nulls that will 
+        // Thus if SQLDescribeParam is not supported by particular driver, we can`t implement binding of nulls that will
         // always work, we have to choose what type will be possible to bind null. VARCHAR is much more friendly in term of
         // conversion to different types
 
@@ -650,7 +648,7 @@ public:
     holder_sp operator()(const tm& v)
     {
         holder_sp value = boost::make_shared<holder>(0, format_time(v));
-        
+
         param_desc desc;
         desc.data_type_ = SQL_TYPE_TIMESTAMP;
         desc.decimal_digits_ = 0;
@@ -748,16 +746,16 @@ public:
     virtual void exec_impl()
     {
         BOOST_AUTO(p, real_exec());
-        
+
         if(p.second != SQL_NO_DATA)
             throw_on_error_(p.first) = p.second;
     }
 
     pair<const char*, SQLRETURN> real_exec()
     {
-        if(prepared_) 
+        if(prepared_)
             return make_pair("SQLExecute", SQLExecute(stmt_.get()));
-        else 
+        else
         {
             if(cd_->wide_)
                 return make_pair("SQLExecDirectW", SQLExecDirectW(stmt_.get(), (SQLWCHAR*)utf_to_utf<SQLWCHAR>(patched_query()).c_str(), SQL_NTS));
@@ -821,7 +819,7 @@ private:
         {
             value.first = value.second.size();
             size_t column_size = desc.param_size_;
-            
+
             // Mumbo-jumbo with column size
             // I hate ODBC. Some related docs
             // http://msdn.microsoft.com/en-us/library/ms711786(v=vs.85).aspx
@@ -855,17 +853,17 @@ private:
     stmt_handle stmt_;
     bool prepared_;                     // Should be statement prepared or executed immediatelly
 
-    vector<param_desc> params_desc_;    // Remember all parameter descriptions, extracted by SQLDescribeParam 
+    vector<param_desc> params_desc_;    // Remember all parameter descriptions, extracted by SQLDescribeParam
                                         // Empty if api for SQLDescribeParam or SQLNumParams is not supported by backend.
 
     // Read write members, modified during statement life
 
-    vector<holder_sp> params_;          // Contain data for parameters bound by SQLBindParameter. Data owned here will be referenced by 
+    vector<holder_sp> params_;          // Contain data for parameters bound by SQLBindParameter. Data owned here will be referenced by
                                         // ODBC driver during SQLExecute or SQLExecuteDirect invocation
 
     int bind_col_;                      // Transfer current bind column index from bind_impl to visitation operator()
 
-    error_checker throw_on_error_;      // Utility for checking api return codes, 
+    error_checker throw_on_error_;      // Utility for checking api return codes,
 
     static param_desc s_generic_null_desc;
 };
@@ -900,13 +898,13 @@ public:
 
         error_checker throw_on_dbc_error(wide_, dbc_.get(), SQL_HANDLE_DBC);
 
-        if(wide_) 
+        if(wide_)
         {
             throw_on_dbc_error("SQLDriverConnectW") = SQLDriverConnectW(dbc_.get(), 0,
                 (SQLWCHAR*)utf_to_utf<SQLWCHAR>(ci.conn_string()).c_str(),
                 SQL_NTS, 0, 0, 0, SQL_DRIVER_COMPLETE);
         }
-        else 
+        else
         {
             throw_on_dbc_error("SQLDriverConnectA") = SQLDriverConnectA(dbc_.get(), 0,
                 (SQLCHAR*)ci.conn_string().c_str(),
@@ -978,7 +976,7 @@ public:
                 sequence_last_.assign(seq.begin(), seq.end());
         }
 
-        // 
+        //
         throw_on_dbc_error("SQLGetInfoA(..., SQL_CURSOR_COMMIT_BEHAVIOR,...)") = SQLGetInfoA(
             dbc_.get(), SQL_CURSOR_COMMIT_BEHAVIOR, &commit_behavior_, sizeof(commit_behavior_), &len);
 
@@ -1096,7 +1094,7 @@ private:
 
 }}}} // edba, backend, odbc, anonymous
 
-extern "C" 
+extern "C"
 {
     EDBA_DRIVER_API edba::backend::connection *edba_odbc_get_connection(const edba::conn_info& cs, edba::session_monitor* sm)
     {
