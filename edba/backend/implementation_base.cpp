@@ -51,7 +51,7 @@ connect_function_type get_connect_function(const char* path, const char* entry_f
 {
     assert("Path not null" && path);
 
-    void* module = dlopen(path, RTLD_LAZY);
+    void* module = dlopen(path, RTLD_LAZY | RTLD_GLOBAL);
 
     if (!module)
         throw edba_error("edba::loadable_driver::failed to load " + std::string(path));
@@ -177,7 +177,7 @@ void connection::exec_batch(const string_ref& _q)
         version(major, minor);
         exec_batch_impl(select_statements_in_batch(_q, engine(), major, minor));
     }
-    else 
+    else
         exec_batch_impl(_q);
 }
 
@@ -194,11 +194,11 @@ boost::any& connection::get_specific()
 void connection::begin()
 {
     begin_impl();
-    
-    try 
-    { 
+
+    try
+    {
         stat_.transaction_started();
-    } 
+    }
     catch(...)
     {
         rollback_impl();
@@ -227,7 +227,7 @@ const conn_info& connection::connection_info() const
     return info_;
 }
 
-connection::connection(conn_info const &info, session_monitor* sm) 
+connection::connection(conn_info const &info, session_monitor* sm)
   : info_(info)
   , stat_(sm)
 {

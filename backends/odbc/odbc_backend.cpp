@@ -618,14 +618,14 @@ public:
         // always work, we have to choose what type will be possible to bind null. VARCHAR is much more friendly in term of
         // conversion to different types
 
-        do_bind(true, SQL_C_DEFAULT, get_param_desc(bind_col_), *value);
+        do_bind(true, SQL_C_DEFAULT, get_param_desc(bind_col_, s_generic_varchar_desc), *value);
         return value;
     }
 
     holder_sp operator()(const string_ref& v)
     {
         holder_sp value;
-        const param_desc& desc = get_param_desc(bind_col_);
+        const param_desc& desc = get_param_desc(bind_col_, s_generic_varchar_desc);
         bool bind_as_wchar = desc.data_type_ == SQL_WVARCHAR || desc.data_type_ == SQL_WVARCHAR || desc.data_type_ == SQL_WLONGVARCHAR;
 
         if(bind_as_wchar)
@@ -660,7 +660,7 @@ public:
 
     holder_sp operator()(istream* v)
     {
-        const param_desc& desc = get_param_desc(bind_col_);
+        const param_desc& desc = get_param_desc(bind_col_, s_generic_varbinary_desc);
         SQLSMALLINT ctype;
         switch(desc.data_type_)
         {
@@ -791,10 +791,10 @@ private:
         }
     }
 
-    const param_desc& get_param_desc(int column) const
+    const param_desc& get_param_desc(int column, const param_desc& def) const
     {
         if (params_desc_.size() < (size_t)column)
-            return s_generic_null_desc;
+            return def;
         else
             return params_desc_[column - 1];
     }
@@ -865,10 +865,12 @@ private:
 
     error_checker throw_on_error_;      // Utility for checking api return codes,
 
-    static param_desc s_generic_null_desc;
+    static param_desc s_generic_varchar_desc;
+    static param_desc s_generic_varbinary_desc;
 };
 
-statement::param_desc statement::s_generic_null_desc = {SQL_CHAR, 0, 0, 1};
+statement::param_desc statement::s_generic_varchar_desc = {SQL_CHAR, 0, 0, 1};
+statement::param_desc statement::s_generic_varbinary_desc = {SQL_BINARY, 0, 0, 1};
 
 class connection : public backend::connection, private common_data
 {

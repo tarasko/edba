@@ -35,16 +35,16 @@ const char* create_test1_table_tpl =
     "~Oracle~create sequence test1_seq_id~;"
     "~Microsoft SQL Server~create table test1( "
     "   id int identity(1, 1) primary key clustered, "
-    "   num numeric(18, 3), "
-    "   dt datetime, "
-    "   dt_small smalldatetime, "
-    "   nvchar100 nvarchar(100), "
-    "   vchar10 varchar(10), "
-    "   vcharmax varchar(max), "
-    "   vbin100 varbinary(100), "
-    "   vbinmax varbinary(max), "
-    "   txt text, "
-    "   ntxt ntext"
+    "   num numeric(18, 3) null, "
+    "   dt datetime null, "
+    "   dt_small smalldatetime null, "
+    "   nvchar100 nvarchar(100) null, "
+    "   vchar10 varchar(10) null, "
+    "   vcharmax varchar(max) null, "
+    "   vbin100 varbinary(100) null, "
+    "   vbinmax varbinary(max) null, "
+    "   txt text null, "
+    "   ntxt ntext null"
     "   ) "
     "~Sqlite3~create table test1( "
     "   id integer primary key autoincrement, "
@@ -235,15 +235,23 @@ void test_utf8(session sess)
         sess.connection_info().has("@blob") &&
         sess.connection_info().get("@blob") == string("lo");
 
-    // Oracle require explicit specification which type we going to bind: BLOB or CLOB,
+    bool oracle = sess.backend() == "oracle";
+
+#ifdef _WIN32
+    bool odbc_without_SQLDescribeParam = sess.engine() != "Microsoft SQL Server";
+#else
+    bool odbc_without_SQLDescribeParam = true;
+#endif
+
+    // Oracle, (ODBC and postgres have simular problem) require explicit specification which type we going to bind: BLOB or CLOB,
     // istreams in oracle backend are always bound as BLOBs, that is why you can`t bind to anything except blob columns
     // in database. Actually the same problem we have with odbc drivers that don`t support SQLDescribeParam.
-    // Fortunally MSSQL driver support it.
+    // Fortunally MSSQL driver supports it, but FreeTDS doesn`t
     //
     // Check this issue
     // https://github.com/tarasko/edba/issues/13
     // May be you want to help and implement it?
-    if (sess.backend() != "oracle" && !postgres_with_lo)
+    if (!oracle && !postgres_with_lo && !odbc_without_SQLDescribeParam)
     {
         istringstream oss_utf8_short(utf8_short);
         istringstream oss_utf8_long(utf8_long);
