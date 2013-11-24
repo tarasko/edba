@@ -19,6 +19,12 @@
 
 #define SERVER_IP "edba-test"
 
+#ifdef _WIN32
+#  define MSSQL_DRIVER "{SQL Server Native Client 10.0}"
+#else
+#  define MSSQL_DRIVER "{FreeTDS}"
+#endif
+
 using namespace std;
 using namespace edba;
 
@@ -517,12 +523,12 @@ BOOST_AUTO_TEST_CASE(Oracle)
 
 BOOST_AUTO_TEST_CASE(ODBCWide)
 {
-    test<edba::driver::odbc>("Driver={SQL Server Native Client 10.0}; Server=" SERVER_IP "\\SQLEXPRESS; Database=EDBA; UID=sa;PWD=1;@utf=wide");
+    test<edba::driver::odbc>("Driver=" MSSQL_DRIVER "; Server=" SERVER_IP "\\SQLEXPRESS; Database=EDBA; UID=sa;PWD=1;@utf=wide");
 }
 
 BOOST_AUTO_TEST_CASE(ODBC)
 {
-    test<edba::driver::odbc>("Driver={SQL Server Native Client 10.0}; Server=" SERVER_IP "\\SQLEXPRESS; Database=EDBA; UID=sa;PWD=1;");
+    test<edba::driver::odbc>("Driver=" MSSQL_DRIVER "; Server=" SERVER_IP "\\SQLEXPRESS; Database=EDBA; UID=sa;PWD=1;");
 }
 
 BOOST_AUTO_TEST_CASE(MySQL)
