@@ -38,7 +38,7 @@ inline long long atoll(const char* val)
 #ifdef _WIN32
     return _strtoi64(val, 0, 10);
 #else
-    return atoll(val);
+    return ::atoll(val);
 #endif
 }
 
