@@ -11,7 +11,7 @@ struct sqlite3
 {
     backend::connection_ptr operator()(const conn_info& ci, session_monitor* sm) const
     {
-        connect_function_type f = backend::get_connect_function("edba_sqlite3", "edba_sqlite3_get_connection");
+        connect_function_type f = backend::get_connect_function(EDBA_MAKE_BACKEND_LIB_NAME(edba_sqlite3), "edba_sqlite3_get_connection");
         return backend::connection_ptr(f(ci, sm));
     }
 };

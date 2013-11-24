@@ -11,12 +11,12 @@ struct odbc
 {
     backend::connection_ptr operator()(const conn_info& ci, session_monitor* sm) const
     {
-        connect_function_type f = backend::get_connect_function("edba_odbc", "edba_odbc_get_connection");
+        connect_function_type f = backend::get_connect_function(EDBA_MAKE_BACKEND_LIB_NAME(edba_odbc), "edba_odbc_get_connection");
         return backend::connection_ptr(f(ci, sm));
     }
 };
 
-struct odbc_s 
+struct odbc_s
 {
     backend::connection_ptr operator()(const conn_info& ci, session_monitor* sm) const
     {

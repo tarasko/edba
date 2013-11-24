@@ -17,10 +17,10 @@
 #include <iostream>
 #include <ctime>
 
+#define SERVER_IP "edba-test"
+
 using namespace std;
 using namespace edba;
-
-#define SERVER_IP "edba-test"
 
 const char* oracle_cleanup_seq = "~Oracle~drop sequence test1_seq_id~;";
 const char* oracle_cleanup_tbl = "~Oracle~drop table test1~;";
@@ -100,6 +100,16 @@ const char* insert_test1_data =
     "~~insert into test1(num, dt, dt_small, nvchar100, vcharmax, vbin100, vbinmax, txt)"
     "   values(:num, :dt, :dt_small, :nvchar100, :vcharmax, :vbin100, :vbinmax, :txt)"
     "~";
+
+template<typename Char, typename Traits>
+basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const std::tm& t)
+{
+    os  << t.tm_year << "-" << t.tm_mon << "-" << t.tm_mday << " " << t.tm_hour << ":" << t.tm_min << ":" << t.tm_sec
+        << " wday=" << t.tm_wday << " yday=" << t.tm_yday << " isdst=" << t.tm_isdst << " gmtoff=" << t.tm_gmtoff << " zone=" << (void*)t.tm_zone;
+
+
+    return os;
+}
 
 void init_database(const conn_info& ci, session sess)
 {
@@ -382,7 +392,7 @@ void test(const char* conn_string)
             st << reset
                 << 10.10
                 << null
-                << *std::gmtime(&now)
+                << *std::localtime(&now)
                 << null
                 << null
                 << null
@@ -393,8 +403,8 @@ void test(const char* conn_string)
             // Bind data to statement and execute two times
             st << reset
                 << use("num", 10.10)
-                << use("dt", *std::gmtime(&now))
-                << use("dt_small", *std::gmtime(&now))
+                << use("dt", *std::localtime(&now))
+                << use("dt_small", *std::localtime(&now))
                 << use("nvchar100", "Hello!")
                 << use("vcharmax", "Hello! max")
                 << use("vbin100", &short_binary_stream)
@@ -444,8 +454,10 @@ void test(const char* conn_string)
 
             r >> id >> num >> tm1 >> tm2 >> short_str >> long_str >> short_oss >> long_oss >> txt;
 
+            cout << "Test: " << *localtime(&now) << " vs " << tm1 << endl;
+
             BOOST_CHECK_EQUAL(num, 10.10);
-            BOOST_CHECK(!memcmp(std::gmtime(&now), &tm1, sizeof(tm1)));
+            BOOST_CHECK_EQUAL(now, mktime(&tm1));
             BOOST_CHECK_EQUAL(short_str, "Hello!");
             BOOST_CHECK_EQUAL(long_str, "Hello! max");
             BOOST_CHECK_EQUAL(short_oss.str(), short_binary);

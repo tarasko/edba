@@ -7,6 +7,7 @@
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/smart_ptr/detail/atomic_count.hpp>
+#include <boost/preprocessor/stringize.hpp>
 #include <boost/intrusive_ptr.hpp>
 #include <boost/noncopyable.hpp>
 
@@ -18,17 +19,19 @@
 
 namespace edba {
 
-#ifdef _WIN32 
+#ifdef _WIN32
 #  define EDBA_MEMCPY(Dst, BufSize, Src, ToCopy) memcpy_s(Dst, BufSize, Src, ToCopy)
 #  define EDBA_STRNCPY(Dest, Source, Size) strncpy_s(Dest, Source, Size)
 #  define EDBA_SSCANF sscanf_s
 #  define EDBA_SNPRINTF _snprintf_s
-#else 
+#else
 #  define EDBA_MEMCPY(Dst, BufSize, Src, ToCopy) memcpy(Dst, Src, ToCopy)
 #  define EDBA_STRNCPY(Dest, Source, Size) strncpy(Dest, Source, Size)
 #  define EDBA_SSCANF sscanf
 #  define EDBA_SNPRINTF snprintf
 #endif
+
+#define EDBA_MAKE_BACKEND_LIB_NAME(Name) EDBA_BACKEND_LIB_PREFIX BOOST_PP_STRINGIZE(Name) EDBA_BACKEND_LIB_SUFFIX
 
 inline long long atoll(const char* val)
 {
@@ -38,7 +41,7 @@ inline long long atoll(const char* val)
     return atoll(val);
 #endif
 }
-    
+
 /// \cond INTERNAL
 namespace detail {
     /// Introduce new vocabulary type like std::pair<T1, T2> for use and into expressions
@@ -54,19 +57,19 @@ namespace detail {
 
 ///
 /// \brief parse a string as time value.
-/// 
+///
 /// Used by backend implementations;
 ///
 EDBA_API std::tm parse_time(char const *value);
 ///
 /// \brief format a string as time value.
-/// 
+///
 /// Used by backend implementations;
 ///
 EDBA_API std::string format_time(std::tm const &v);
 ///
 /// \brief parse a string as time value.
-/// 
+///
 /// Used by backend implementations;
 ///
 EDBA_API std::tm parse_time(std::string const &v);
@@ -121,7 +124,7 @@ T* make_pointer(T* value)
 ///CREATE TABLE station_cfg                                             -- component's config, per station
 ///                         ( id CHARACTER VARYING(36) DEFAULT '',      -- station UUID
 ///                           value TEXT DEFAULT '' )                   -- value
-///~    
+///~
 ///
 string_ref select_statement(
     const string_ref& rng
@@ -132,7 +135,7 @@ string_ref select_statement(
 
 ///
 /// \brief select statements according to engine and version int statements batch separated with ;
-/// 
+///
 std::string select_statements_in_batch(
     const string_ref& rng
     , const std::string& engine

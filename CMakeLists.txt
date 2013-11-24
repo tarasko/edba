@@ -19,7 +19,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 
 function(edba_install_targets)
   if(EDBA_STANDALONE_BUILD)
-    install(TARGETS ${ARGV} 
+    install(TARGETS ${ARGV}
       RUNTIME DESTINATION bin
       ARCHIVE DESTINATION lib
       LIBRARY DESTINATION lib)
@@ -36,10 +36,11 @@ endfunction(edba_install_targets)
 if(EDBA_STANDALONE_BUILD)
 	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/stage/bin)
 	set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/stage/lib)
-	set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/stage/lib)	
+	set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/stage/lib)
 endif()
 
 add_definitions(-DBOOST_ALL_DYN_LINK=1)
+add_definitions(-DEDBA_BACKEND_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}" -DEDBA_BACKEND_LIB_SUFFIX="${CMAKE_SHARED_LIBRARY_SUFFIX}")
 
 find_package(Boost 1.48.0 COMPONENTS date_time locale thread system unit_test_framework REQUIRED)
 
@@ -89,7 +90,7 @@ set(sources
   edba/types_support/boost_optional.hpp
   edba/types_support/boost_fusion.hpp
   edba/types_support/boost_gregorian_date.hpp
-  edba/types_support/boost_posix_time_ptime.hpp 
+  edba/types_support/boost_posix_time_ptime.hpp
 )
 
 if(EDBA_SHARED_LIBS)
@@ -99,7 +100,7 @@ if(EDBA_SHARED_LIBS)
     else()
         target_link_libraries(edba ${Boost_LIBRARIES} dl)
     endif()
-    
+
 endif()
 
 if(EDBA_STATIC_LIBS)
