@@ -51,7 +51,11 @@ connect_function_type get_connect_function(const char* path, const char* entry_f
 {
     assert("Path not null" && path);
 
+#ifdef _WIN32
+    void* module = dlopen(path, RTLD_LAZY);
+#else
     void* module = dlopen(path, RTLD_LAZY | RTLD_GLOBAL);
+#endif
 
     if (!module)
         throw edba_error("edba::loadable_driver::failed to load " + std::string(path));
