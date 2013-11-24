@@ -105,8 +105,10 @@ template<typename Char, typename Traits>
 basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const std::tm& t)
 {
     os  << t.tm_year << "-" << t.tm_mon << "-" << t.tm_mday << " " << t.tm_hour << ":" << t.tm_min << ":" << t.tm_sec
-        << " wday=" << t.tm_wday << " yday=" << t.tm_yday << " isdst=" << t.tm_isdst << " gmtoff=" << t.tm_gmtoff << " zone=" << (void*)t.tm_zone;
-
+        << " wday=" << t.tm_wday << " yday=" << t.tm_yday << " isdst=" << t.tm_isdst;
+#ifdef _BSD_SOURCE       
+    os << " gmtoff=" << t.tm_gmtoff << " zone=" << (void*)t.tm_zone;
+#endif
 
     return os;
 }
@@ -453,8 +455,6 @@ void test(const char* conn_string)
             std::string txt;
 
             r >> id >> num >> tm1 >> tm2 >> short_str >> long_str >> short_oss >> long_oss >> txt;
-
-            cout << "Test: " << *localtime(&now) << " vs " << tm1 << endl;
 
             BOOST_CHECK_EQUAL(num, 10.10);
             BOOST_CHECK_EQUAL(now, mktime(&tm1));
