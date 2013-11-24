@@ -22,7 +22,7 @@
 #ifdef _WIN32
 #  define MSSQL_DRIVER "{SQL Server Native Client 10.0}"
 #else
-#  define MSSQL_DRIVER "{FreeTDS}"
+#  define MSSQL_DRIVER "FreeTDS"
 #endif
 
 using namespace std;
@@ -112,7 +112,7 @@ basic_ostream<Char, Traits>& operator<<(basic_ostream<Char, Traits>& os, const s
 {
     os  << t.tm_year << "-" << t.tm_mon << "-" << t.tm_mday << " " << t.tm_hour << ":" << t.tm_min << ":" << t.tm_sec
         << " wday=" << t.tm_wday << " yday=" << t.tm_yday << " isdst=" << t.tm_isdst;
-#ifdef _BSD_SOURCE       
+#ifdef _BSD_SOURCE
     os << " gmtoff=" << t.tm_gmtoff << " zone=" << (void*)t.tm_zone;
 #endif
 
