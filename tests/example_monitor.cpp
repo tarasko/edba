@@ -19,6 +19,12 @@ using namespace boost::posix_time;
 using namespace boost::gregorian;
 using boost::optional;
 
+struct data 
+{
+    int foo;
+    string bar;
+};
+
 int main()
 {
     try 
@@ -61,6 +67,13 @@ int main()
         }
 
         cout << "Total time spent in queries in sec: " << sess.total_execution_time() << endl;
+
+        data d;
+        d.foo = 42;
+        d.bar = "Hello";
+
+        sess.set_specific(d);
+        data& dref = sess.get_specific<data&>();
     }
     catch(std::exception& e)
     {

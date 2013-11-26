@@ -16,9 +16,13 @@
     ]
 ]
 
-[def __boost_fusion__ [@http://www.boost.org/doc/libs/1_54_0/libs/fusion/doc/html Boost.Fusion]]
-[def __boost_preprocessor__ [@http://www.boost.org/doc/libs/1_54_0/libs/preprocessor/doc/index.html Boost.Preprocessor]]
-[def __boost_mpl__ [@http://www.boost.org/doc/libs/1_54_0/libs/mpl/doc/index.html Boost.MPL]]
+[def __boost_any__ [@http://www.boost.org/doc/libs/1_55_0/libs/any/doc/html Boost.Any]]
+[def __boost_fusion__ [@http://www.boost.org/doc/libs/1_55_0/libs/fusion/doc/html Boost.Fusion]]
+[def __boost_preprocessor__ [@http://www.boost.org/doc/libs/1_55_0/libs/preprocessor/doc/index.html Boost.Preprocessor]]
+[def __boost_mpl__ [@http://www.boost.org/doc/libs/1_55_0/libs/mpl/doc/index.html Boost.MPL]]
+
+[def __s_get_specific__ [memberref edba::session::get_specific]]
+[def __s_set_specific__ [memberref edba::session::set_specific]]
 
 [def __sp__			 [classref edba::session_pool]]
 [def __sp_open__     [memberref edba::session_pool::open]]
@@ -257,6 +261,78 @@ understand your application types
 [endsect]
 
 [section Using Session Pool]
+
+To use session managed by session pool, first create pool by passing driver instance, connection string and optional max pool size.
+[br]Then call either __sp_open__ or __sp_try_open__ to obtain session object. The later will not block if session pool has no available sessions to return.
+
+``
+// Create the pool with max size = 4
+edba::pool my_pool(driver::sqlite3(), "db=test.db", 4);
+
+// Obtain session
+session sess = my_pool.open();  // Will block if pool has no free sessions
+...
+session sess;
+if (my_pool.try_open(sess))     // Will never block, instead return false if pool has no free sessions
+{
+	// Do query 
+}
+
+// When session object is destroyed the underlying connection will be returned to the pool
+``
+
+[heading Configuring a Session]
+
+It is useful to be able to setup some generic session options that are usually set only once and kept during all the session. 
+It may be things like transaction isolation level, durability options and more.
+``
+void invoke_once(edba::session &sql)
+{
+    sql << "PRAGMA read_uncommited=1" << edba::exec;
+}
+...
+edba::pool my_pool(driver::sqlite3(), "db=test.db", 4);
+my_pool.invoke_on_connect(&invoke_once);
+``
+Please note that any function like object that receive as a parameter the sql sesion can be used as callback:
+``
+struct config 
+{
+	int uncommited;
+	void operator()(edba::session &sql) const // operator ()
+	{
+		sql << "PRAGMA read_uncommited=:1" << uncommited << edba::exec;
+	}
+	config(int val ) : uncommited(val)
+	{
+	}
+};
+
+edba::pool my_pool(driver::sqlite3(), "db=test.db", 4);
+my_pool.invoke_on_connect(config(commit_mode));
+``
+[heading Connection Specific Data]
+
+If more complex configuration of the session is required it is possible to associate any user object with a underlying connection using 
+__s_get_specific__ and __s_set_specific__ functions.
+``
+struct data 
+{
+    int foo;
+    string bar;
+};
+...
+data d;
+d.foo = 42;
+d.bar = "Hello";
+
+sess.set_specific(d);                    // data object will be copied here
+...
+data& dref = sess.get_specific<data&>(); // objects may be extracted by value, reference or const reference
+``
+Generally speaking, underlying connection object simply use __boost_any__ to store user data, so you may refer on behaviour 
+specific to __boost_any__.
+
 [endsect]
 
 [section Handling Transactions]
