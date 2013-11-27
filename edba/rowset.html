@@ -1,0 +1,123 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<title>Class template rowset</title>
+<link rel="stylesheet" href="../boostbook.css" type="text/css">
+<meta name="generator" content="DocBook XSL Stylesheets V1.77.1">
+<link rel="home" href="../index.html" title="Chapter&#160;1.&#160;edba 1.0">
+<link rel="up" href="../reference.html#header.edba.rowset_hpp" title="Header &lt;edba/rowset.hpp&gt;">
+<link rel="prev" href="rowset_iterator.html" title="Class template rowset_iterator">
+<link rel="next" href="row.html" title="Class row">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
+<div class="spirit-nav">
+<a accesskey="p" href="rowset_iterator.html"><img src="../images/prev.png" alt="Prev"></a><a accesskey="u" href="../reference.html#header.edba.rowset_hpp"><img src="../images/up.png" alt="Up"></a><a accesskey="h" href="../index.html"><img src="../images/home.png" alt="Home"></a><a accesskey="n" href="row.html"><img src="../images/next.png" alt="Next"></a>
+</div>
+<div class="refentry">
+<a name="edba.rowset"></a><div class="titlepage"></div>
+<div class="refnamediv">
+<h2><span class="refentrytitle">Class template rowset</span></h2>
+<p>edba::rowset</p>
+</div>
+<h2 xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" class="refsynopsisdiv-title">Synopsis</h2>
+<div xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" class="refsynopsisdiv"><pre class="synopsis"><span class="comment">// In header: &lt;<a class="link" href="../reference.html#header.edba.rowset_hpp" title="Header &lt;edba/rowset.hpp&gt;">edba/rowset.hpp</a>&gt;
+
+</span><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Row<span class="special">&gt;</span> 
+<span class="keyword">class</span> <a class="link" href="rowset.html" title="Class template rowset">rowset</a> <span class="special">{</span>
+<span class="keyword">public</span><span class="special">:</span>
+  <span class="comment">// types</span>
+  <span class="keyword">typedef</span> <a class="link" href="rowset_iterator.html" title="Class template rowset_iterator">rowset_iterator</a><span class="special">&lt;</span> <span class="identifier">T</span> <span class="special">&gt;</span>        <a name="edba.rowset.iterator"></a><span class="identifier">iterator</span><span class="special">;</span>      
+  <span class="keyword">typedef</span> <a class="link" href="rowset_iterator.html" title="Class template rowset_iterator">rowset_iterator</a><span class="special">&lt;</span> <span class="identifier">T</span> <span class="keyword">const</span>  <span class="special">&gt;</span> <a name="edba.rowset.const_iterator"></a><span class="identifier">const_iterator</span><span class="special">;</span>
+
+  <span class="comment">// <a class="link" href="rowset.html#edba.rowsetconstruct-copy-destruct">construct/copy/destruct</a></span>
+  <a class="link" href="rowset.html#idp291963260-bb"><span class="identifier">rowset</span></a><span class="special">(</span><span class="keyword">const</span> <span class="identifier">backend</span><span class="special">::</span><span class="identifier">connection_ptr</span> <span class="special">&amp;</span><span class="special">,</span> <span class="keyword">const</span> <span class="identifier">backend</span><span class="special">::</span><span class="identifier">statement_ptr</span> <span class="special">&amp;</span><span class="special">,</span> 
+         <span class="keyword">const</span> <span class="identifier">backend</span><span class="special">::</span><span class="identifier">result_ptr</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+
+  <span class="comment">// <a class="link" href="rowset.html#idp291954068-bb">public member functions</a></span>
+  <a class="link" href="rowset.html#edba.rowset.iterator">iterator</a> <a class="link" href="rowset.html#idp291954252-bb"><span class="identifier">begin</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <a class="link" href="rowset.html#edba.rowset.const_iterator">const_iterator</a> <a class="link" href="rowset.html#idp291955004-bb"><span class="identifier">begin</span></a><span class="special">(</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+  <a class="link" href="rowset.html#edba.rowset.iterator">iterator</a> <a class="link" href="rowset.html#idp291955756-bb"><span class="identifier">end</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <a class="link" href="rowset.html#edba.rowset.const_iterator">const_iterator</a> <a class="link" href="rowset.html#idp291956484-bb"><span class="identifier">end</span></a><span class="special">(</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T1<span class="special">&gt;</span> <a class="link" href="rowset.html#idp291957212-bb"><span class="keyword">operator</span> <span class="identifier">rowset</span><span class="special">&lt;</span> <span class="identifier">T1</span> <span class="special">&gt;</span></a><span class="special">(</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+  <span class="identifier">boost</span><span class="special">::</span><span class="identifier">uint64_t</span> <a class="link" href="rowset.html#idp291958276-bb"><span class="identifier">rows</span></a><span class="special">(</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+  <span class="keyword">int</span> <a class="link" href="rowset.html#idp291958996-bb"><span class="identifier">columns</span></a><span class="special">(</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+  <span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span> <a class="link" href="rowset.html#idp291959660-bb"><span class="identifier">column_name</span></a><span class="special">(</span><span class="keyword">int</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+  <span class="keyword">int</span> <a class="link" href="rowset.html#idp291960948-bb"><span class="identifier">column_index</span></a><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+  <span class="keyword">int</span> <a class="link" href="rowset.html#idp291962236-bb"><span class="identifier">find_column</span></a><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+<span class="special">}</span><span class="special">;</span></pre></div>
+<div class="refsect1">
+<a name="idp324080076"></a><h2>Description</h2>
+<p>Represent select query result set. Implements SinglePassRange concept. rowset can be iterated only once. That means when begin has been called once, all subsequent calls to begin will give undefined behavior. </p>
+<div class="refsect2">
+<a name="idp324080628"></a><h3>
+<a name="edba.rowsetconstruct-copy-destruct"></a><code class="computeroutput">rowset</code> 
+        public
+       construct/copy/destruct</h3>
+<div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem">
+<pre class="literallayout"><a name="idp291963260-bb"></a><span class="identifier">rowset</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">backend</span><span class="special">::</span><span class="identifier">connection_ptr</span> <span class="special">&amp;</span> conn<span class="special">,</span> 
+       <span class="keyword">const</span> <span class="identifier">backend</span><span class="special">::</span><span class="identifier">statement_ptr</span> <span class="special">&amp;</span> stmt<span class="special">,</span> <span class="keyword">const</span> <span class="identifier">backend</span><span class="special">::</span><span class="identifier">result_ptr</span> <span class="special">&amp;</span> res<span class="special">)</span><span class="special">;</span></pre>
+<p>Construct rowset from backend result </p>
+</li></ol></div>
+</div>
+<div class="refsect2">
+<a name="idp324089300"></a><h3>
+<a name="idp291954068-bb"></a><code class="computeroutput">rowset</code> public member functions</h3>
+<div class="orderedlist"><ol class="orderedlist" type="1">
+<li class="listitem">
+<pre class="literallayout"><a class="link" href="rowset.html#edba.rowset.iterator">iterator</a> <a name="idp291954252-bb"></a><span class="identifier">begin</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>
+<p>Open rowset for traversion and return begin iterator </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><a class="link" href="rowset.html#edba.rowset.const_iterator">const_iterator</a> <a name="idp291955004-bb"></a><span class="identifier">begin</span><span class="special">(</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>
+<p>Open rowset for traversion and return begin iterator </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><a class="link" href="rowset.html#edba.rowset.iterator">iterator</a> <a name="idp291955756-bb"></a><span class="identifier">end</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>
+<p>Return end iterator for rowset </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><a class="link" href="rowset.html#edba.rowset.const_iterator">const_iterator</a> <a name="idp291956484-bb"></a><span class="identifier">end</span><span class="special">(</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>
+<p>Return end iterator for rowset </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T1<span class="special">&gt;</span> <a name="idp291957212-bb"></a><span class="keyword">operator</span> <span class="identifier">rowset</span><span class="special">&lt;</span> <span class="identifier">T1</span> <span class="special">&gt;</span><span class="special">(</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>
+<p>Provide conversion between rowset`s of different types. </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">uint64_t</span> <a name="idp291958276-bb"></a><span class="identifier">rows</span><span class="special">(</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>
+<p>Return total number of rows in rowset, or -1 if backend doesn`t provide this information </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">int</span> <a name="idp291958996-bb"></a><span class="identifier">columns</span><span class="special">(</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>
+<p>Return number of columns in rowset </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span> <a name="idp291959660-bb"></a><span class="identifier">column_name</span><span class="special">(</span><span class="keyword">int</span> col<span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>
+<p>Get column name by index. Throw <code class="computeroutput"><a class="link" href="invalid_column.html" title="Class invalid_column">invalid_column</a></code> or error </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">int</span> <a name="idp291960948-bb"></a><span class="identifier">column_index</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span> n<span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>
+<p>Get column index by name. Throw <code class="computeroutput"><a class="link" href="invalid_column.html" title="Class invalid_column">invalid_column</a></code> or error </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">int</span> <a name="idp291962236-bb"></a><span class="identifier">find_column</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span> name<span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>
+<p>Return column index by name or -1 if column with provided name doesn`t exists </p>
+</li>
+</ol></div>
+</div>
+</div>
+</div>
+<table xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" width="100%"><tr>
+<td align="left"></td>
+<td align="right"><div class="copyright-footer">Copyright &#169; 2013 Kozlov Taras<p>
+        Distributed under the Boost Software License, Version 1.0 (see accompanying
+        file LICENSE_1_0.txt or a copy at <a href="http://www.boost.org/LICENSE_1_0.txt" target="_top">http://www.boost.org/LICENSE_1_0.txt</a>)
+      </p>
+</div></td>
+</tr></table>
+<hr>
+<div class="spirit-nav">
+<a accesskey="p" href="rowset_iterator.html"><img src="../images/prev.png" alt="Prev"></a><a accesskey="u" href="../reference.html#header.edba.rowset_hpp"><img src="../images/up.png" alt="Up"></a><a accesskey="h" href="../index.html"><img src="../images/home.png" alt="Home"></a><a accesskey="n" href="row.html"><img src="../images/next.png" alt="Next"></a>
+</div>
+</body>
+</html>

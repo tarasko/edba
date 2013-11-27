@@ -1,0 +1,192 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<title>Class session</title>
+<link rel="stylesheet" href="../boostbook.css" type="text/css">
+<meta name="generator" content="DocBook XSL Stylesheets V1.77.1">
+<link rel="home" href="../index.html" title="Chapter&#160;1.&#160;edba 1.0">
+<link rel="up" href="../reference.html#header.edba.session_hpp" title="Header &lt;edba/session.hpp&gt;">
+<link rel="prev" href="operator_idp292007836.html" title="Function template operator&gt;&gt;">
+<link rel="next" href="session/once_type.html" title="Struct once_type">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
+<div class="spirit-nav">
+<a accesskey="p" href="operator_idp292007836.html"><img src="../images/prev.png" alt="Prev"></a><a accesskey="u" href="../reference.html#header.edba.session_hpp"><img src="../images/up.png" alt="Up"></a><a accesskey="h" href="../index.html"><img src="../images/home.png" alt="Home"></a><a accesskey="n" href="session/once_type.html"><img src="../images/next.png" alt="Next"></a>
+</div>
+<div class="refentry">
+<a name="edba.session"></a><div class="titlepage"></div>
+<div class="refnamediv">
+<h2><span class="refentrytitle">Class session</span></h2>
+<p>edba::session &#8212; SQL session object that represents a single connection and is the gateway to SQL database. </p>
+</div>
+<h2 xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" class="refsynopsisdiv-title">Synopsis</h2>
+<div xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" class="refsynopsisdiv"><pre class="synopsis"><span class="comment">// In header: &lt;<a class="link" href="../reference.html#header.edba.session_hpp" title="Header &lt;edba/session.hpp&gt;">edba/session.hpp</a>&gt;
+
+</span>
+<span class="keyword">class</span> <a class="link" href="session.html" title="Class session">session</a> <span class="special">{</span>
+<span class="keyword">public</span><span class="special">:</span>
+  <span class="comment">// member classes/structs/unions</span>
+
+  <span class="keyword">struct</span> <a class="link" href="session/once_type.html" title="Struct once_type">once_type</a> <span class="special">{</span>
+    <span class="comment">// <a class="link" href="session/once_type.html#edba.session.once_typeconstruct-copy-destruct">construct/copy/destruct</a></span>
+    <a class="link" href="session/once_type.html#idp292012204-bb"><span class="identifier">once_type</span></a><span class="special">(</span><a class="link" href="session.html" title="Class session">session</a> <span class="special">*</span><span class="special">)</span><span class="special">;</span>
+
+    <span class="comment">// <a class="link" href="session/once_type.html#idp292011212-bb">public member functions</a></span>
+    <a class="link" href="statement.html" title="Class statement">statement</a> <a class="link" href="session/once_type.html#idp292011396-bb"><span class="keyword">operator</span><span class="special">&lt;&lt;</span></a><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+  <span class="special">}</span><span class="special">;</span>
+  <span class="comment">// <a class="link" href="session.html#edba.sessionconstruct-copy-destruct">construct/copy/destruct</a></span>
+  <a class="link" href="session.html#idp292036444-bb"><span class="identifier">session</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Driver<span class="special">&gt;</span> 
+    <a class="link" href="session.html#idp292036748-bb"><span class="identifier">session</span></a><span class="special">(</span><span class="identifier">Driver</span><span class="special">,</span> <span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span><span class="special">,</span> <a class="link" href="session_monitor.html" title="Class session_monitor">session_monitor</a> <span class="special">*</span> <span class="special">=</span> <span class="number">0</span><span class="special">)</span><span class="special">;</span>
+  <a class="link" href="session.html#idp292038780-bb"><span class="identifier">session</span></a><span class="special">(</span><span class="keyword">const</span> <span class="identifier">backend</span><span class="special">::</span><span class="identifier">connection_ptr</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+
+  <span class="comment">// <a class="link" href="session.html#idp292012708-bb">friend functions</a></span>
+  <span class="keyword">friend</span> <span class="keyword">bool</span> <a class="link" href="session.html#idp292012892-bb"><span class="keyword">operator</span><span class="special">==</span></a><span class="special">(</span><span class="keyword">const</span> <a class="link" href="session.html" title="Class session">session</a> <span class="special">&amp;</span><span class="special">,</span> <span class="keyword">const</span> <a class="link" href="session.html" title="Class session">session</a> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+
+  <span class="comment">// <a class="link" href="session.html#idp292014460-bb">public member functions</a></span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Driver<span class="special">&gt;</span> 
+    <span class="keyword">void</span> <a class="link" href="session.html#idp292014644-bb"><span class="identifier">open</span></a><span class="special">(</span><span class="identifier">Driver</span><span class="special">,</span> <span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span><span class="special">,</span> <a class="link" href="session_monitor.html" title="Class session_monitor">session_monitor</a> <span class="special">*</span> <span class="special">=</span> <span class="number">0</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">void</span> <a class="link" href="session.html#idp292016860-bb"><span class="identifier">close</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">bool</span> <a class="link" href="session.html#idp292017420-bb"><span class="identifier">is_open</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <a class="link" href="statement.html" title="Class statement">statement</a> <a class="link" href="session.html#idp292018020-bb"><span class="identifier">prepare_statement</span></a><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+  <a class="link" href="statement.html" title="Class statement">statement</a> <a class="link" href="session.html#idp292019204-bb"><span class="identifier">create_statement</span></a><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+  <span class="identifier">once_type</span> <a class="link" href="session.html#idp292020340-bb"><span class="identifier">once</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">void</span> <a class="link" href="session.html#idp292021380-bb"><span class="identifier">exec_batch</span></a><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="keyword">void</span> <a class="link" href="session.html#idp292022324-bb"><span class="identifier">set_specific</span></a><span class="special">(</span><span class="keyword">const</span> <span class="identifier">T</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="identifier">T</span> <span class="special">&amp;</span> <a class="link" href="session.html#idp292023572-bb"><span class="identifier">get_specific</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">void</span> <a class="link" href="session.html#idp292025004-bb"><span class="identifier">begin</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">void</span> <a class="link" href="session.html#idp292025668-bb"><span class="identifier">commit</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">void</span> <a class="link" href="session.html#idp292026332-bb"><span class="identifier">rollback</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span> <a class="link" href="session.html#idp292026996-bb"><span class="identifier">escape</span></a><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">const</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span> <span class="special">&amp;</span> <a class="link" href="session.html#idp292028468-bb"><span class="identifier">backend</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">const</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span> <span class="special">&amp;</span> <a class="link" href="session.html#idp292030324-bb"><span class="identifier">engine</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">void</span> <a class="link" href="session.html#idp292032332-bb"><span class="identifier">version</span></a><span class="special">(</span><span class="keyword">int</span> <span class="special">&amp;</span><span class="special">,</span> <span class="keyword">int</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">const</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span> <span class="special">&amp;</span> <a class="link" href="session.html#idp292033556-bb"><span class="identifier">description</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">double</span> <a class="link" href="session.html#idp292034196-bb"><span class="identifier">total_execution_time</span></a><span class="special">(</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+  <span class="keyword">const</span> <a class="link" href="conn_info.html" title="Class conn_info">conn_info</a> <span class="special">&amp;</span> <a class="link" href="session.html#idp292034836-bb"><span class="identifier">connection_info</span></a><span class="special">(</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+  <a class="link" href="statement.html" title="Class statement">statement</a> <a class="link" href="session.html#idp292035460-bb"><span class="keyword">operator</span><span class="special">&lt;&lt;</span></a><span class="special">(</span><span class="identifier">string_ref</span><span class="special">)</span><span class="special">;</span>
+<span class="special">}</span><span class="special">;</span></pre></div>
+<div class="refsect1">
+<a name="idp324439068"></a><h2>Description</h2>
+<p>It is the main class that is used for access to the DB, it uses various singleton classes to load drivers open connections and cache them. </p>
+<div class="refsect2">
+<a name="idp324439548"></a><h3>
+<a name="edba.sessionconstruct-copy-destruct"></a><code class="computeroutput">session</code> 
+        public
+       construct/copy/destruct</h3>
+<div class="orderedlist"><ol class="orderedlist" type="1">
+<li class="listitem">
+<pre class="literallayout"><a name="idp292036444-bb"></a><span class="identifier">session</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>Create an empty session object, it should not be used until it is opened with calling open() function. </li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Driver<span class="special">&gt;</span> 
+  <a name="idp292036748-bb"></a><span class="identifier">session</span><span class="special">(</span><span class="identifier">Driver</span> driver<span class="special">,</span> <span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span> conn_string<span class="special">,</span> 
+          <a class="link" href="session_monitor.html" title="Class session_monitor">session_monitor</a> <span class="special">*</span> sm <span class="special">=</span> <span class="number">0</span><span class="special">)</span><span class="special">;</span></pre>Create a session using driver, connection string and optional session monitor. </li>
+<li class="listitem"><pre class="literallayout"><a name="idp292038780-bb"></a><span class="identifier">session</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">backend</span><span class="special">::</span><span class="identifier">connection_ptr</span> <span class="special">&amp;</span> conn<span class="special">)</span><span class="special">;</span></pre></li>
+</ol></div>
+</div>
+<div class="refsect2">
+<a name="idp324452868"></a><h3>
+<a name="idp292012708-bb"></a><code class="computeroutput">session</code> friend functions</h3>
+<div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem">
+<pre class="literallayout"><span class="keyword">friend</span> <span class="keyword">bool</span> <a name="idp292012892-bb"></a><span class="keyword">operator</span><span class="special">==</span><span class="special">(</span><span class="keyword">const</span> <a class="link" href="session.html" title="Class session">session</a> <span class="special">&amp;</span> s1<span class="special">,</span> <span class="keyword">const</span> <a class="link" href="session.html" title="Class session">session</a> <span class="special">&amp;</span> s2<span class="special">)</span><span class="special">;</span></pre>Equality operator. </li></ol></div>
+</div>
+<div class="refsect2">
+<a name="idp324459460"></a><h3>
+<a name="idp292014460-bb"></a><code class="computeroutput">session</code> public member functions</h3>
+<div class="orderedlist"><ol class="orderedlist" type="1">
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Driver<span class="special">&gt;</span> 
+  <span class="keyword">void</span> <a name="idp292014644-bb"></a><span class="identifier">open</span><span class="special">(</span><span class="identifier">Driver</span> driver<span class="special">,</span> <span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span> conn_string<span class="special">,</span> 
+            <a class="link" href="session_monitor.html" title="Class session_monitor">session_monitor</a> <span class="special">*</span> sm <span class="special">=</span> <span class="number">0</span><span class="special">)</span><span class="special">;</span></pre>Open a session using driver, connection string and optional session monitor. </li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">void</span> <a name="idp292016860-bb"></a><span class="identifier">close</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>Close current connection. </li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">bool</span> <a name="idp292017420-bb"></a><span class="identifier">is_open</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>Check if the session was opened. </li>
+<li class="listitem">
+<pre class="literallayout"><a class="link" href="statement.html" title="Class statement">statement</a> <a name="idp292018020-bb"></a><span class="identifier">prepare_statement</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span> q<span class="special">)</span><span class="special">;</span></pre>
+<p>Try fetch statement from cache. If it doesn`t exist then create prepared statement, put it in cache and return. This is the most convenient function to create statements with. </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><a class="link" href="statement.html" title="Class statement">statement</a> <a name="idp292019204-bb"></a><span class="identifier">create_statement</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span> q<span class="special">)</span><span class="special">;</span></pre>
+<p>Create unprepared statement which is never cached. It should be used when such statement is executed rarely or very customized. </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="identifier">once_type</span> <a name="idp292020340-bb"></a><span class="identifier">once</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>
+<p>Syntactic sugar for unprepared statements and their subsequent execution. Following two lines are equvalent </p>
+<pre class="programlisting">sess.once() &lt;&lt; query &lt;&lt; use(somevar);
+sess.create_statement(query) &lt;&lt; use(somevar) &lt;&lt; exec;
+</pre>
+<p> </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">void</span> <a name="idp292021380-bb"></a><span class="identifier">exec_batch</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span> q<span class="special">)</span><span class="special">;</span></pre>Execute list of sql commands as single request to database. </li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="keyword">void</span> <a name="idp292022324-bb"></a><span class="identifier">set_specific</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">T</span> <span class="special">&amp;</span> data<span class="special">)</span><span class="special">;</span></pre>Set session specific data. </li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="identifier">T</span> <span class="special">&amp;</span> <a name="idp292023572-bb"></a><span class="identifier">get_specific</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>
+<p>Get session specific data, will throw <code class="computeroutput"><a class="link" href="bad_value_cast.html" title="Class bad_value_cast">bad_value_cast</a></code> if type is differenet from original one passed to set_specific </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">void</span> <a name="idp292025004-bb"></a><span class="identifier">begin</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>Begin a transaction. Don't use it directly for RAII reasons. Use transaction class instead. </li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">void</span> <a name="idp292025668-bb"></a><span class="identifier">commit</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>Commit a transaction. Don't use it directly for RAII reasons. Use transaction class instead. </li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">void</span> <a name="idp292026332-bb"></a><span class="identifier">rollback</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>Rollback a transaction. Don't use it directly for RAII reasons. Use transaction class instead. </li>
+<li class="listitem">
+<pre class="literallayout"><span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span> <a name="idp292026996-bb"></a><span class="identifier">escape</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span> str<span class="special">)</span><span class="special">;</span></pre>
+<p>Escape a string <span class="emphasis"><em>s</em></span> for inclusion in SQL statement. It does not add quotation marks at beginning and end. It is designed to be used with text, don't use it with generic binary data.</p>
+<p>Some backends (odbc) may not support this. </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">const</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span> <span class="special">&amp;</span> <a name="idp292028468-bb"></a><span class="identifier">backend</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>
+<p>Get the backend name, as postgresql, odbc, sqlite3. Known backends are:</p>
+<div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; ">
+<li class="listitem"><p>odbc</p></li>
+<li class="listitem"><p>sqlite3</p></li>
+<li class="listitem"><p>PgSQL</p></li>
+<li class="listitem"><p>Oracle</p></li>
+<li class="listitem"><p>MySQL </p></li>
+</ul></div>
+<p>
+</p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">const</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span> <span class="special">&amp;</span> <a name="idp292030324-bb"></a><span class="identifier">engine</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>
+<p>Get an SQL database name, it may be not the same as driver name for multiple engine drivers like odbc. This names can be used inside of SQL scripts to write statements specific only for some engine Currently known engines are:</p>
+<div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; ">
+<li class="listitem"><p>sqlite3</p></li>
+<li class="listitem"><p>PgSQL</p></li>
+<li class="listitem"><p>Oracle</p></li>
+<li class="listitem"><p>MySQL</p></li>
+<li class="listitem"><p>Microsoft SQL Server </p></li>
+</ul></div>
+<p>
+</p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">void</span> <a name="idp292032332-bb"></a><span class="identifier">version</span><span class="special">(</span><span class="keyword">int</span> <span class="special">&amp;</span> major<span class="special">,</span> <span class="keyword">int</span> <span class="special">&amp;</span> minor<span class="special">)</span><span class="special">;</span></pre>Get the SQL Server version. </li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">const</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span> <span class="special">&amp;</span> <a name="idp292033556-bb"></a><span class="identifier">description</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>Get human readable string describing SQL Server, usefull for logging. </li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">double</span> <a name="idp292034196-bb"></a><span class="identifier">total_execution_time</span><span class="special">(</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>Return total time in seconds spent on executing statements and queries. </li>
+<li class="listitem"><pre class="literallayout"><span class="keyword">const</span> <a class="link" href="conn_info.html" title="Class conn_info">conn_info</a> <span class="special">&amp;</span> <a name="idp292034836-bb"></a><span class="identifier">connection_info</span><span class="special">(</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre></li>
+<li class="listitem">
+<pre class="literallayout"><a class="link" href="statement.html" title="Class statement">statement</a> <a name="idp292035460-bb"></a><span class="keyword">operator</span><span class="special">&lt;&lt;</span><span class="special">(</span><span class="identifier">string_ref</span> query<span class="special">)</span><span class="special">;</span></pre>Syntactic sugar, same as prepare(q) </li>
+</ol></div>
+</div>
+</div>
+</div>
+<table xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" width="100%"><tr>
+<td align="left"></td>
+<td align="right"><div class="copyright-footer">Copyright &#169; 2013 Kozlov Taras<p>
+        Distributed under the Boost Software License, Version 1.0 (see accompanying
+        file LICENSE_1_0.txt or a copy at <a href="http://www.boost.org/LICENSE_1_0.txt" target="_top">http://www.boost.org/LICENSE_1_0.txt</a>)
+      </p>
+</div></td>
+</tr></table>
+<hr>
+<div class="spirit-nav">
+<a accesskey="p" href="operator_idp292007836.html"><img src="../images/prev.png" alt="Prev"></a><a accesskey="u" href="../reference.html#header.edba.session_hpp"><img src="../images/up.png" alt="Up"></a><a accesskey="h" href="../index.html"><img src="../images/home.png" alt="Home"></a><a accesskey="n" href="session/once_type.html"><img src="../images/next.png" alt="Next"></a>
+</div>
+</body>
+</html>

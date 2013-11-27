@@ -1,0 +1,201 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<title>Class statement</title>
+<link rel="stylesheet" href="../boostbook.css" type="text/css">
+<meta name="generator" content="DocBook XSL Stylesheets V1.77.1">
+<link rel="home" href="../index.html" title="Chapter&#160;1.&#160;edba 1.0">
+<link rel="up" href="../reference.html#header.edba.statement_hpp" title="Header &lt;edba/statement.hpp&gt;">
+<link rel="prev" href="session_pool.html" title="Class session_pool">
+<link rel="next" href="bind_conversi_idp292096204.html" title="Struct template bind_conversion&lt;T, typename boost::enable_if&lt; boost::mpl::contains&lt; bind_types, T &gt; &gt;::type&gt;">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
+<div class="spirit-nav">
+<a accesskey="p" href="session_pool.html"><img src="../images/prev.png" alt="Prev"></a><a accesskey="u" href="../reference.html#header.edba.statement_hpp"><img src="../images/up.png" alt="Up"></a><a accesskey="h" href="../index.html"><img src="../images/home.png" alt="Home"></a><a accesskey="n" href="bind_conversi_idp292096204.html"><img src="../images/next.png" alt="Next"></a>
+</div>
+<div class="refentry">
+<a name="edba.statement"></a><div class="titlepage"></div>
+<div class="refnamediv">
+<h2><span class="refentrytitle">Class statement</span></h2>
+<p>edba::statement &#8212; This class represents a prepared (or ordinary) statement that can be executed. </p>
+</div>
+<h2 xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" class="refsynopsisdiv-title">Synopsis</h2>
+<div xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" class="refsynopsisdiv"><pre class="synopsis"><span class="comment">// In header: &lt;<a class="link" href="../reference.html#header.edba.statement_hpp" title="Header &lt;edba/statement.hpp&gt;">edba/statement.hpp</a>&gt;
+
+</span>
+<span class="keyword">class</span> <a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">{</span>
+<span class="keyword">public</span><span class="special">:</span>
+  <span class="comment">// <a class="link" href="statement.html#edba.statementconstruct-copy-destruct">construct/copy/destruct</a></span>
+  <a class="link" href="statement.html#idp292094556-bb"><span class="identifier">statement</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <a class="link" href="statement.html#idp292095436-bb"><span class="identifier">statement</span></a><span class="special">(</span><span class="keyword">const</span> <span class="identifier">backend</span><span class="special">::</span><span class="identifier">connection_ptr</span> <span class="special">&amp;</span><span class="special">,</span> <span class="keyword">const</span> <span class="identifier">backend</span><span class="special">::</span><span class="identifier">statement_ptr</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+
+  <span class="comment">// <a class="link" href="statement.html#idp292058620-bb">friend functions</a></span>
+  <span class="keyword">friend</span> <span class="keyword">bool</span> <a class="link" href="statement.html#idp292058804-bb"><span class="keyword">operator</span><span class="special">==</span></a><span class="special">(</span><span class="keyword">const</span> <a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span><span class="special">,</span> <span class="keyword">const</span> <a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+
+  <span class="comment">// <a class="link" href="statement.html#idp292060372-bb">public member functions</a></span>
+  <a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span> <a class="link" href="statement.html#idp292060556-bb"><span class="identifier">reset_bindings</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span> <a class="link" href="statement.html#idp292061820-bb"><span class="identifier">bind</span></a><span class="special">(</span><span class="keyword">int</span><span class="special">,</span> <span class="keyword">const</span> <span class="identifier">T</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+  <a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span> <a class="link" href="statement.html#idp292064828-bb"><span class="identifier">bind</span></a><span class="special">(</span><span class="keyword">int</span><span class="special">,</span> <span class="keyword">const</span> <span class="identifier">bind_types_variant</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span> <a class="link" href="statement.html#idp292067460-bb"><span class="identifier">bind</span></a><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span><span class="special">,</span> <span class="keyword">const</span> <span class="identifier">T</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+  <a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span> <a class="link" href="statement.html#idp292070412-bb"><span class="identifier">bind</span></a><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span><span class="special">,</span> <span class="keyword">const</span> <span class="identifier">bind_types_variant</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span> <a class="link" href="statement.html#idp292072988-bb"><span class="identifier">bind</span></a><span class="special">(</span><span class="keyword">const</span> <span class="identifier">T</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">long</span> <span class="keyword">long</span> <a class="link" href="statement.html#idp292075628-bb"><span class="identifier">last_insert_id</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">long</span> <span class="keyword">long</span> <a class="link" href="statement.html#idp292077316-bb"><span class="identifier">sequence_last</span></a><span class="special">(</span><span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span> <span class="keyword">const</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">unsigned</span> <span class="keyword">long</span> <span class="keyword">long</span> <a class="link" href="statement.html#idp292079484-bb"><span class="identifier">affected</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <a class="link" href="row.html" title="Class row">row</a> <a class="link" href="statement.html#idp292080572-bb"><span class="identifier">first_row</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <a class="link" href="rowset.html" title="Class template rowset">rowset</a> <a class="link" href="statement.html#idp292083124-bb"><span class="identifier">query</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <a class="link" href="statement.html#idp292084492-bb"><span class="keyword">operator</span> <span class="identifier">rowset</span><span class="special">&lt;</span> <span class="identifier">T</span> <span class="special">&gt;</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">void</span> <a class="link" href="statement.html#idp292085468-bb"><span class="identifier">exec</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span> <a class="link" href="statement.html#idp292086764-bb"><span class="keyword">operator</span><span class="special">&lt;&lt;</span></a><span class="special">(</span><span class="keyword">const</span> <span class="identifier">T</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+  <a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span> <a class="link" href="statement.html#idp292088396-bb"><span class="keyword">operator</span><span class="special">&lt;&lt;</span></a><span class="special">(</span><span class="keyword">void</span><span class="special">(</span><span class="special">*</span><span class="special">)</span><span class="special">(</span><a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span><span class="identifier">st</span><span class="special">)</span><span class="special">)</span><span class="special">;</span>
+  <a class="link" href="row.html" title="Class row">row</a> <a class="link" href="statement.html#idp292089660-bb"><span class="keyword">operator</span><span class="special">&lt;&lt;</span></a><span class="special">(</span><a class="link" href="row.html" title="Class row">row</a><span class="special">(</span><span class="special">*</span><span class="special">)</span><span class="special">(</span><a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span><span class="identifier">st</span><span class="special">)</span><span class="special">)</span><span class="special">;</span>
+  <a class="link" href="rowset.html" title="Class template rowset">rowset</a> <a class="link" href="statement.html#idp292090988-bb"><span class="keyword">operator</span><span class="special">&lt;&lt;</span></a><span class="special">(</span><a class="link" href="rowset.html" title="Class template rowset">rowset</a><span class="special">&lt;</span><span class="special">&gt;</span><span class="special">(</span><span class="special">*</span><span class="special">)</span><span class="special">(</span><a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span><span class="identifier">st</span><span class="special">)</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T1<span class="special">,</span> <span class="keyword">typename</span> T2<span class="special">&gt;</span> <a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span> <a class="link" href="statement.html#idp292092316-bb"><span class="keyword">operator</span><span class="special">&lt;&lt;</span></a><span class="special">(</span><span class="emphasis"><em><span class="identifier">unspecified</span></em></span><span class="special">)</span><span class="special">;</span>
+<span class="special">}</span><span class="special">;</span></pre></div>
+<div class="refsect1">
+<a name="idp324841492"></a><h2>Description</h2>
+<p>This object is usually created via session::prepare() function. </p>
+<div class="refsect2">
+<a name="idp324841900"></a><h3>
+<a name="edba.statementconstruct-copy-destruct"></a><code class="computeroutput">statement</code> 
+        public
+       construct/copy/destruct</h3>
+<div class="orderedlist"><ol class="orderedlist" type="1">
+<li class="listitem">
+<pre class="literallayout"><a name="idp292094556-bb"></a><span class="identifier">statement</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>
+<p>Default constructor, provided for convenience, access to some member function of empty statement will cause an exception <code class="computeroutput"><a class="link" href="empty_statement.html" title="Class empty_statement">empty_statement</a></code> being thrown. </p>
+</li>
+<li class="listitem"><pre class="literallayout"><a name="idp292095436-bb"></a><span class="identifier">statement</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">backend</span><span class="special">::</span><span class="identifier">connection_ptr</span> <span class="special">&amp;</span> conn<span class="special">,</span> 
+          <span class="keyword">const</span> <span class="identifier">backend</span><span class="special">::</span><span class="identifier">statement_ptr</span> <span class="special">&amp;</span> stmt<span class="special">)</span><span class="special">;</span></pre></li>
+</ol></div>
+</div>
+<div class="refsect2">
+<a name="idp324851228"></a><h3>
+<a name="idp292058620-bb"></a><code class="computeroutput">statement</code> friend functions</h3>
+<div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem">
+<pre class="literallayout"><span class="keyword">friend</span> <span class="keyword">bool</span> <a name="idp292058804-bb"></a><span class="keyword">operator</span><span class="special">==</span><span class="special">(</span><span class="keyword">const</span> <a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span> s1<span class="special">,</span> <span class="keyword">const</span> <a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span> s2<span class="special">)</span><span class="special">;</span></pre>Equality operator. </li></ol></div>
+</div>
+<div class="refsect2">
+<a name="idp324857804"></a><h3>
+<a name="idp292060372-bb"></a><code class="computeroutput">statement</code> public member functions</h3>
+<div class="orderedlist"><ol class="orderedlist" type="1">
+<li class="listitem">
+<pre class="literallayout"><a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span> <a name="idp292060556-bb"></a><span class="identifier">reset_bindings</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>
+<p>Reset the statement - remove all bindings and return it into initial state so query() or exec() functions can be called once again.</p>
+<p>You must use it if you use the same statement multiple times.</p>
+<p>Immediatelly exits for empty statements </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span> <a name="idp292061820-bb"></a><span class="identifier">bind</span><span class="special">(</span><span class="keyword">int</span> col<span class="special">,</span> <span class="keyword">const</span> <span class="identifier">T</span> <span class="special">&amp;</span> v<span class="special">)</span><span class="special">;</span></pre>
+<p>Bind a value <span class="emphasis"><em>v</em></span> to the placeholder by index (starting from the 1).</p>
+<p>Placeholders are marked as ':placeholdername' in the query. If placeholder index is higher then the number placeholders is the statement it may throw <code class="computeroutput"><a class="link" href="invalid_column.html" title="Class invalid_column">invalid_column</a></code> exception.</p>
+<p>If placeholder was not binded the behavior is undefined and may vary between different backends.</p>
+<p>Immediatelly exits for empty statements </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span> <a name="idp292064828-bb"></a><span class="identifier">bind</span><span class="special">(</span><span class="keyword">int</span> col<span class="special">,</span> <span class="keyword">const</span> <span class="identifier">bind_types_variant</span> <span class="special">&amp;</span> v<span class="special">)</span><span class="special">;</span></pre>
+<p>Bind a value <span class="emphasis"><em>v</em></span> to the placeholder by index (starting from the 1).</p>
+<p>Placeholders are marked as ':placeholdername' in the query. If placeholder index is higher then the number placeholders is the statement it may throw <code class="computeroutput"><a class="link" href="invalid_column.html" title="Class invalid_column">invalid_column</a></code> exception.</p>
+<p>If placeholder was not binded the behavior is undefined and may vary between different backends.</p>
+<p>Immediatelly exits for empty statements </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span> <a name="idp292067460-bb"></a><span class="identifier">bind</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span> name<span class="special">,</span> <span class="keyword">const</span> <span class="identifier">T</span> <span class="special">&amp;</span> v<span class="special">)</span><span class="special">;</span></pre>
+<p>Bind a value <span class="emphasis"><em>v</em></span> to the placeholder by name.</p>
+<p>Placeholders are marked as ':placeholdername' in the query. If placeholder name is invalid then it may throw <code class="computeroutput"><a class="link" href="invalid_column.html" title="Class invalid_column">invalid_column</a></code> exception</p>
+<p>If placeholder was not binded the behavior is undefined and may vary between different backends.</p>
+<p>Immediatelly exits for empty statements </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span> <a name="idp292070412-bb"></a><span class="identifier">bind</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span> name<span class="special">,</span> <span class="keyword">const</span> <span class="identifier">bind_types_variant</span> <span class="special">&amp;</span> v<span class="special">)</span><span class="special">;</span></pre>
+<p>Bind a value <span class="emphasis"><em>v</em></span> to the placeholder by name.</p>
+<p>Placeholders are marked as ':placeholdername' in the query. If placeholder name is invalid then it may throw <code class="computeroutput"><a class="link" href="invalid_column.html" title="Class invalid_column">invalid_column</a></code> exception</p>
+<p>If placeholder was not binded the behavior is undefined and may vary between different backends.</p>
+<p>Immediatelly exits for empty statements </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span> <a name="idp292072988-bb"></a><span class="identifier">bind</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">T</span> <span class="special">&amp;</span> v<span class="special">)</span><span class="special">;</span></pre>
+<p>Bind a value <span class="emphasis"><em>v</em></span> to the placeholder.</p>
+<p>Placeholders are marked as ':placeholdername' in the query. If number of calls is higher then the number placeholders is the statement it may throw <code class="computeroutput"><a class="link" href="invalid_column.html" title="Class invalid_column">invalid_column</a></code> exception.</p>
+<p>If placeholder was not binded the behavior is undefined and may vary between different backends.</p>
+<p>Immediatelly exits for empty statements </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">long</span> <span class="keyword">long</span> <a name="idp292075628-bb"></a><span class="identifier">last_insert_id</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>
+<p>Get last insert id from the last executed statement, note, it is the same as sequence_last("").</p>
+<p>Some backends requires explicit sequence name so you should use sequence_last("sequence_name") in such case.</p>
+<p>If the statement is actually query, the behavior is undefined and may vary between backends.</p>
+<p>Throw <code class="computeroutput"><a class="link" href="empty_statement.html" title="Class empty_statement">empty_statement</a></code> exception for empty statements </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">long</span> <span class="keyword">long</span> <a name="idp292077316-bb"></a><span class="identifier">sequence_last</span><span class="special">(</span><span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span> <span class="keyword">const</span> <span class="special">&amp;</span> seq<span class="special">)</span><span class="special">;</span></pre>
+<p>Get last created sequence value from the last executed statement.</p>
+<p>If the backend does not support named sequences but rather supports "auto increment" columns (like MySQL, Sqlite3), the <span class="emphasis"><em>seq</em></span> parameter is ignored.</p>
+<p>If the statement is actually query, the behavior is undefined and may vary between backends.</p>
+<p>Throw <code class="computeroutput"><a class="link" href="empty_statement.html" title="Class empty_statement">empty_statement</a></code> exception for empty statements </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">unsigned</span> <span class="keyword">long</span> <span class="keyword">long</span> <a name="idp292079484-bb"></a><span class="identifier">affected</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>
+<p>Get the number of affected rows by the last statement,</p>
+<p>If the statement is actually query, the behavior is undefined and may vary between backends.</p>
+<p>For empty statements return 0 </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><a class="link" href="row.html" title="Class row">row</a> <a name="idp292080572-bb"></a><span class="identifier">first_row</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>
+<p>Fetch a single row from the query.</p>
+<p>If the result set consists of more then one row it throws <code class="computeroutput"><a class="link" href="multiple_rows_query.html" title="Class multiple_rows_query">multiple_rows_query</a></code> exception, however some backends may ignore this.</p>
+<p>Would throw <code class="computeroutput"><a class="link" href="empty_row_access.html" title="Class empty_row_access">empty_row_access</a></code> exception if the result is empty.</p>
+<p>If the statement is not query statement (like SELECT) it would likely throw an exception, however the behavior may vary between backends that may ignore this error.</p>
+<p>Throw <code class="computeroutput"><a class="link" href="empty_statement.html" title="Class empty_statement">empty_statement</a></code> exception for empty statements </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><a class="link" href="rowset.html" title="Class template rowset">rowset</a> <a name="idp292083124-bb"></a><span class="identifier">query</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>
+<p>Fetch a result of the query, if the statement is not query statement (like SELECT) it would likely throw an exception, however the behavior may vary between backends that may ignore this error.</p>
+<p>Throw <code class="computeroutput"><a class="link" href="empty_statement.html" title="Class empty_statement">empty_statement</a></code> exception for empty statements </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <a name="idp292084492-bb"></a><span class="keyword">operator</span> <span class="identifier">rowset</span><span class="special">&lt;</span> <span class="identifier">T</span> <span class="special">&gt;</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>Same as query() - syntactic sugar. </li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">void</span> <a name="idp292085468-bb"></a><span class="identifier">exec</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>
+<p>Execute a statement, of the statement is actually SELECT like operator, it throws <code class="computeroutput"><a class="link" href="edba_error.html" title="Class edba_error">edba_error</a></code> exception, however the behavior may vary between backends that may ignore this error.</p>
+<p>Immediatelly exits for empty statements </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span> <a name="idp292086764-bb"></a><span class="keyword">operator</span><span class="special">&lt;&lt;</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">T</span> <span class="special">&amp;</span> v<span class="special">)</span><span class="special">;</span></pre>
+<p>Syntactic sugar for </p>
+<pre class="programlisting">st.bind(val);
+</pre>
+<p> </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span> <a name="idp292088396-bb"></a><span class="keyword">operator</span><span class="special">&lt;&lt;</span><span class="special">(</span><span class="keyword">void</span><span class="special">(</span><span class="special">*</span><span class="special">)</span><span class="special">(</span><a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span><span class="identifier">st</span><span class="special">)</span> manipulator<span class="special">)</span><span class="special">;</span></pre>Apply manipulator on the statement, same as manipulator(*this). </li>
+<li class="listitem">
+<pre class="literallayout"><a class="link" href="row.html" title="Class row">row</a> <a name="idp292089660-bb"></a><span class="keyword">operator</span><span class="special">&lt;&lt;</span><span class="special">(</span><a class="link" href="row.html" title="Class row">row</a><span class="special">(</span><span class="special">*</span><span class="special">)</span><span class="special">(</span><a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span><span class="identifier">st</span><span class="special">)</span> manipulator<span class="special">)</span><span class="special">;</span></pre>Apply manipulator on the statement, same as manipulator(*this). </li>
+<li class="listitem">
+<pre class="literallayout"><a class="link" href="rowset.html" title="Class template rowset">rowset</a> <a name="idp292090988-bb"></a><span class="keyword">operator</span><span class="special">&lt;&lt;</span><span class="special">(</span><a class="link" href="rowset.html" title="Class template rowset">rowset</a><span class="special">&lt;</span><span class="special">&gt;</span><span class="special">(</span><span class="special">*</span><span class="special">)</span><span class="special">(</span><a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span><span class="identifier">st</span><span class="special">)</span> manipulator<span class="special">)</span><span class="special">;</span></pre>Apply manipulator on the statement, same as manipulator(*this). </li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T1<span class="special">,</span> <span class="keyword">typename</span> T2<span class="special">&gt;</span> <a class="link" href="statement.html" title="Class statement">statement</a> <span class="special">&amp;</span> <a name="idp292092316-bb"></a><span class="keyword">operator</span><span class="special">&lt;&lt;</span><span class="special">(</span><span class="emphasis"><em><span class="identifier">unspecified</span></em></span> val<span class="special">)</span><span class="special">;</span></pre>
+<p>Used with types produced by use function.</p>
+<p>The call st &lt;&lt; use("paramname", val) is same as</p>
+<pre class="programlisting">st.bind("paramname", val);
+</pre>
+<p> </p>
+</li>
+</ol></div>
+</div>
+</div>
+</div>
+<table xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" width="100%"><tr>
+<td align="left"></td>
+<td align="right"><div class="copyright-footer">Copyright &#169; 2013 Kozlov Taras<p>
+        Distributed under the Boost Software License, Version 1.0 (see accompanying
+        file LICENSE_1_0.txt or a copy at <a href="http://www.boost.org/LICENSE_1_0.txt" target="_top">http://www.boost.org/LICENSE_1_0.txt</a>)
+      </p>
+</div></td>
+</tr></table>
+<hr>
+<div class="spirit-nav">
+<a accesskey="p" href="session_pool.html"><img src="../images/prev.png" alt="Prev"></a><a accesskey="u" href="../reference.html#header.edba.statement_hpp"><img src="../images/up.png" alt="Up"></a><a accesskey="h" href="../index.html"><img src="../images/home.png" alt="Home"></a><a accesskey="n" href="bind_conversi_idp292096204.html"><img src="../images/next.png" alt="Next"></a>
+</div>
+</body>
+</html>

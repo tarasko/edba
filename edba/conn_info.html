@@ -1,0 +1,110 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<title>Class conn_info</title>
+<link rel="stylesheet" href="../boostbook.css" type="text/css">
+<meta name="generator" content="DocBook XSL Stylesheets V1.77.1">
+<link rel="home" href="../index.html" title="Chapter&#160;1.&#160;edba 1.0">
+<link rel="up" href="../reference.html#header.edba.conn_info_hpp" title="Header &lt;edba/conn_info.hpp&gt;">
+<link rel="prev" href="../reference.html" title="Reference">
+<link rel="next" href="edba_error.html" title="Class edba_error">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
+<div class="spirit-nav">
+<a accesskey="p" href="../reference.html"><img src="../images/prev.png" alt="Prev"></a><a accesskey="u" href="../reference.html#header.edba.conn_info_hpp"><img src="../images/up.png" alt="Up"></a><a accesskey="h" href="../index.html"><img src="../images/home.png" alt="Home"></a><a accesskey="n" href="edba_error.html"><img src="../images/next.png" alt="Next"></a>
+</div>
+<div class="refentry">
+<a name="edba.conn_info"></a><div class="titlepage"></div>
+<div class="refnamediv">
+<h2><span class="refentrytitle">Class conn_info</span></h2>
+<p>edba::conn_info &#8212; Parse a connection string <span class="emphasis"><em>cs</em></span> into driver name <span class="emphasis"><em>driver_name</em></span> and list of properties <span class="emphasis"><em>props</em></span>. </p>
+</div>
+<h2 xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" class="refsynopsisdiv-title">Synopsis</h2>
+<div xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" class="refsynopsisdiv"><pre class="synopsis"><span class="comment">// In header: &lt;<a class="link" href="../reference.html#header.edba.conn_info_hpp" title="Header &lt;edba/conn_info.hpp&gt;">edba/conn_info.hpp</a>&gt;
+
+</span>
+<span class="keyword">class</span> <a class="link" href="conn_info.html" title="Class conn_info">conn_info</a> <span class="special">{</span>
+<span class="keyword">public</span><span class="special">:</span>
+  <span class="comment">// <a class="link" href="conn_info.html#edba.conn_infoconstruct-copy-destruct">construct/copy/destruct</a></span>
+  <a class="link" href="conn_info.html#idp288311452-bb"><span class="identifier">conn_info</span></a><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+
+  <span class="comment">// <a class="link" href="conn_info.html#idp288303804-bb">public member functions</a></span>
+  <span class="keyword">bool</span> <a class="link" href="conn_info.html#idp288303988-bb"><span class="identifier">has</span></a><span class="special">(</span><span class="keyword">const</span> <span class="keyword">char</span> <span class="special">*</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+  <span class="identifier">string_ref</span> <a class="link" href="conn_info.html#idp288305316-bb"><span class="identifier">get</span></a><span class="special">(</span><span class="keyword">const</span> <span class="keyword">char</span> <span class="special">*</span><span class="special">,</span> <span class="keyword">const</span> <span class="keyword">char</span> <span class="special">*</span> <span class="special">=</span> <span class="string">""</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+  <span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span> <a class="link" href="conn_info.html#idp288306868-bb"><span class="identifier">get_copy</span></a><span class="special">(</span><span class="keyword">const</span> <span class="keyword">char</span> <span class="special">*</span><span class="special">,</span> <span class="keyword">const</span> <span class="keyword">char</span> <span class="special">*</span> <span class="special">=</span> <span class="string">""</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+  <span class="keyword">int</span> <a class="link" href="conn_info.html#idp288308524-bb"><span class="identifier">get</span></a><span class="special">(</span><span class="keyword">const</span> <span class="keyword">char</span> <span class="special">*</span><span class="special">,</span> <span class="keyword">int</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+  <span class="keyword">const</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span> <span class="special">&amp;</span> <a class="link" href="conn_info.html#idp288309956-bb"><span class="identifier">conn_string</span></a><span class="special">(</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+  <span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span> <a class="link" href="conn_info.html#idp288310684-bb"><span class="identifier">pgsql_conn_string</span></a><span class="special">(</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+
+  <span class="comment">// <a class="link" href="conn_info.html#idp288312036-bb">private static functions</a></span>
+  <span class="keyword">static</span> <span class="keyword">void</span> <a class="link" href="conn_info.html#idp288312220-bb"><span class="identifier">append_escaped</span></a><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span><span class="special">,</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+<span class="special">}</span><span class="special">;</span></pre></div>
+<div class="refsect1">
+<a name="idp323699588"></a><h2>Description</h2>
+<p>The connection string format is following:</p>
+<p>driver:[key=value;]*  </p>
+<p>Where value can be either a sequence of characters (white space is trimmed) or it may be a general sequence encloded in a single quitation marks were double quote is used for insering a single quote value.</p>
+<p>Key values starting with @ are reserved to be used as special edba keys For example:</p>
+<p>mysql:username= root;password = 'asdf''5764dg';database=test;@use_prepared=off' </p>
+<p>Where driver is "mysql", username is "root", password is "asdf'5764dg", database is "test" and special value "@use_prepared" is off - internal edba option. class <a class="link" href="conn_info.html" title="Class conn_info">conn_info</a> </p>
+<div class="refsect2">
+<a name="idp323701428"></a><h3>
+<a name="edba.conn_infoconstruct-copy-destruct"></a><code class="computeroutput">conn_info</code> 
+        public
+       construct/copy/destruct</h3>
+<div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem">
+<pre class="literallayout"><a name="idp288311452-bb"></a><span class="identifier">conn_info</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span> conn_string<span class="special">)</span><span class="special">;</span></pre>
+<p>Split connection string to key-value pairs </p>
+</li></ol></div>
+</div>
+<div class="refsect2">
+<a name="idp323705492"></a><h3>
+<a name="idp288303804-bb"></a><code class="computeroutput">conn_info</code> public member functions</h3>
+<div class="orderedlist"><ol class="orderedlist" type="1">
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">bool</span> <a name="idp288303988-bb"></a><span class="identifier">has</span><span class="special">(</span><span class="keyword">const</span> <span class="keyword">char</span> <span class="special">*</span> key<span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>
+<p>Return true if <code class="computeroutput"><a class="link" href="conn_info.html" title="Class conn_info">conn_info</a></code> has specified key </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="identifier">string_ref</span> <a name="idp288305316-bb"></a><span class="identifier">get</span><span class="special">(</span><span class="keyword">const</span> <span class="keyword">char</span> <span class="special">*</span> key<span class="special">,</span> <span class="keyword">const</span> <span class="keyword">char</span> <span class="special">*</span> def <span class="special">=</span> <span class="string">""</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>
+<p>Return value for specified key, if key not found return default value </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span> <a name="idp288306868-bb"></a><span class="identifier">get_copy</span><span class="special">(</span><span class="keyword">const</span> <span class="keyword">char</span> <span class="special">*</span> key<span class="special">,</span> <span class="keyword">const</span> <span class="keyword">char</span> <span class="special">*</span> def <span class="special">=</span> <span class="string">""</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>
+<p>Return value for specified key, if key not found return default value Copy internal range to new string, this is helpfull for some driver that accept only zero ended strings </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">int</span> <a name="idp288308524-bb"></a><span class="identifier">get</span><span class="special">(</span><span class="keyword">const</span> <span class="keyword">char</span> <span class="special">*</span> key<span class="special">,</span> <span class="keyword">int</span> def<span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>
+<p>Return numeric value for specified key, if key not found return default value </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">const</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span> <span class="special">&amp;</span> <a name="idp288309956-bb"></a><span class="identifier">conn_string</span><span class="special">(</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>
+<p>Return connection string for driver without ebda specific tags </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span> <a name="idp288310684-bb"></a><span class="identifier">pgsql_conn_string</span><span class="special">(</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>
+<p>Return connection string for postgresql driver Perform escaping and quoting according to postgresql rules </p>
+</li>
+</ol></div>
+</div>
+<div class="refsect2">
+<a name="idp323731708"></a><h3>
+<a name="idp288312036-bb"></a><code class="computeroutput">conn_info</code> private static functions</h3>
+<div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><pre class="literallayout"><span class="keyword">static</span> <span class="keyword">void</span> <a name="idp288312220-bb"></a><span class="identifier">append_escaped</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span> rng<span class="special">,</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span> <span class="special">&amp;</span> dst<span class="special">)</span><span class="special">;</span></pre></li></ol></div>
+</div>
+</div>
+</div>
+<table xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" width="100%"><tr>
+<td align="left"></td>
+<td align="right"><div class="copyright-footer">Copyright &#169; 2013 Kozlov Taras<p>
+        Distributed under the Boost Software License, Version 1.0 (see accompanying
+        file LICENSE_1_0.txt or a copy at <a href="http://www.boost.org/LICENSE_1_0.txt" target="_top">http://www.boost.org/LICENSE_1_0.txt</a>)
+      </p>
+</div></td>
+</tr></table>
+<hr>
+<div class="spirit-nav">
+<a accesskey="p" href="../reference.html"><img src="../images/prev.png" alt="Prev"></a><a accesskey="u" href="../reference.html#header.edba.conn_info_hpp"><img src="../images/up.png" alt="Up"></a><a accesskey="h" href="../index.html"><img src="../images/home.png" alt="Home"></a><a accesskey="n" href="edba_error.html"><img src="../images/next.png" alt="Next"></a>
+</div>
+</body>
+</html>

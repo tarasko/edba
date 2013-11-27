@@ -1,0 +1,85 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<title>Class session_monitor</title>
+<link rel="stylesheet" href="../boostbook.css" type="text/css">
+<meta name="generator" content="DocBook XSL Stylesheets V1.77.1">
+<link rel="home" href="../index.html" title="Chapter&#160;1.&#160;edba 1.0">
+<link rel="up" href="../reference.html#header.edba.session_monitor_hpp" title="Header &lt;edba/session_monitor.hpp&gt;">
+<link rel="prev" href="session/once_type.html" title="Struct once_type">
+<link rel="next" href="session_pool.html" title="Class session_pool">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
+<div class="spirit-nav">
+<a accesskey="p" href="session/once_type.html"><img src="../images/prev.png" alt="Prev"></a><a accesskey="u" href="../reference.html#header.edba.session_monitor_hpp"><img src="../images/up.png" alt="Up"></a><a accesskey="h" href="../index.html"><img src="../images/home.png" alt="Home"></a><a accesskey="n" href="session_pool.html"><img src="../images/next.png" alt="Next"></a>
+</div>
+<div class="refentry">
+<a name="edba.session_monitor"></a><div class="titlepage"></div>
+<div class="refnamediv">
+<h2><span class="refentrytitle">Class session_monitor</span></h2>
+<p>edba::session_monitor &#8212; Interface for monitoring session statements executing. </p>
+</div>
+<h2 xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" class="refsynopsisdiv-title">Synopsis</h2>
+<div xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" class="refsynopsisdiv"><pre class="synopsis"><span class="comment">// In header: &lt;<a class="link" href="../reference.html#header.edba.session_monitor_hpp" title="Header &lt;edba/session_monitor.hpp&gt;">edba/session_monitor.hpp</a>&gt;
+
+</span>
+<span class="keyword">class</span> <a class="link" href="session_monitor.html" title="Class session_monitor">session_monitor</a> <span class="special">{</span>
+<span class="keyword">public</span><span class="special">:</span>
+  <span class="comment">// <a class="link" href="session_monitor.html#edba.session_monitorconstruct-copy-destruct">construct/copy/destruct</a></span>
+  <a class="link" href="session_monitor.html#idp292045884-bb"><span class="special">~</span><span class="identifier">session_monitor</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+
+  <span class="comment">// <a class="link" href="session_monitor.html#idp292039940-bb">public member functions</a></span>
+  <span class="keyword">void</span> <a class="link" href="session_monitor.html#idp292040124-bb"><span class="identifier">statement_executed</span></a><span class="special">(</span><span class="keyword">const</span> <span class="keyword">char</span> <span class="special">*</span><span class="special">,</span> <span class="keyword">const</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span> <span class="special">&amp;</span><span class="special">,</span> <span class="keyword">bool</span><span class="special">,</span> <span class="keyword">double</span><span class="special">,</span> 
+                          <span class="keyword">unsigned</span> <span class="keyword">long</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">void</span> <a class="link" href="session_monitor.html#idp292042356-bb"><span class="identifier">query_executed</span></a><span class="special">(</span><span class="keyword">const</span> <span class="keyword">char</span> <span class="special">*</span><span class="special">,</span> <span class="keyword">const</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span> <span class="special">&amp;</span><span class="special">,</span> <span class="keyword">bool</span><span class="special">,</span> <span class="keyword">double</span><span class="special">,</span> 
+                      <span class="keyword">unsigned</span> <span class="keyword">long</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">void</span> <a class="link" href="session_monitor.html#idp292044588-bb"><span class="identifier">transaction_started</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">void</span> <a class="link" href="session_monitor.html#idp292045020-bb"><span class="identifier">transaction_committed</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">void</span> <a class="link" href="session_monitor.html#idp292045452-bb"><span class="identifier">transaction_reverted</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+<span class="special">}</span><span class="special">;</span></pre></div>
+<div class="refsect1">
+<a name="idp324582268"></a><h2>Description</h2>
+<div class="refsect2">
+<a name="idp324582476"></a><h3>
+<a name="edba.session_monitorconstruct-copy-destruct"></a><code class="computeroutput">session_monitor</code> 
+        public
+       construct/copy/destruct</h3>
+<div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><pre class="literallayout"><a name="idp292045884-bb"></a><span class="special">~</span><span class="identifier">session_monitor</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre></li></ol></div>
+</div>
+<div class="refsect2">
+<a name="idp324585788"></a><h3>
+<a name="idp292039940-bb"></a><code class="computeroutput">session_monitor</code> public member functions</h3>
+<div class="orderedlist"><ol class="orderedlist" type="1">
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">void</span> <a name="idp292040124-bb"></a><span class="identifier">statement_executed</span><span class="special">(</span><span class="keyword">const</span> <span class="keyword">char</span> <span class="special">*</span><span class="special">,</span> <span class="keyword">const</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span> <span class="special">&amp;</span><span class="special">,</span> <span class="keyword">bool</span><span class="special">,</span> <span class="keyword">double</span><span class="special">,</span> 
+                        <span class="keyword">unsigned</span> <span class="keyword">long</span> long<span class="special">)</span><span class="special">;</span></pre>
+<p>Called after statement has been executed. 
+</p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">void</span> <a name="idp292042356-bb"></a><span class="identifier">query_executed</span><span class="special">(</span><span class="keyword">const</span> <span class="keyword">char</span> <span class="special">*</span><span class="special">,</span> <span class="keyword">const</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span> <span class="special">&amp;</span><span class="special">,</span> <span class="keyword">bool</span><span class="special">,</span> <span class="keyword">double</span><span class="special">,</span> 
+                    <span class="keyword">unsigned</span> <span class="keyword">long</span> long<span class="special">)</span><span class="special">;</span></pre>
+<p>Called after query has been executed. 
+</p>
+</li>
+<li class="listitem"><pre class="literallayout"><span class="keyword">void</span> <a name="idp292044588-bb"></a><span class="identifier">transaction_started</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre></li>
+<li class="listitem"><pre class="literallayout"><span class="keyword">void</span> <a name="idp292045020-bb"></a><span class="identifier">transaction_committed</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre></li>
+<li class="listitem"><pre class="literallayout"><span class="keyword">void</span> <a name="idp292045452-bb"></a><span class="identifier">transaction_reverted</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre></li>
+</ol></div>
+</div>
+</div>
+</div>
+<table xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" width="100%"><tr>
+<td align="left"></td>
+<td align="right"><div class="copyright-footer">Copyright &#169; 2013 Kozlov Taras<p>
+        Distributed under the Boost Software License, Version 1.0 (see accompanying
+        file LICENSE_1_0.txt or a copy at <a href="http://www.boost.org/LICENSE_1_0.txt" target="_top">http://www.boost.org/LICENSE_1_0.txt</a>)
+      </p>
+</div></td>
+</tr></table>
+<hr>
+<div class="spirit-nav">
+<a accesskey="p" href="session/once_type.html"><img src="../images/prev.png" alt="Prev"></a><a accesskey="u" href="../reference.html#header.edba.session_monitor_hpp"><img src="../images/up.png" alt="Up"></a><a accesskey="h" href="../index.html"><img src="../images/home.png" alt="Home"></a><a accesskey="n" href="session_pool.html"><img src="../images/next.png" alt="Next"></a>
+</div>
+</body>
+</html>

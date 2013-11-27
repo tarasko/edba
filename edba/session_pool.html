@@ -1,0 +1,108 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<title>Class session_pool</title>
+<link rel="stylesheet" href="../boostbook.css" type="text/css">
+<meta name="generator" content="DocBook XSL Stylesheets V1.77.1">
+<link rel="home" href="../index.html" title="Chapter&#160;1.&#160;edba 1.0">
+<link rel="up" href="../reference.html#header.edba.session_pool_hpp" title="Header &lt;edba/session_pool.hpp&gt;">
+<link rel="prev" href="session_monitor.html" title="Class session_monitor">
+<link rel="next" href="statement.html" title="Class statement">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
+<div class="spirit-nav">
+<a accesskey="p" href="session_monitor.html"><img src="../images/prev.png" alt="Prev"></a><a accesskey="u" href="../reference.html#header.edba.session_pool_hpp"><img src="../images/up.png" alt="Up"></a><a accesskey="h" href="../index.html"><img src="../images/home.png" alt="Home"></a><a accesskey="n" href="statement.html"><img src="../images/next.png" alt="Next"></a>
+</div>
+<div class="refentry">
+<a name="edba.session_pool"></a><div class="titlepage"></div>
+<div class="refnamediv">
+<h2><span class="refentrytitle">Class session_pool</span></h2>
+<p>edba::session_pool</p>
+</div>
+<h2 xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" class="refsynopsisdiv-title">Synopsis</h2>
+<div xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" class="refsynopsisdiv"><pre class="synopsis"><span class="comment">// In header: &lt;<a class="link" href="../reference.html#header.edba.session_pool_hpp" title="Header &lt;edba/session_pool.hpp&gt;">edba/session_pool.hpp</a>&gt;
+
+</span>
+<span class="keyword">class</span> <a class="link" href="session_pool.html" title="Class session_pool">session_pool</a> <span class="special">{</span>
+<span class="keyword">public</span><span class="special">:</span>
+  <span class="comment">// types</span>
+  <span class="keyword">typedef</span> <span class="identifier">boost</span><span class="special">::</span><span class="identifier">function</span><span class="special">&lt;</span> <span class="identifier">backend</span><span class="special">::</span><span class="identifier">connection_ptr</span><span class="special">(</span><span class="keyword">const</span> <a class="link" href="conn_info.html" title="Class conn_info">conn_info</a> <span class="special">&amp;</span><span class="identifier">ci</span><span class="special">,</span> <a class="link" href="session_monitor.html" title="Class session_monitor">session_monitor</a> <span class="special">*</span><span class="identifier">sm</span><span class="special">)</span><span class="special">&gt;</span> <a name="edba.session_pool.conn_create_callback"></a><span class="identifier">conn_create_callback</span><span class="special">;</span>
+  <span class="keyword">typedef</span> <span class="identifier">boost</span><span class="special">::</span><span class="identifier">function</span><span class="special">&lt;</span> <span class="keyword">void</span><span class="special">(</span><a class="link" href="session.html" title="Class session">session</a><span class="special">)</span><span class="special">&gt;</span>                                                     <a name="edba.session_pool.conn_init_callback"></a><span class="identifier">conn_init_callback</span><span class="special">;</span>  
+
+  <span class="comment">// <a class="link" href="session_pool.html#edba.session_poolconstruct-copy-destruct">construct/copy/destruct</a></span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Driver<span class="special">&gt;</span> 
+    <a class="link" href="session_pool.html#idp292052268-bb"><span class="identifier">session_pool</span></a><span class="special">(</span><span class="identifier">Driver</span><span class="special">,</span> <span class="keyword">const</span> <span class="keyword">char</span> <span class="special">*</span><span class="special">,</span> <span class="keyword">int</span><span class="special">,</span> <a class="link" href="session_monitor.html" title="Class session_monitor">session_monitor</a> <span class="special">*</span> <span class="special">=</span> <span class="number">0</span><span class="special">)</span><span class="special">;</span>
+  <a class="link" href="session_pool.html#idp292056332-bb"><span class="identifier">session_pool</span></a><span class="special">(</span><span class="keyword">const</span> <a class="link" href="session_pool.html" title="Class session_pool">session_pool</a> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+  session_pool&amp; <a class="link" href="session_pool.html#idp292056900-bb"><span class="keyword">operator</span><span class="special">=</span></a><span class="special">(</span><span class="keyword">const</span> <a class="link" href="session_pool.html" title="Class session_pool">session_pool</a> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+
+  <span class="comment">// <a class="link" href="session_pool.html#idp292048012-bb">public member functions</a></span>
+  <span class="keyword">void</span> <a class="link" href="session_pool.html#idp292048196-bb"><span class="identifier">invoke_on_connect</span></a><span class="special">(</span><span class="keyword">const</span> <span class="identifier">conn_init_callback</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+  <a class="link" href="session.html" title="Class session">session</a> <a class="link" href="session_pool.html#idp292049356-bb"><span class="identifier">open</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">bool</span> <a class="link" href="session_pool.html#idp292050268-bb"><span class="identifier">try_open</span></a><span class="special">(</span><a class="link" href="session.html" title="Class session">session</a> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">double</span> <a class="link" href="session_pool.html#idp292051556-bb"><span class="identifier">total_execution_time</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+
+  <span class="comment">// <a class="link" href="session_pool.html#idp292055364-bb">private member functions</a></span>
+  <span class="identifier">backend</span><span class="special">::</span><span class="identifier">connection_ptr</span> <a class="link" href="session_pool.html#idp292055548-bb"><span class="identifier">create_proxy</span></a><span class="special">(</span><span class="keyword">const</span> <span class="identifier">backend</span><span class="special">::</span><span class="identifier">connection_ptr</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+<span class="special">}</span><span class="special">;</span></pre></div>
+<div class="refsect1">
+<a name="idp324654420"></a><h2>Description</h2>
+<p>Thread-safe pool of sessions with maximum number limit </p>
+<div class="refsect2">
+<a name="idp324654820"></a><h3>
+<a name="edba.session_poolconstruct-copy-destruct"></a><code class="computeroutput">session_pool</code> 
+        public
+       construct/copy/destruct</h3>
+<div class="orderedlist"><ol class="orderedlist" type="1">
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Driver<span class="special">&gt;</span> 
+  <a name="idp292052268-bb"></a><span class="identifier">session_pool</span><span class="special">(</span><span class="identifier">Driver</span> driver<span class="special">,</span> <span class="keyword">const</span> <span class="keyword">char</span> <span class="special">*</span> conn_string<span class="special">,</span> <span class="keyword">int</span> max_pool_size<span class="special">,</span> 
+               <a class="link" href="session_monitor.html" title="Class session_monitor">session_monitor</a> <span class="special">*</span> sm <span class="special">=</span> <span class="number">0</span><span class="special">)</span><span class="special">;</span></pre>
+<p>Construct pool of session with max limit. All sessions will be created using specified <span class="emphasis"><em>driver</em></span> and <span class="emphasis"><em>conn_string</em></span>. Constructor doesn`t create connection itself, instead they will be created lazily by <span class="emphasis"><em>open</em></span> and <span class="emphasis"><em>try_open</em></span> calls. </p>
+</li>
+<li class="listitem"><pre class="literallayout"><a name="idp292056332-bb"></a><span class="identifier">session_pool</span><span class="special">(</span><span class="keyword">const</span> <a class="link" href="session_pool.html" title="Class session_pool">session_pool</a> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span></pre></li>
+<li class="listitem"><pre class="literallayout">session_pool&amp; <a name="idp292056900-bb"></a><span class="keyword">operator</span><span class="special">=</span><span class="special">(</span><span class="keyword">const</span> <a class="link" href="session_pool.html" title="Class session_pool">session_pool</a> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span></pre></li>
+</ol></div>
+</div>
+<div class="refsect2">
+<a name="idp324670644"></a><h3>
+<a name="idp292048012-bb"></a><code class="computeroutput">session_pool</code> public member functions</h3>
+<div class="orderedlist"><ol class="orderedlist" type="1">
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">void</span> <a name="idp292048196-bb"></a><span class="identifier">invoke_on_connect</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">conn_init_callback</span> <span class="special">&amp;</span> callback<span class="special">)</span><span class="special">;</span></pre>
+<p>Invoke provided function object once on connection creation. This allow to setup all sessions in pool in uniform manner. configure call doesn`t affect already created sessions it will be applied only to the new one. </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><a class="link" href="session.html" title="Class session">session</a> <a name="idp292049356-bb"></a><span class="identifier">open</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>
+<p>Get session from pool or create new one if there is no free sessions and max_pool_size limit is not exceeded. If there is no free sessions and max_pool_size limit exceeded then wait until someone will release session. </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">bool</span> <a name="idp292050268-bb"></a><span class="identifier">try_open</span><span class="special">(</span><a class="link" href="session.html" title="Class session">session</a> <span class="special">&amp;</span> sess<span class="special">)</span><span class="special">;</span></pre>
+<p>Get session from pool or create new one if there is no free sessions and max_pool_size limit is not exceeded. If there is no free sessions and max_pool_size limit exceeded then return false and leave sess untouched </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">double</span> <a name="idp292051556-bb"></a><span class="identifier">total_execution_time</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>
+<p>Return total time in seconds spent by all session on query and statement execution </p>
+</li>
+</ol></div>
+</div>
+<div class="refsect2">
+<a name="idp324683716"></a><h3>
+<a name="idp292055364-bb"></a><code class="computeroutput">session_pool</code> private member functions</h3>
+<div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><pre class="literallayout"><span class="identifier">backend</span><span class="special">::</span><span class="identifier">connection_ptr</span> <a name="idp292055548-bb"></a><span class="identifier">create_proxy</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">backend</span><span class="special">::</span><span class="identifier">connection_ptr</span> <span class="special">&amp;</span> conn<span class="special">)</span><span class="special">;</span></pre></li></ol></div>
+</div>
+</div>
+</div>
+<table xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" width="100%"><tr>
+<td align="left"></td>
+<td align="right"><div class="copyright-footer">Copyright &#169; 2013 Kozlov Taras<p>
+        Distributed under the Boost Software License, Version 1.0 (see accompanying
+        file LICENSE_1_0.txt or a copy at <a href="http://www.boost.org/LICENSE_1_0.txt" target="_top">http://www.boost.org/LICENSE_1_0.txt</a>)
+      </p>
+</div></td>
+</tr></table>
+<hr>
+<div class="spirit-nav">
+<a accesskey="p" href="session_monitor.html"><img src="../images/prev.png" alt="Prev"></a><a accesskey="u" href="../reference.html#header.edba.session_pool_hpp"><img src="../images/up.png" alt="Up"></a><a accesskey="h" href="../index.html"><img src="../images/home.png" alt="Home"></a><a accesskey="n" href="statement.html"><img src="../images/next.png" alt="Next"></a>
+</div>
+</body>
+</html>

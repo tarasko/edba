@@ -1,0 +1,615 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<title>Tutorial</title>
+<link rel="stylesheet" href="../boostbook.css" type="text/css">
+<meta name="generator" content="DocBook XSL Stylesheets V1.77.1">
+<link rel="home" href="../index.html" title="Chapter&#160;1.&#160;edba 1.0">
+<link rel="up" href="../index.html" title="Chapter&#160;1.&#160;edba 1.0">
+<link rel="prev" href="../index.html" title="Chapter&#160;1.&#160;edba 1.0">
+<link rel="next" href="options.html" title="Connection String Options">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
+<div class="spirit-nav">
+<a accesskey="p" href="../index.html"><img src="../images/prev.png" alt="Prev"></a><a accesskey="u" href="../index.html"><img src="../images/up.png" alt="Up"></a><a accesskey="h" href="../index.html"><img src="../images/home.png" alt="Home"></a><a accesskey="n" href="options.html"><img src="../images/next.png" alt="Next"></a>
+</div>
+<div class="section">
+<div class="titlepage"><div><div><h2 class="title" style="clear: both">
+<a name="edba.tutorial"></a><a class="link" href="tutorial.html" title="Tutorial">Tutorial</a>
+</h2></div></div></div>
+<div class="toc"><dl>
+<dt><span class="section"><a href="tutorial.html#edba.tutorial.hello_world">Hello World</a></span></dt>
+<dt><span class="section"><a href="tutorial.html#edba.tutorial.connecting_to_database">Connecting to Database</a></span></dt>
+<dt><span class="section"><a href="tutorial.html#edba.tutorial.preparing_and_executing_statemen">Preparing
+      and Executing Statements</a></span></dt>
+<dt><span class="section"><a href="tutorial.html#edba.tutorial.fetching_query_results">Fetching query
+      results</a></span></dt>
+<dt><span class="section"><a href="tutorial.html#edba.tutorial.using_session_pool">Using Session Pool</a></span></dt>
+<dt><span class="section"><a href="tutorial.html#edba.tutorial.handling_transactions">Handling Transactions</a></span></dt>
+<dt><span class="section"><a href="tutorial.html#edba.tutorial.escaping_strings">Escaping Strings</a></span></dt>
+<dt><span class="section"><a href="tutorial.html#edba.tutorial.types">Extending Types Support</a></span></dt>
+<dt><span class="section"><a href="tutorial.html#edba.tutorial.syntax_for_database_specific_sta">Syntax
+      for Database Specific Statements</a></span></dt>
+<dt><span class="section"><a href="tutorial.html#edba.tutorial.multithreading">Multithreading</a></span></dt>
+<dt><span class="section"><a href="tutorial.html#edba.tutorial.string_conversions">String Conversions</a></span></dt>
+<dt><span class="section"><a href="tutorial.html#edba.tutorial.monitoring_statement_execution">Monitoring
+      Statement Execution</a></span></dt>
+</dl></div>
+<div class="section">
+<div class="titlepage"><div><div><h3 class="title">
+<a name="edba.tutorial.hello_world"></a><a class="link" href="tutorial.html#edba.tutorial.hello_world" title="Hello World">Hello World</a>
+</h3></div></div></div>
+<p>
+        Let`s start from simple example
+      </p>
+<pre class="programlisting"><span class="preprocessor">#include</span> <span class="special">&lt;</span><span class="identifier">edba</span><span class="special">/</span><span class="identifier">edba</span><span class="special">.</span><span class="identifier">hpp</span><span class="special">&gt;</span>
+
+<span class="preprocessor">#include</span> <span class="special">&lt;</span><span class="identifier">edba</span><span class="special">/</span><span class="identifier">types_support</span><span class="special">/</span><span class="identifier">boost_gregorian_date</span><span class="special">.</span><span class="identifier">hpp</span><span class="special">&gt;</span>
+<span class="preprocessor">#include</span> <span class="special">&lt;</span><span class="identifier">edba</span><span class="special">/</span><span class="identifier">types_support</span><span class="special">/</span><span class="identifier">boost_posix_time_ptime</span><span class="special">.</span><span class="identifier">hpp</span><span class="special">&gt;</span>
+<span class="preprocessor">#include</span> <span class="special">&lt;</span><span class="identifier">edba</span><span class="special">/</span><span class="identifier">types_support</span><span class="special">/</span><span class="identifier">boost_optional</span><span class="special">.</span><span class="identifier">hpp</span><span class="special">&gt;</span>
+
+<span class="preprocessor">#include</span> <span class="special">&lt;</span><span class="identifier">boost</span><span class="special">/</span><span class="identifier">date_time</span><span class="special">/</span><span class="identifier">gregorian</span><span class="special">/</span><span class="identifier">greg_date</span><span class="special">.</span><span class="identifier">hpp</span><span class="special">&gt;</span>
+<span class="preprocessor">#include</span> <span class="special">&lt;</span><span class="identifier">boost</span><span class="special">/</span><span class="identifier">date_time</span><span class="special">.</span><span class="identifier">hpp</span><span class="special">&gt;</span>
+<span class="preprocessor">#include</span> <span class="special">&lt;</span><span class="identifier">boost</span><span class="special">/</span><span class="identifier">optional</span><span class="special">/</span><span class="identifier">optional_io</span><span class="special">.</span><span class="identifier">hpp</span><span class="special">&gt;</span>
+<span class="preprocessor">#include</span> <span class="special">&lt;</span><span class="identifier">boost</span><span class="special">/</span><span class="identifier">foreach</span><span class="special">.</span><span class="identifier">hpp</span><span class="special">&gt;</span>
+
+<span class="preprocessor">#include</span> <span class="special">&lt;</span><span class="identifier">iostream</span><span class="special">&gt;</span>
+
+<span class="keyword">using</span> <span class="keyword">namespace</span> <span class="identifier">std</span><span class="special">;</span>
+<span class="keyword">using</span> <span class="keyword">namespace</span> <span class="identifier">edba</span><span class="special">;</span>
+<span class="keyword">using</span> <span class="keyword">namespace</span> <span class="identifier">boost</span><span class="special">::</span><span class="identifier">posix_time</span><span class="special">;</span>
+<span class="keyword">using</span> <span class="keyword">namespace</span> <span class="identifier">boost</span><span class="special">::</span><span class="identifier">gregorian</span><span class="special">;</span>
+<span class="keyword">using</span> <span class="identifier">boost</span><span class="special">::</span><span class="identifier">optional</span><span class="special">;</span>
+
+<span class="keyword">int</span> <span class="identifier">main</span><span class="special">()</span>
+<span class="special">{</span>
+    <span class="keyword">try</span>
+    <span class="special">{</span>
+        <span class="comment">// Use sqlite3 driver to open database connection with provided connection string</span>
+        <span class="identifier">session</span> <span class="identifier">sess</span><span class="special">(</span><span class="identifier">driver</span><span class="special">::</span><span class="identifier">sqlite3</span><span class="special">(),</span> <span class="string">"db=test.db"</span><span class="special">);</span>
+
+        <span class="comment">// Execute query. Special once marker specify that edba should not prepare statement and cache it.</span>
+        <span class="comment">// This is the best option for queries executed only once during application lifetime.</span>
+        <span class="identifier">sess</span><span class="special">.</span><span class="identifier">once</span><span class="special">()</span> <span class="special">&lt;&lt;</span> <span class="string">"create temp table hello(id integer primary key autoincrement, dt datetime, txt text)"</span> <span class="special">&lt;&lt;</span> <span class="identifier">exec</span><span class="special">;</span>
+
+        <span class="comment">// Prepare, cache and execute query.</span>
+        <span class="identifier">statement</span> <span class="identifier">st</span> <span class="special">=</span> <span class="identifier">sess</span> <span class="special">&lt;&lt;</span> <span class="string">"insert into hello(dt, txt) values(:dt, :txt)"</span>
+            <span class="special">&lt;&lt;</span> <span class="identifier">date</span><span class="special">(</span><span class="number">2013</span><span class="special">,</span> <span class="number">7</span><span class="special">,</span> <span class="number">14</span><span class="special">)</span>        <span class="comment">// bind Boost.DateTime date</span>
+            <span class="special">&lt;&lt;</span> <span class="string">"Hello world"</span>            <span class="comment">// bind text</span>
+            <span class="special">&lt;&lt;</span> <span class="identifier">exec</span><span class="special">;</span>                    <span class="comment">// execute statement</span>
+
+        <span class="comment">// Rebind parameters in previous statement and execute it</span>
+        <span class="identifier">st</span>  <span class="special">&lt;&lt;</span> <span class="identifier">reset</span>                                        <span class="comment">// reset previous bindings</span>
+            <span class="special">&lt;&lt;</span> <span class="identifier">time_from_string</span><span class="special">(</span><span class="string">"2013-7-14 7:40:00"</span><span class="special">)</span>        <span class="comment">// bind Boost.DateTime ptime</span>
+            <span class="special">&lt;&lt;</span> <span class="identifier">null</span>                                         <span class="comment">// bind null</span>
+            <span class="special">&lt;&lt;</span> <span class="identifier">exec</span><span class="special">;</span>                                        <span class="comment">// re-execute insert statement</span>
+
+        <span class="identifier">cout</span> <span class="special">&lt;&lt;</span> <span class="string">"Rows affected by last statement: "</span> <span class="special">&lt;&lt;</span> <span class="identifier">st</span><span class="special">.</span><span class="identifier">affected</span><span class="special">()</span> <span class="special">&lt;&lt;</span> <span class="identifier">endl</span><span class="special">;</span>
+        <span class="identifier">cout</span> <span class="special">&lt;&lt;</span> <span class="string">"Last insert row id: "</span> <span class="special">&lt;&lt;</span> <span class="identifier">st</span><span class="special">.</span><span class="identifier">last_insert_id</span><span class="special">()</span> <span class="special">&lt;&lt;</span> <span class="identifier">endl</span><span class="special">;</span>
+
+        <span class="comment">// Select rows.</span>
+        <span class="comment">// Query execution is done by implicitly converting to rowset&lt;T&gt;</span>
+        <span class="identifier">rowset</span><span class="special">&lt;&gt;</span> <span class="identifier">rs</span> <span class="special">=</span> <span class="identifier">sess</span> <span class="special">&lt;&lt;</span> <span class="string">"select * from hello"</span><span class="special">;</span>
+
+        <span class="comment">// Loop over rows in rowset</span>
+        <span class="identifier">BOOST_FOREACH</span><span class="special">(</span><span class="identifier">row</span> <span class="identifier">r</span><span class="special">,</span> <span class="identifier">rs</span><span class="special">)</span>
+        <span class="special">{</span>
+            <span class="identifier">cout</span> <span class="special">&lt;&lt;</span> <span class="string">"id: "</span> <span class="special">&lt;&lt;</span> <span class="identifier">r</span><span class="special">.</span><span class="identifier">get</span><span class="special">&lt;</span><span class="keyword">int</span><span class="special">&gt;(</span><span class="string">"id"</span><span class="special">)</span>
+                 <span class="special">&lt;&lt;</span> <span class="string">"\tdt: "</span> <span class="special">&lt;&lt;</span> <span class="identifier">r</span><span class="special">.</span><span class="identifier">get</span><span class="special">&lt;</span><span class="identifier">ptime</span><span class="special">&gt;(</span><span class="string">"dt"</span><span class="special">)</span>
+                 <span class="special">&lt;&lt;</span> <span class="string">"\ttxt: "</span> <span class="special">&lt;&lt;</span> <span class="identifier">r</span><span class="special">.</span><span class="identifier">get</span><span class="special">&lt;</span> <span class="identifier">optional</span><span class="special">&lt;</span><span class="identifier">string</span><span class="special">&gt;</span> <span class="special">&gt;(</span><span class="string">"txt"</span><span class="special">)</span>
+                 <span class="special">&lt;&lt;</span> <span class="identifier">endl</span><span class="special">;</span>
+        <span class="special">}</span>
+    <span class="special">}</span>
+    <span class="keyword">catch</span><span class="special">(</span><span class="identifier">std</span><span class="special">::</span><span class="identifier">exception</span><span class="special">&amp;</span> <span class="identifier">e</span><span class="special">)</span>
+    <span class="special">{</span>
+        <span class="identifier">cout</span> <span class="special">&lt;&lt;</span> <span class="identifier">e</span><span class="special">.</span><span class="identifier">what</span><span class="special">()</span> <span class="special">&lt;&lt;</span> <span class="identifier">endl</span><span class="special">;</span>
+    <span class="special">}</span>
+
+    <span class="keyword">return</span> <span class="number">0</span><span class="special">;</span>
+<span class="special">}</span>
+</pre>
+<p>
+        Program output:
+      </p>
+<pre class="programlisting"><span class="identifier">Rows</span> <span class="identifier">affected</span> <span class="identifier">by</span> <span class="identifier">last</span> <span class="identifier">statement</span><span class="special">:</span> <span class="number">1</span>
+<span class="identifier">Last</span> <span class="identifier">insert</span> <span class="identifier">row</span> <span class="identifier">id</span><span class="special">:</span> <span class="number">2</span>
+<span class="identifier">id</span><span class="special">:</span> <span class="number">1</span>   <span class="identifier">dt</span><span class="special">:</span> <span class="number">2013</span><span class="special">-</span><span class="identifier">Jul</span><span class="special">-</span><span class="number">14</span> <span class="identifier">txt</span><span class="special">:</span> <span class="number">1</span>
+<span class="identifier">id</span><span class="special">:</span> <span class="number">2</span>   <span class="identifier">dt</span><span class="special">:</span> <span class="number">2013</span><span class="special">-</span><span class="identifier">Jul</span><span class="special">-</span><span class="number">14</span> <span class="identifier">txt</span><span class="special">:</span> <span class="number">0</span>
+</pre>
+</div>
+<div class="section">
+<div class="titlepage"><div><div><h3 class="title">
+<a name="edba.tutorial.connecting_to_database"></a><a class="link" href="tutorial.html#edba.tutorial.connecting_to_database" title="Connecting to Database">Connecting to Database</a>
+</h3></div></div></div>
+<h5>
+<a name="edba.tutorial.connecting_to_database.h0"></a>
+        <span class="phrase"><a name="edba.tutorial.connecting_to_database.obtain_session"></a></span><a class="link" href="tutorial.html#edba.tutorial.connecting_to_database.obtain_session">Obtain
+        Session</a>
+      </h5>
+<p>
+        The session instance can be obtained by constructing explicitly from driver
+        and connection string or by using <code class="computeroutput"><a class="link" href="session_pool.html#idp292049356-bb">edba::session_pool::open</a></code>
+        and <code class="computeroutput"><a class="link" href="session_pool.html#idp292050268-bb">edba::session_pool::try_open</a></code>
+        methods.
+      </p>
+<pre class="programlisting"><span class="identifier">session</span> <span class="identifier">sess</span><span class="special">(</span><span class="identifier">driver</span><span class="special">::</span><span class="identifier">sqlite3</span><span class="special">(),</span> <span class="string">"db=test.db"</span><span class="special">);</span>
+
+<span class="identifier">session_pool</span> <span class="identifier">pool</span><span class="special">(</span><span class="identifier">driver</span><span class="special">::</span><span class="identifier">sqlite3</span><span class="special">(),</span> <span class="string">"db=test.db"</span><span class="special">);</span>
+<span class="special">...</span>
+<span class="identifier">session</span> <span class="identifier">sess</span> <span class="special">=</span> <span class="identifier">pool</span><span class="special">.</span><span class="identifier">open</span><span class="special">();</span> <span class="comment">// Block if all sessions are busy now</span>
+<span class="special">...</span>
+<span class="identifier">session</span> <span class="identifier">sess</span><span class="special">;</span>
+<span class="keyword">if</span> <span class="special">(</span><span class="identifier">pool</span><span class="special">.</span><span class="identifier">try_open</span><span class="special">(</span><span class="identifier">sess</span><span class="special">))</span>    <span class="comment">// Will not block but return false if there are no available sessions in pool</span>
+<span class="special">{</span>
+	<span class="comment">// Got it</span>
+<span class="special">}</span>
+</pre>
+<h5>
+<a name="edba.tutorial.connecting_to_database.h1"></a>
+        <span class="phrase"><a name="edba.tutorial.connecting_to_database.connection_string_format"></a></span><a class="link" href="tutorial.html#edba.tutorial.connecting_to_database.connection_string_format">Connection
+        String Format</a>
+      </h5>
+<p>
+        edba connection string consists of the following parts:
+      </p>
+<p>
+        Set of key = value pairs separated with ";" symbol. Where value
+        can be put in single quotation marks ' and double quotation mark represents
+        a single one (like in SQL syntax). For example:
+      </p>
+<pre class="programlisting"><span class="identifier">database</span><span class="special">=</span><span class="identifier">test</span><span class="special">;</span><span class="identifier">user</span><span class="special">=</span><span class="identifier">joe</span><span class="special">;</span><span class="identifier">password</span><span class="special">=</span><span class="char">'d'</span><span class="char">'eep secret'</span>
+</pre>
+<p>
+        Represent user "joe" and password "d'eep secret". <br>
+        There are special keys that used as internal edba options rather then connection
+        options. Such keys are always start with @ symbol. For example:
+      </p>
+<pre class="programlisting"><span class="identifier">database</span><span class="special">=</span><span class="identifier">test</span><span class="special">;</span><span class="identifier">user</span><span class="special">=</span><span class="identifier">joe</span><span class="special">;</span><span class="identifier">password</span><span class="special">=</span><span class="char">'d'</span><span class="char">'eep secret'</span><span class="special">;</span><span class="error">@</span><span class="identifier">use_prepared</span><span class="special">=</span><span class="identifier">off</span>
+</pre>
+<p>
+        See <a class="link" href="options.html" title="Connection String Options">Connection String Options</a> section
+        for the list of all edba core and backends options
+      </p>
+</div>
+<div class="section">
+<div class="titlepage"><div><div><h3 class="title">
+<a name="edba.tutorial.preparing_and_executing_statemen"></a><a class="link" href="tutorial.html#edba.tutorial.preparing_and_executing_statemen" title="Preparing and Executing Statements">Preparing
+      and Executing Statements</a>
+</h3></div></div></div>
+<h5>
+<a name="edba.tutorial.preparing_and_executing_statemen.h0"></a>
+        <span class="phrase"><a name="edba.tutorial.preparing_and_executing_statemen.creating_a_statement"></a></span><a class="link" href="tutorial.html#edba.tutorial.preparing_and_executing_statemen.creating_a_statement">Creating
+        a Statement</a>
+      </h5>
+<p>
+        The <code class="computeroutput"><a class="link" href="statement.html" title="Class statement">edba::statement</a></code> objects
+        can be created by either calling <code class="computeroutput"><a class="link" href="session.html#idp292019204-bb">edba::session::create_statement</a></code>
+        or <code class="computeroutput"><a class="link" href="session.html#idp292018020-bb">edba::session::prepare_statement</a></code>
+        functions. Prepared statements have separated compile and execution steps.
+        They are also cached by edba for future reuse. Non-prepared statements should
+        be created by edba::session::create_statement() and are mostly useful when
+        executed rarely. <br> Syntactic sugar operator&lt;&lt; can be used to create
+        both prepared and unprepared statements
+      </p>
+<pre class="programlisting"><span class="identifier">statement</span> <span class="identifier">st</span> <span class="special">=</span> <span class="identifier">sess</span> <span class="special">&lt;&lt;</span> <span class="string">"select * from test"</span><span class="special">;</span>        <span class="comment">// Prepare and cache statement</span>
+<span class="identifier">statement</span> <span class="identifier">st</span> <span class="special">=</span> <span class="identifier">sess</span><span class="special">.</span><span class="identifier">once</span><span class="special">()</span> <span class="special">&lt;&lt;</span> <span class="string">"select * from test"</span><span class="special">;</span> <span class="comment">// Create unprepared statement</span>
+</pre>
+<h5>
+<a name="edba.tutorial.preparing_and_executing_statemen.h1"></a>
+        <span class="phrase"><a name="edba.tutorial.preparing_and_executing_statemen.binding_parameters"></a></span><a class="link" href="tutorial.html#edba.tutorial.preparing_and_executing_statemen.binding_parameters">Binding
+        Parameters</a>
+      </h5>
+<p>
+        Statement may contain placeholders marked with ":placeholdername"
+        for parameters that should be binded. Values for placeholders can be bound
+        by their index implicitly or explicitly or by name using <code class="computeroutput"><a class="link" href="statement.html#idp292086764-bb">edba::statement::operator&lt;&lt;</a></code>
+        or <code class="computeroutput"><a class="link" href="statement.html#idp292061820-bb">edba::statement::bind</a></code>
+        functions. The index is starting from 1.
+      </p>
+<pre class="programlisting"><span class="identifier">statement</span> <span class="identifier">st</span> <span class="special">=</span> <span class="identifier">sess</span> <span class="special">&lt;&lt;</span> <span class="string">"insert into test(v1, v2, v3) values(:p1, :p2, :p3)"</span>
+<span class="identifier">st</span><span class="special">.</span><span class="identifier">bind</span><span class="special">(</span><span class="string">"Hello"</span><span class="special">);</span>
+<span class="identifier">st</span><span class="special">.</span><span class="identifier">bind</span><span class="special">(</span><span class="number">2</span><span class="special">,</span> <span class="string">"world"</span><span class="special">);</span>
+<span class="identifier">st</span><span class="special">.</span><span class="identifier">bind</span><span class="special">(</span><span class="string">"p3"</span><span class="special">,</span> <span class="string">"!!!"</span><span class="special">);</span>
+</pre>
+<p>
+        <code class="computeroutput"><a class="link" href="statement.html#idp292061820-bb">edba::statement::bind</a></code>
+        return reference to statement, so it can be rewritten in chained form
+      </p>
+<pre class="programlisting"><span class="identifier">st</span><span class="special">.</span><span class="identifier">bind</span><span class="special">(</span><span class="string">"Hello"</span><span class="special">).</span><span class="identifier">bind</span><span class="special">(</span><span class="string">"world"</span><span class="special">).</span><span class="identifier">bind</span><span class="special">(</span><span class="string">"!!!"</span><span class="special">);</span>
+</pre>
+<p>
+        You may use <code class="computeroutput"><a class="link" href="statement.html#idp292086764-bb">edba::statement::operator&lt;&lt;</a></code>
+        and <code class="computeroutput"><a class="link" href="../reference.html#edba.use_idp292107132">edba::use</a></code> to put it in another
+        way
+      </p>
+<pre class="programlisting"><span class="identifier">statement</span> <span class="identifier">st</span> <span class="special">=</span> <span class="identifier">sess</span>
+  <span class="special">&lt;&lt;</span> <span class="string">"insert into test(v1, v2, v3) values(:p1, :p2, :p3)"</span>
+  <span class="special">&lt;&lt;</span> <span class="string">"Hello"</span>
+  <span class="special">&lt;&lt;</span> <span class="identifier">use</span><span class="special">(</span><span class="number">2</span><span class="special">,</span> <span class="string">"world"</span><span class="special">);</span>
+  <span class="special">&lt;&lt;</span> <span class="identifier">use</span><span class="special">(</span><span class="string">"p3"</span><span class="special">,</span> <span class="string">"!!!"</span><span class="special">);</span>
+</pre>
+<p>
+        Placeholder names in a query may repeat, this allow to bind same value in
+        multiple places
+      </p>
+<pre class="programlisting"><span class="identifier">statement</span> <span class="identifier">st</span> <span class="special">=</span> <span class="identifier">sess</span>
+  <span class="special">&lt;&lt;</span> <span class="string">"insert into test(v1, v2, v3, v4) values(:v1, :v2, :v1, :v2)"</span>
+  <span class="special">&lt;&lt;</span> <span class="identifier">use</span><span class="special">(</span><span class="string">"v1"</span><span class="special">,</span> <span class="number">10</span><span class="special">)</span>
+  <span class="special">&lt;&lt;</span> <span class="identifier">use</span><span class="special">(</span><span class="string">"v2"</span><span class="special">,</span> <span class="string">"Hello world"</span><span class="special">);</span>
+</pre>
+<div class="note"><table border="0" summary="Note">
+<tr>
+<td rowspan="2" align="center" valign="top" width="25"><img alt="[Note]" src="../images/note.png"></td>
+<th align="left">Note</th>
+</tr>
+<tr><td align="left" valign="top"><p>
+          Internally edba emulate binding by name for those backend who don't support
+          it natively. Please use <code class="computeroutput"><span class="special">:</span><span class="identifier">placeholdername</span></code> syntax and don't bother
+          about actual backend you`ve bin using
+        </p></td></tr>
+</table></div>
+<p>
+        To bind null values you may either directly call <code class="computeroutput"><a class="link" href="statement.html#idp292061820-bb">edba::statement::bind_null</a></code>
+        or use special <code class="computeroutput"><span class="identifier">edba</span><span class="special">::</span><span class="identifier">null</span></code> value.
+      </p>
+<pre class="programlisting"><span class="identifier">statement</span> <span class="identifier">st</span> <span class="special">=</span> <span class="identifier">sess</span>
+  <span class="special">&lt;&lt;</span> <span class="string">"insert into test(v1, v2, v3) values(:p1, :p2, :p3)"</span>
+  <span class="special">&lt;&lt;</span> <span class="identifier">null</span>
+  <span class="special">&lt;&lt;</span> <span class="string">"Hello"</span>
+  <span class="special">&lt;&lt;</span> <span class="string">"world"</span><span class="special">;</span>
+</pre>
+<div class="caution"><table border="0" summary="Caution">
+<tr>
+<td rowspan="2" align="center" valign="top" width="25"><img alt="[Caution]" src="../images/caution.png"></td>
+<th align="left">Caution</th>
+</tr>
+<tr><td align="left" valign="top">
+<p>
+          Some backends allow to bind parameters only in increasing order.
+        </p>
+<pre class="programlisting"><span class="identifier">statement</span> <span class="identifier">st</span> <span class="special">=</span> <span class="identifier">sess</span>
+  <span class="special">&lt;&lt;</span> <span class="string">"insert into test(v1, v2) values(:p1, :p2)"</span>
+  <span class="special">&lt;&lt;</span> <span class="identifier">use</span><span class="special">(</span><span class="string">"p2"</span><span class="special">,</span> <span class="string">"world"</span><span class="special">)</span>
+  <span class="special">&lt;&lt;</span> <span class="identifier">use</span><span class="special">(</span><span class="string">"p1"</span><span class="special">,</span> <span class="string">"Hello"</span><span class="special">);</span>  <span class="comment">// ODBC backend will throw exception here</span>
+</pre>
+<p>
+          However you may skip parameters, such parameters will be implicitly bound
+          to null.
+        </p>
+<pre class="programlisting"><span class="identifier">statement</span> <span class="identifier">st</span> <span class="special">=</span> <span class="identifier">sess</span>
+  <span class="special">&lt;&lt;</span> <span class="string">"insert into test(v1, v2, v3) values(:p1, :p2, :p3)"</span>
+  <span class="special">&lt;&lt;</span> <span class="identifier">use</span><span class="special">(</span><span class="string">"p1"</span><span class="special">,</span> <span class="string">"Hello"</span><span class="special">)</span>
+  <span class="special">&lt;&lt;</span> <span class="identifier">use</span><span class="special">(</span><span class="string">"p3"</span><span class="special">,</span> <span class="string">"world"</span><span class="special">);</span>
+
+<span class="comment">// Correct, p2 is bound to null</span>
+</pre>
+</td></tr>
+</table></div>
+</div>
+<div class="section">
+<div class="titlepage"><div><div><h3 class="title">
+<a name="edba.tutorial.fetching_query_results"></a><a class="link" href="tutorial.html#edba.tutorial.fetching_query_results" title="Fetching query results">Fetching query
+      results</a>
+</h3></div></div></div>
+<p>
+        The result is represented by <code class="computeroutput"><a class="link" href="rowset.html" title="Class template rowset">edba::rowset</a></code>
+        class. It stores the query result. To execute query, either call <code class="computeroutput"><a class="link" href="statement.html#idp292061820-bb">edba::statement::query</a></code> function
+        or just convert statement to <code class="computeroutput"><a class="link" href="rowset.html" title="Class template rowset">edba::rowset</a></code>
+      </p>
+<pre class="programlisting"><span class="identifier">edba</span><span class="special">::</span><span class="identifier">statement</span> <span class="identifier">st</span> <span class="special">=</span> <span class="identifier">sess</span> <span class="special">&lt;&lt;</span> <span class="string">"SELECT name,age FROM students"</span><span class="special">;</span>
+<span class="identifier">edba</span><span class="special">::</span><span class="identifier">rowset</span><span class="special">&lt;&gt;</span> <span class="identifier">rs</span> <span class="special">=</span> <span class="identifier">st</span><span class="special">.</span><span class="identifier">query</span><span class="special">();</span>
+
+<span class="comment">// or simply</span>
+<span class="identifier">edba</span><span class="special">::</span><span class="identifier">rowset</span><span class="special">&lt;&gt;</span> <span class="identifier">rs</span> <span class="special">=</span> <span class="identifier">sess</span> <span class="special">&lt;&lt;</span> <span class="string">"SELECT name,age FROM students"</span><span class="special">;</span>
+</pre>
+<p>
+        <code class="computeroutput"><a class="link" href="rowset.html" title="Class template rowset">edba::rowset</a></code> is template class
+        with default argument equal to <code class="computeroutput"><a class="link" href="row.html" title="Class row">edba::row</a></code>
+      </p>
+<pre class="programlisting"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> <span class="identifier">T</span> <span class="special">=</span> <span class="identifier">row</span><span class="special">&gt;</span> <span class="keyword">class</span> <span class="identifier">rowset</span> <span class="special">{</span> <span class="special">...</span> <span class="special">};</span>
+</pre>
+<p>
+        That means rowset&lt;&gt; is a collection of <code class="computeroutput"><a class="link" href="row.html" title="Class row">edba::row</a></code>
+        objects. Each row object represents fetched tuple in generic way and allows
+        to get particular values using <code class="computeroutput"><a class="link" href="row.html#idp291969492-bb">edba::statement::fetch</a></code>
+        and <code class="computeroutput"><a class="link" href="row.html#idp291969492-bb">edba::statement::get</a></code>
+        methods. <br> <code class="computeroutput"><a class="link" href="rowset.html" title="Class template rowset">edba::rowset</a></code> type
+        implement SinglePassRange concept defined by Boost.Range and thus allows
+        you to iterate rows either using BOOST_FOREACH or C++11 range based for operator.
+      </p>
+<pre class="programlisting"><span class="identifier">edba</span><span class="special">::</span><span class="identifier">rowset</span><span class="special">&lt;&gt;</span> <span class="identifier">rs</span> <span class="special">=</span> <span class="identifier">sess</span> <span class="special">&lt;&lt;</span> <span class="string">"SELECT name,age FROM students"</span><span class="special">;</span>
+<span class="identifier">BOOST_FOREACH</span><span class="special">(</span><span class="identifier">row</span> <span class="identifier">r</span><span class="special">,</span> <span class="identifier">rs</span><span class="special">)</span>  <span class="comment">// if C++11, can be for(row r : rs)</span>
+<span class="special">{</span>
+	<span class="keyword">int</span> <span class="identifier">id</span> <span class="special">=</span> <span class="identifier">r</span><span class="special">.</span><span class="identifier">get</span><span class="special">&lt;</span><span class="keyword">int</span><span class="special">&gt;();</span>  <span class="comment">// throws exception if id is null</span>
+	<span class="identifier">string</span> <span class="identifier">name</span><span class="special">;</span>
+	<span class="keyword">if</span><span class="special">(!</span><span class="identifier">r</span><span class="special">.</span><span class="identifier">fetch</span><span class="special">(</span><span class="identifier">name</span><span class="special">))</span>      <span class="comment">// return false if name is null</span>
+		<span class="special">...</span>
+<span class="special">}</span>
+</pre>
+<p>
+        You may fetch data either sequentally as in example above or by explicitly
+        providing column name or index (starts for 0)
+      </p>
+<pre class="programlisting"><span class="identifier">string</span> <span class="identifier">name</span> <span class="special">=</span> <span class="identifier">r</span><span class="special">.</span><span class="identifier">get</span><span class="special">&lt;</span><span class="identifier">string</span><span class="special">&gt;(</span><span class="number">1</span><span class="special">);</span>
+<span class="comment">// or</span>
+<span class="identifier">string</span> <span class="identifier">name</span> <span class="special">=</span> <span class="identifier">r</span><span class="special">.</span><span class="identifier">get</span><span class="special">&lt;</span><span class="identifier">string</span><span class="special">&gt;(</span><span class="string">"name"</span><span class="special">);</span>
+</pre>
+<p>
+        Syntactic sugar is available as well
+      </p>
+<pre class="programlisting"><span class="keyword">int</span> <span class="identifier">id</span><span class="special">;</span>
+<span class="identifier">string</span> <span class="identifier">name</span><span class="special">;</span>
+<span class="identifier">r</span> <span class="special">&gt;&gt;</span> <span class="identifier">id</span> <span class="special">&gt;&gt;</span> <span class="identifier">name</span><span class="special">;</span>
+<span class="comment">// or explicitly by index or column name</span>
+<span class="identifier">r</span> <span class="special">&gt;&gt;</span> <span class="identifier">into</span><span class="special">(</span><span class="number">0</span><span class="special">,</span> <span class="identifier">id</span><span class="special">)</span> <span class="special">&gt;&gt;</span> <span class="identifier">into</span><span class="special">(</span><span class="string">"name"</span><span class="special">,</span> <span class="identifier">name</span><span class="special">)</span>
+</pre>
+<h5>
+<a name="edba.tutorial.fetching_query_results.h0"></a>
+        <span class="phrase"><a name="edba.tutorial.fetching_query_results.fetching_a_single_row"></a></span><a class="link" href="tutorial.html#edba.tutorial.fetching_query_results.fetching_a_single_row">Fetching
+        a Single Row</a>
+      </h5>
+<p>
+        Sometimes it is useful to fetch a single row of data and not iterate over
+        it. This can be done using <code class="computeroutput"><a class="link" href="statement.html#idp292080572-bb">edba::statement::first_row</a></code>
+        function that works like <code class="computeroutput"><a class="link" href="statement.html#idp292061820-bb">edba::statement::query</a></code>
+        but also calls <code class="computeroutput"><a class="link" href="rowset.html#idp291954252-bb">edba::rowset::begin</a></code>
+        In case when <code class="computeroutput"><a class="link" href="rowset.html" title="Class template rowset">edba::rowset</a></code> is empty
+        or contains multiple rows exceptions will be thrown (<code class="computeroutput"><a class="link" href="empty_row_access.html" title="Class empty_row_access">edba::empty_row_access</a></code>
+        or <code class="computeroutput"><a class="link" href="multiple_rows_query.html" title="Class multiple_rows_query">edba::multiple_rows_query</a></code>)
+      </p>
+<pre class="programlisting"><span class="identifier">string</span> <span class="identifier">name</span><span class="special">;</span>
+<span class="keyword">int</span> <span class="identifier">age</span><span class="special">;</span>
+<span class="identifier">edba</span><span class="special">::</span><span class="identifier">rowset</span><span class="special">&lt;&gt;</span> <span class="identifier">rs</span> <span class="special">=</span> <span class="identifier">sess</span>
+	<span class="special">&lt;&lt;</span> <span class="string">"SELECT name, age FROM students WHERE id=:id"</span> <span class="special">&lt;&lt;</span> <span class="number">10</span> <span class="special">&lt;&lt;</span> <span class="identifier">edba</span><span class="special">::</span><span class="identifier">first_row</span> <span class="special">&gt;&gt;</span> <span class="identifier">name</span> <span class="special">&gt;&gt;</span> <span class="identifier">age</span><span class="special">;</span>
+</pre>
+<h5>
+<a name="edba.tutorial.fetching_query_results.h1"></a>
+        <span class="phrase"><a name="edba.tutorial.fetching_query_results.rowset_of_different_types"></a></span><a class="link" href="tutorial.html#edba.tutorial.fetching_query_results.rowset_of_different_types">Rowset
+        of Different Types</a>
+      </h5>
+<p>
+        You may instantiate <code class="computeroutput"><a class="link" href="rowset.html" title="Class template rowset">edba::rowset</a></code>
+        with any type supported by edba.
+      </p>
+<pre class="programlisting"><span class="preprocessor">#include</span> <span class="special">&lt;</span><span class="identifier">edba</span><span class="special">/</span><span class="identifier">types_support</span><span class="special">/</span><span class="identifier">std_tuple</span><span class="special">.</span><span class="identifier">hpp</span><span class="special">&gt;</span> <span class="comment">// Enable support for C++11 std::tuple</span>
+
+<span class="special">...</span>
+
+<span class="keyword">typedef</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">tuple</span><span class="special">&lt;</span>
+	<span class="keyword">int</span><span class="special">,</span>          <span class="comment">// id</span>
+	<span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span><span class="special">,</span>  <span class="comment">// name</span>
+	<span class="keyword">int</span><span class="special">,</span>          <span class="comment">// age</span>
+	<span class="keyword">double</span>        <span class="comment">// gpa</span>
+<span class="special">&gt;</span> <span class="identifier">student_info</span><span class="special">;</span>
+
+<span class="comment">// Select students with gpa &gt; 4.0</span>
+<span class="identifier">edba</span><span class="special">::</span><span class="identifier">rowset</span><span class="special">&lt;</span><span class="identifier">student_info</span><span class="special">&gt;</span> <span class="identifier">rs</span> <span class="special">=</span> <span class="identifier">sess</span> <span class="special">&lt;&lt;</span> <span class="string">"SELECT id, name, age, gpa FROM students WHERE gpa &gt; :gpa"</span> <span class="special">&lt;&lt;</span> <span class="number">4.0</span><span class="special">;</span>
+
+<span class="comment">// Copy everything to vector</span>
+<span class="identifier">std</span><span class="special">::</span><span class="identifier">vector</span><span class="special">&lt;</span><span class="identifier">student_info</span><span class="special">&gt;</span> <span class="identifier">students</span><span class="special">(</span><span class="identifier">rs</span><span class="special">.</span><span class="identifier">begin</span><span class="special">(),</span> <span class="identifier">rs</span><span class="special">.</span><span class="identifier">end</span><span class="special">());</span>
+
+<span class="special">...</span>
+
+<span class="comment">// Now select only 20 years old students</span>
+<span class="identifier">edba</span><span class="special">::</span><span class="identifier">rowset</span><span class="special">&lt;</span><span class="keyword">int</span><span class="special">&gt;</span> <span class="identifier">rs</span> <span class="special">=</span> <span class="identifier">sess</span> <span class="special">&lt;&lt;</span> <span class="string">"SELECT id FROM students WHERE age = :age"</span> <span class="special">&lt;&lt;</span> <span class="number">20</span><span class="special">;</span>
+
+<span class="comment">// Copy everything to vector</span>
+<span class="identifier">std</span><span class="special">::</span><span class="identifier">vector</span><span class="special">&lt;</span><span class="keyword">int</span><span class="special">&gt;</span> <span class="identifier">ids</span><span class="special">(</span><span class="identifier">rs</span><span class="special">.</span><span class="identifier">begin</span><span class="special">(),</span> <span class="identifier">rs</span><span class="special">.</span><span class="identifier">end</span><span class="special">());</span>
+</pre>
+<p>
+        Check <a class="link" href="tutorial.html#edba.tutorial.types" title="Extending Types Support">Extending Types Support</a>
+        section for more information about supported types and how to make edba understand
+        your application types
+      </p>
+</div>
+<div class="section">
+<div class="titlepage"><div><div><h3 class="title">
+<a name="edba.tutorial.using_session_pool"></a><a class="link" href="tutorial.html#edba.tutorial.using_session_pool" title="Using Session Pool">Using Session Pool</a>
+</h3></div></div></div>
+<p>
+        To use session managed by session pool, first create pool by passing driver
+        instance, connection string and optional max pool size. <br> Then call
+        either <code class="computeroutput"><a class="link" href="session_pool.html#idp292049356-bb">edba::session_pool::open</a></code>
+        or <code class="computeroutput"><a class="link" href="session_pool.html#idp292050268-bb">edba::session_pool::try_open</a></code>
+        to obtain session object. The later will not block if session pool has no
+        available sessions to return.
+      </p>
+<pre class="programlisting"><span class="comment">// Create the pool with max size = 4</span>
+<span class="identifier">edba</span><span class="special">::</span><span class="identifier">pool</span> <span class="identifier">my_pool</span><span class="special">(</span><span class="identifier">driver</span><span class="special">::</span><span class="identifier">sqlite3</span><span class="special">(),</span> <span class="string">"db=test.db"</span><span class="special">,</span> <span class="number">4</span><span class="special">);</span>
+
+<span class="comment">// Obtain session</span>
+<span class="identifier">session</span> <span class="identifier">sess</span> <span class="special">=</span> <span class="identifier">my_pool</span><span class="special">.</span><span class="identifier">open</span><span class="special">();</span>  <span class="comment">// Will block if pool has no free sessions</span>
+<span class="special">...</span>
+<span class="identifier">session</span> <span class="identifier">sess</span><span class="special">;</span>
+<span class="keyword">if</span> <span class="special">(</span><span class="identifier">my_pool</span><span class="special">.</span><span class="identifier">try_open</span><span class="special">(</span><span class="identifier">sess</span><span class="special">))</span>     <span class="comment">// Will never block, instead return false if pool has no free sessions</span>
+<span class="special">{</span>
+	<span class="comment">// Do query </span>
+<span class="special">}</span>
+
+<span class="comment">// When session object is destroyed the underlying connection will be returned to the pool</span>
+</pre>
+<h5>
+<a name="edba.tutorial.using_session_pool.h0"></a>
+        <span class="phrase"><a name="edba.tutorial.using_session_pool.configuring_a_session"></a></span><a class="link" href="tutorial.html#edba.tutorial.using_session_pool.configuring_a_session">Configuring
+        a Session</a>
+      </h5>
+<p>
+        It is useful to be able to setup some generic session options that are usually
+        set only once and kept during all the session. It may be things like transaction
+        isolation level, durability options and more.
+      </p>
+<pre class="programlisting"><span class="keyword">void</span> <span class="identifier">invoke_once</span><span class="special">(</span><span class="identifier">edba</span><span class="special">::</span><span class="identifier">session</span> <span class="special">&amp;</span><span class="identifier">sql</span><span class="special">)</span>
+<span class="special">{</span>
+    <span class="identifier">sql</span> <span class="special">&lt;&lt;</span> <span class="string">"PRAGMA read_uncommited=1"</span> <span class="special">&lt;&lt;</span> <span class="identifier">edba</span><span class="special">::</span><span class="identifier">exec</span><span class="special">;</span>
+<span class="special">}</span>
+<span class="special">...</span>
+<span class="identifier">edba</span><span class="special">::</span><span class="identifier">pool</span> <span class="identifier">my_pool</span><span class="special">(</span><span class="identifier">driver</span><span class="special">::</span><span class="identifier">sqlite3</span><span class="special">(),</span> <span class="string">"db=test.db"</span><span class="special">,</span> <span class="number">4</span><span class="special">);</span>
+<span class="identifier">my_pool</span><span class="special">.</span><span class="identifier">invoke_on_connect</span><span class="special">(&amp;</span><span class="identifier">invoke_once</span><span class="special">);</span>
+</pre>
+<p>
+        Please note that any function like object that receive as a parameter the
+        sql sesion can be used as callback:
+      </p>
+<pre class="programlisting"><span class="keyword">struct</span> <span class="identifier">config</span>
+<span class="special">{</span>
+	<span class="keyword">int</span> <span class="identifier">uncommited</span><span class="special">;</span>
+	<span class="keyword">void</span> <span class="keyword">operator</span><span class="special">()(</span><span class="identifier">edba</span><span class="special">::</span><span class="identifier">session</span> <span class="special">&amp;</span><span class="identifier">sql</span><span class="special">)</span> <span class="keyword">const</span> <span class="comment">// operator ()</span>
+	<span class="special">{</span>
+		<span class="identifier">sql</span> <span class="special">&lt;&lt;</span> <span class="string">"PRAGMA read_uncommited=:1"</span> <span class="special">&lt;&lt;</span> <span class="identifier">uncommited</span> <span class="special">&lt;&lt;</span> <span class="identifier">edba</span><span class="special">::</span><span class="identifier">exec</span><span class="special">;</span>
+	<span class="special">}</span>
+	<span class="identifier">config</span><span class="special">(</span><span class="keyword">int</span> <span class="identifier">val</span> <span class="special">)</span> <span class="special">:</span> <span class="identifier">uncommited</span><span class="special">(</span><span class="identifier">val</span><span class="special">)</span>
+	<span class="special">{</span>
+	<span class="special">}</span>
+<span class="special">};</span>
+
+<span class="identifier">edba</span><span class="special">::</span><span class="identifier">pool</span> <span class="identifier">my_pool</span><span class="special">(</span><span class="identifier">driver</span><span class="special">::</span><span class="identifier">sqlite3</span><span class="special">(),</span> <span class="string">"db=test.db"</span><span class="special">,</span> <span class="number">4</span><span class="special">);</span>
+<span class="identifier">my_pool</span><span class="special">.</span><span class="identifier">invoke_on_connect</span><span class="special">(</span><span class="identifier">config</span><span class="special">(</span><span class="identifier">commit_mode</span><span class="special">));</span>
+</pre>
+<h5>
+<a name="edba.tutorial.using_session_pool.h1"></a>
+        <span class="phrase"><a name="edba.tutorial.using_session_pool.connection_specific_data"></a></span><a class="link" href="tutorial.html#edba.tutorial.using_session_pool.connection_specific_data">Connection
+        Specific Data</a>
+      </h5>
+<p>
+        If more complex configuration of the session is required it is possible to
+        associate any user object with a underlying connection using <code class="computeroutput"><a class="link" href="session.html#idp292023572-bb">edba::session::get_specific</a></code>
+        and <code class="computeroutput"><a class="link" href="session.html#idp292022324-bb">edba::session::set_specific</a></code>
+        functions.
+      </p>
+<pre class="programlisting"><span class="keyword">struct</span> <span class="identifier">data</span>
+<span class="special">{</span>
+    <span class="keyword">int</span> <span class="identifier">foo</span><span class="special">;</span>
+    <span class="identifier">string</span> <span class="identifier">bar</span><span class="special">;</span>
+<span class="special">};</span>
+<span class="special">...</span>
+<span class="identifier">data</span> <span class="identifier">d</span><span class="special">;</span>
+<span class="identifier">d</span><span class="special">.</span><span class="identifier">foo</span> <span class="special">=</span> <span class="number">42</span><span class="special">;</span>
+<span class="identifier">d</span><span class="special">.</span><span class="identifier">bar</span> <span class="special">=</span> <span class="string">"Hello"</span><span class="special">;</span>
+
+<span class="identifier">sess</span><span class="special">.</span><span class="identifier">set_specific</span><span class="special">(</span><span class="identifier">d</span><span class="special">);</span>                    <span class="comment">// data object will be copied here</span>
+<span class="special">...</span>
+<span class="identifier">data</span><span class="special">&amp;</span> <span class="identifier">dref</span> <span class="special">=</span> <span class="identifier">sess</span><span class="special">.</span><span class="identifier">get_specific</span><span class="special">&lt;</span><span class="identifier">data</span><span class="special">&amp;&gt;();</span> <span class="comment">// objects may be extracted by value, reference or const reference</span>
+</pre>
+<p>
+        Generally speaking, underlying connection object simply use <a href="http://www.boost.org/doc/libs/1_55_0/libs/any/doc/html" target="_top">Boost.Any</a>
+        to store user data, so you may refer on behaviour specific to <a href="http://www.boost.org/doc/libs/1_55_0/libs/any/doc/html" target="_top">Boost.Any</a>.
+      </p>
+</div>
+<div class="section">
+<div class="titlepage"><div><div><h3 class="title">
+<a name="edba.tutorial.handling_transactions"></a><a class="link" href="tutorial.html#edba.tutorial.handling_transactions" title="Handling Transactions">Handling Transactions</a>
+</h3></div></div></div>
+<p>
+        <code class="computeroutput"><a class="link" href="session.html" title="Class session">edba::session</a></code> class has <code class="computeroutput"><a class="link" href="session.html#idp292025004-bb">begin()</a></code>, <code class="computeroutput"><a class="link" href="session.html#idp292025668-bb">commit()</a></code>,
+        <code class="computeroutput"><a class="link" href="session.html#idp292026332-bb">rollback()</a></code> member
+        functions that allow you to handle transactions. However you are not expected
+        to use them directly for RAII reasons. There is a transaction scope guard
+        <code class="computeroutput"><a class="link" href="transaction.html" title="Class transaction">edba::transaction</a></code> that allows
+        to wrap transactions in exception safe way. In the transaction guard's constructor
+        you specify the sess session you want to run transaction on and when operations
+        is completed you call its <code class="computeroutput"><a class="link" href="transaction.html#idp292118452-bb">commit()</a></code>
+        function to complete the transaction or <code class="computeroutput"><a class="link" href="transaction.html#idp292119180-bb">rollback()</a></code>
+      </p>
+<p>
+        If the transaction wasn't either committed or rolled back, it would be automatically
+        rolled back during stack unwind.
+      </p>
+<p>
+        For example:
+      </p>
+<pre class="programlisting"><span class="identifier">edba</span><span class="special">::</span><span class="identifier">transaction</span> <span class="identifier">guard</span><span class="special">(</span><span class="identifier">sess</span><span class="special">);</span>
+<span class="identifier">sess</span> <span class="special">&lt;&lt;</span> <span class="string">"UPDATE accounts SET amount=amount+:1 WHERE user=:2"</span> <span class="special">&lt;&lt;</span> <span class="identifier">amount</span> <span class="special">&lt;&lt;</span> <span class="identifier">receiver</span> <span class="special">&lt;&lt;</span> <span class="identifier">edba</span><span class="special">::</span><span class="identifier">exec</span><span class="special">;</span>
+<span class="identifier">sess</span> <span class="special">&lt;&lt;</span> <span class="string">"UPDATE accounts SET amount=amount-:1 WHERE user=:2"</span> <span class="special">&lt;&lt;</span> <span class="identifier">amount</span> <span class="special">&lt;&lt;</span> <span class="identifier">sender</span> <span class="special">&lt;&lt;</span> <span class="identifier">edba</span><span class="special">::</span><span class="identifier">exec</span><span class="special">;</span>
+<span class="identifier">guard</span><span class="special">.</span><span class="identifier">commit</span><span class="special">();</span>
+</pre>
+<p>
+        This would execute a transaction in exception safe way.
+      </p>
+</div>
+<div class="section">
+<div class="titlepage"><div><div><h3 class="title">
+<a name="edba.tutorial.escaping_strings"></a><a class="link" href="tutorial.html#edba.tutorial.escaping_strings" title="Escaping Strings">Escaping Strings</a>
+</h3></div></div></div>
+<div class="note"><table border="0" summary="Note">
+<tr>
+<td rowspan="2" align="center" valign="top" width="25"><img alt="[Note]" src="../images/note.png"></td>
+<th align="left">Note</th>
+</tr>
+<tr><td align="left" valign="top"><p>
+          Before you read this, remember escaping strings directly and including
+          them in sess statements is bad idea, you should use prepared statements
+          instead. However if you really know what you are doing, continue reading.
+        </p></td></tr>
+</table></div>
+<p>
+        You can escape strings from unknown source using session's <code class="computeroutput"><a class="link" href="session.html#idp292026996-bb">escape()</a></code>
+        functions. Also note that they do not add first and last quotation marks
+        and you are expected to do this on your own.
+      </p>
+<p>
+        For example:
+      </p>
+<pre class="programlisting"><span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span> <span class="identifier">safe_data</span> <span class="special">=</span> <span class="identifier">sess</span><span class="special">.</span><span class="identifier">escape</span><span class="special">(</span><span class="identifier">data</span><span class="special">);</span>
+<span class="identifier">sess</span> <span class="special">&lt;&lt;</span> <span class="string">"INSERT INTO names(name) values('"</span> <span class="special">+</span> <span class="identifier">safe_data</span> <span class="special">+</span> <span class="string">"')"</span> <span class="special">&lt;&lt;</span> <span class="identifier">cppdb</span><span class="special">::</span><span class="identifier">exec</span><span class="special">;</span>
+</pre>
+<p>
+        Please notice the quotes inserted in the query.
+      </p>
+<p>
+        But still it is better to do following:
+      </p>
+<p>
+        sess &lt;&lt; "INSERT INTO names(name) values(?)" &lt;&lt; data
+        &lt;&lt; cppdb::exec;
+      </p>
+<div class="note"><table border="0" summary="Note">
+<tr>
+<td rowspan="2" align="center" valign="top" width="25"><img alt="[Note]" src="../images/note.png"></td>
+<th align="left">Note</th>
+</tr>
+<tr><td align="left" valign="top"><p>
+          ODBC backend does not support escaping strings and would throw not_supported_by_backend
+          exception.
+        </p></td></tr>
+</table></div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h3 class="title">
+<a name="edba.tutorial.types"></a><a class="link" href="tutorial.html#edba.tutorial.types" title="Extending Types Support">Extending Types Support</a>
+</h3></div></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h3 class="title">
+<a name="edba.tutorial.syntax_for_database_specific_sta"></a><a class="link" href="tutorial.html#edba.tutorial.syntax_for_database_specific_sta" title="Syntax for Database Specific Statements">Syntax
+      for Database Specific Statements</a>
+</h3></div></div></div></div>
+<div class="section">
+<div class="titlepage"><div><div><h3 class="title">
+<a name="edba.tutorial.multithreading"></a><a class="link" href="tutorial.html#edba.tutorial.multithreading" title="Multithreading">Multithreading</a>
+</h3></div></div></div>
+<p>
+        All objects, except session_pool are NOT thread-safe. Simple and efficient
+        approach is to use <code class="computeroutput"><a class="link" href="session_pool.html" title="Class session_pool">edba::session_pool</a></code>
+        to get session whenever you need to do query and release it after the job
+        is done.
+      </p>
+</div>
+<div class="section"><div class="titlepage"><div><div><h3 class="title">
+<a name="edba.tutorial.string_conversions"></a><a class="link" href="tutorial.html#edba.tutorial.string_conversions" title="String Conversions">String Conversions</a>
+</h3></div></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h3 class="title">
+<a name="edba.tutorial.monitoring_statement_execution"></a><a class="link" href="tutorial.html#edba.tutorial.monitoring_statement_execution" title="Monitoring Statement Execution">Monitoring
+      Statement Execution</a>
+</h3></div></div></div></div>
+</div>
+<table xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" width="100%"><tr>
+<td align="left"></td>
+<td align="right"><div class="copyright-footer">Copyright &#169; 2013 Kozlov Taras<p>
+        Distributed under the Boost Software License, Version 1.0 (see accompanying
+        file LICENSE_1_0.txt or a copy at <a href="http://www.boost.org/LICENSE_1_0.txt" target="_top">http://www.boost.org/LICENSE_1_0.txt</a>)
+      </p>
+</div></td>
+</tr></table>
+<hr>
+<div class="spirit-nav">
+<a accesskey="p" href="../index.html"><img src="../images/prev.png" alt="Prev"></a><a accesskey="u" href="../index.html"><img src="../images/up.png" alt="Up"></a><a accesskey="h" href="../index.html"><img src="../images/home.png" alt="Home"></a><a accesskey="n" href="options.html"><img src="../images/next.png" alt="Next"></a>
+</div>
+</body>
+</html>

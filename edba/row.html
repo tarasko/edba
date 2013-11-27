@@ -1,0 +1,137 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<title>Class row</title>
+<link rel="stylesheet" href="../boostbook.css" type="text/css">
+<meta name="generator" content="DocBook XSL Stylesheets V1.77.1">
+<link rel="home" href="../index.html" title="Chapter&#160;1.&#160;edba 1.0">
+<link rel="up" href="../reference.html#header.edba.rowset_hpp" title="Header &lt;edba/rowset.hpp&gt;">
+<link rel="prev" href="rowset.html" title="Class template rowset">
+<link rel="next" href="fetch_convers_idp291995588.html" title="Struct template fetch_conversion&lt;T, typename boost::enable_if&lt; boost::mpl::contains&lt; fetch_types, T * &gt; &gt;::type&gt;">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
+<div class="spirit-nav">
+<a accesskey="p" href="rowset.html"><img src="../images/prev.png" alt="Prev"></a><a accesskey="u" href="../reference.html#header.edba.rowset_hpp"><img src="../images/up.png" alt="Up"></a><a accesskey="h" href="../index.html"><img src="../images/home.png" alt="Home"></a><a accesskey="n" href="fetch_convers_idp291995588.html"><img src="../images/next.png" alt="Next"></a>
+</div>
+<div class="refentry">
+<a name="edba.row"></a><div class="titlepage"></div>
+<div class="refnamediv">
+<h2><span class="refentrytitle">Class row</span></h2>
+<p>edba::row</p>
+</div>
+<h2 xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" class="refsynopsisdiv-title">Synopsis</h2>
+<div xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" class="refsynopsisdiv"><pre class="synopsis"><span class="comment">// In header: &lt;<a class="link" href="../reference.html#header.edba.rowset_hpp" title="Header &lt;edba/rowset.hpp&gt;">edba/rowset.hpp</a>&gt;
+
+</span>
+<span class="keyword">class</span> <a class="link" href="row.html" title="Class row">row</a> <span class="special">{</span>
+<span class="keyword">public</span><span class="special">:</span>
+  <span class="comment">// <a class="link" href="row.html#edba.rowconstruct-copy-destruct">construct/copy/destruct</a></span>
+  <a class="link" href="row.html#idp291965188-bb"><span class="identifier">row</span></a><span class="special">(</span><span class="keyword">const</span> <span class="identifier">backend</span><span class="special">::</span><span class="identifier">connection_ptr</span> <span class="special">&amp;</span><span class="special">,</span> <span class="keyword">const</span> <span class="identifier">backend</span><span class="special">::</span><span class="identifier">statement_ptr</span> <span class="special">&amp;</span><span class="special">,</span> 
+      <span class="keyword">const</span> <span class="identifier">backend</span><span class="special">::</span><span class="identifier">result_ptr</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+
+  <span class="comment">// <a class="link" href="row.html#idp291966268-bb">public member functions</a></span>
+  <span class="keyword">bool</span> <a class="link" href="row.html#idp291966452-bb"><span class="identifier">is_null</span></a><span class="special">(</span><span class="keyword">int</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+  <span class="keyword">bool</span> <a class="link" href="row.html#idp291967660-bb"><span class="identifier">is_null</span></a><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+  <span class="keyword">void</span> <a class="link" href="row.html#idp291968828-bb"><span class="identifier">rewind_column</span></a><span class="special">(</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+  <span class="keyword">bool</span> <a class="link" href="row.html#idp291969492-bb"><span class="identifier">fetch</span></a><span class="special">(</span><span class="keyword">int</span><span class="special">,</span> <span class="keyword">const</span> <span class="identifier">fetch_types_variant</span> <span class="special">&amp;</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="keyword">bool</span> <a class="link" href="row.html#idp291971684-bb"><span class="identifier">fetch</span></a><span class="special">(</span><span class="keyword">int</span><span class="special">,</span> <span class="identifier">T</span> <span class="special">&amp;</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="keyword">bool</span> <a class="link" href="row.html#idp291974252-bb"><span class="identifier">fetch</span></a><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span><span class="special">,</span> <span class="identifier">T</span> <span class="special">&amp;</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="keyword">bool</span> <a class="link" href="row.html#idp291977492-bb"><span class="identifier">fetch</span></a><span class="special">(</span><span class="identifier">T</span> <span class="special">&amp;</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="identifier">T</span> <a class="link" href="row.html#idp291980156-bb"><span class="identifier">get</span></a><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="keyword">void</span> <a class="link" href="row.html#idp291982852-bb"><span class="identifier">get</span></a><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span><span class="special">,</span> <span class="identifier">T</span> <span class="special">&amp;</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="identifier">T</span> <a class="link" href="row.html#idp291985860-bb"><span class="identifier">get</span></a><span class="special">(</span><span class="keyword">int</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="keyword">void</span> <a class="link" href="row.html#idp291988388-bb"><span class="identifier">get</span></a><span class="special">(</span><span class="keyword">int</span><span class="special">,</span> <span class="identifier">T</span> <span class="special">&amp;</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="identifier">T</span> <a class="link" href="row.html#idp291991228-bb"><span class="identifier">get</span></a><span class="special">(</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="keyword">void</span> <a class="link" href="row.html#idp291993252-bb"><span class="identifier">get</span></a><span class="special">(</span><span class="identifier">T</span> <span class="special">&amp;</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+<span class="special">}</span><span class="special">;</span></pre></div>
+<div class="refsect1">
+<a name="idp324187220"></a><h2>Description</h2>
+<p>Represent single row in result set. </p>
+<div class="refsect2">
+<a name="idp324187604"></a><h3>
+<a name="edba.rowconstruct-copy-destruct"></a><code class="computeroutput">row</code> 
+        public
+       construct/copy/destruct</h3>
+<div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem"><pre class="literallayout"><a name="idp291965188-bb"></a><span class="identifier">row</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">backend</span><span class="special">::</span><span class="identifier">connection_ptr</span> <span class="special">&amp;</span> conn<span class="special">,</span> <span class="keyword">const</span> <span class="identifier">backend</span><span class="special">::</span><span class="identifier">statement_ptr</span> <span class="special">&amp;</span> stmt<span class="special">,</span> 
+    <span class="keyword">const</span> <span class="identifier">backend</span><span class="special">::</span><span class="identifier">result_ptr</span> <span class="special">&amp;</span> res<span class="special">)</span><span class="special">;</span></pre></li></ol></div>
+</div>
+<div class="refsect2">
+<a name="idp324196036"></a><h3>
+<a name="idp291966268-bb"></a><code class="computeroutput">row</code> public member functions</h3>
+<div class="orderedlist"><ol class="orderedlist" type="1">
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">bool</span> <a name="idp291966452-bb"></a><span class="identifier">is_null</span><span class="special">(</span><span class="keyword">int</span> col<span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>
+<p>Return true if the column number <span class="emphasis"><em>col</em></span> (starting from 0) has NULL value </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">bool</span> <a name="idp291967660-bb"></a><span class="identifier">is_null</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span> n<span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>
+<p>Return true if the column named <span class="emphasis"><em>n</em></span> has NULL value </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">void</span> <a name="idp291968828-bb"></a><span class="identifier">rewind_column</span><span class="special">(</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>
+<p>Reset current column index to 0 </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">bool</span> <a name="idp291969492-bb"></a><span class="identifier">fetch</span><span class="special">(</span><span class="keyword">int</span> col<span class="special">,</span> <span class="keyword">const</span> <span class="identifier">fetch_types_variant</span> <span class="special">&amp;</span> v<span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>
+<p>Fetch a value from column <span class="emphasis"><em>col</em></span> (starting from 0) into <span class="emphasis"><em>v</em></span>. Returns false if the value in NULL and <span class="emphasis"><em>v</em></span> is not updated, otherwise returns true.</p>
+<p>If the data type is not same it tries to cast the data, if casting fails or the data is out of the type range, throws bad_value_cast(). </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="keyword">bool</span> <a name="idp291971684-bb"></a><span class="identifier">fetch</span><span class="special">(</span><span class="keyword">int</span> col<span class="special">,</span> <span class="identifier">T</span> <span class="special">&amp;</span> v<span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>
+<p>Fetch a value from column <span class="emphasis"><em>col</em></span> (starting from 0) into <span class="emphasis"><em>v</em></span>. Returns false if the value in NULL and <span class="emphasis"><em>v</em></span> is not updated, otherwise returns true.</p>
+<p>If the data type is not same it tries to cast the data, if casting fails or the data is out of the type range, throws bad_value_cast(). </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="keyword">bool</span> <a name="idp291974252-bb"></a><span class="identifier">fetch</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span> n<span class="special">,</span> <span class="identifier">T</span> <span class="special">&amp;</span> v<span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>
+<p>Fetch a value from column named <span class="emphasis"><em>n</em></span> into <span class="emphasis"><em>v</em></span>. Returns false if the value in NULL and <span class="emphasis"><em>v</em></span> is not updated, otherwise returns true.</p>
+<p>If the data type is not same it tries to cast the data, if casting fails or the data is out of the type range, throws bad_value_cast().</p>
+<p>If the <span class="emphasis"><em>n</em></span> value is invalid throws <code class="computeroutput"><a class="link" href="invalid_column.html" title="Class invalid_column">invalid_column</a></code> exception </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="keyword">bool</span> <a name="idp291977492-bb"></a><span class="identifier">fetch</span><span class="special">(</span><span class="identifier">T</span> <span class="special">&amp;</span> v<span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>
+<p>Fetch a value from the next column in the row starting from the first one. Returns false if the value in NULL and <span class="emphasis"><em>v</em></span> is not updated, otherwise returns true.</p>
+<p>If the data type is not same it tries to cast the data, if casting fails or the data is out of the type range, throws bad_value_cast().</p>
+<p>If fetch was called more times then cols() it throws <code class="computeroutput"><a class="link" href="invalid_column.html" title="Class invalid_column">invalid_column</a></code> exception, to use it once again from the beginning on the same row call rewind_column() member function. It is not required to call rewind_column() after calling next() as column index is reset automatically. </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="identifier">T</span> <a name="idp291980156-bb"></a><span class="identifier">get</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span> name<span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>
+<p>Get a value of type <span class="emphasis"><em>T</em></span> from column named <span class="emphasis"><em>name</em></span> (starting from 0). If the column is null throws null_value_fetch(), if the column <span class="emphasis"><em>name</em></span> is invalid throws <code class="computeroutput"><a class="link" href="invalid_column.html" title="Class invalid_column">invalid_column</a></code>, if the column value cannot be converted to type T (see fetch functions) it throws <code class="computeroutput"><a class="link" href="bad_value_cast.html" title="Class bad_value_cast">bad_value_cast</a></code>. </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="keyword">void</span> <a name="idp291982852-bb"></a><span class="identifier">get</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">string_ref</span> <span class="special">&amp;</span> name<span class="special">,</span> <span class="identifier">T</span> <span class="special">&amp;</span> value<span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>
+<p>Get a value of type <span class="emphasis"><em>T</em></span> from column named <span class="emphasis"><em>name</em></span> (starting from 0). If the column is null throws null_value_fetch(), if the column <span class="emphasis"><em>name</em></span> is invalid throws <code class="computeroutput"><a class="link" href="invalid_column.html" title="Class invalid_column">invalid_column</a></code>, if the column value cannot be converted to type T (see fetch functions) it throws <code class="computeroutput"><a class="link" href="bad_value_cast.html" title="Class bad_value_cast">bad_value_cast</a></code>. </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="identifier">T</span> <a name="idp291985860-bb"></a><span class="identifier">get</span><span class="special">(</span><span class="keyword">int</span> col<span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>
+<p>Get a value of type <span class="emphasis"><em>T</em></span> from column <span class="emphasis"><em>col</em></span> (starting from 0). If the column is null throws null_value_fetch(), if the column index is invalid throws <code class="computeroutput"><a class="link" href="invalid_column.html" title="Class invalid_column">invalid_column</a></code>, if the column value cannot be converted to type T (see fetch functions) it throws <code class="computeroutput"><a class="link" href="bad_value_cast.html" title="Class bad_value_cast">bad_value_cast</a></code>. </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="keyword">void</span> <a name="idp291988388-bb"></a><span class="identifier">get</span><span class="special">(</span><span class="keyword">int</span> col<span class="special">,</span> <span class="identifier">T</span> <span class="special">&amp;</span> value<span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>
+<p>Get a value of type <span class="emphasis"><em>T</em></span> from column <span class="emphasis"><em>col</em></span> (starting from 0). If the column is null throws null_value_fetch(), if the column index is invalid throws <code class="computeroutput"><a class="link" href="invalid_column.html" title="Class invalid_column">invalid_column</a></code>, if the column value cannot be converted to type T (see fetch functions) it throws <code class="computeroutput"><a class="link" href="bad_value_cast.html" title="Class bad_value_cast">bad_value_cast</a></code>. </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="identifier">T</span> <a name="idp291991228-bb"></a><span class="identifier">get</span><span class="special">(</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>
+<p>Get a value of type <span class="emphasis"><em>T</em></span> from next column. If the column is null throws null_value_fetch(), if the column index is invalid throws <code class="computeroutput"><a class="link" href="invalid_column.html" title="Class invalid_column">invalid_column</a></code>, if the column value cannot be converted to type T (see fetch functions) it throws <code class="computeroutput"><a class="link" href="bad_value_cast.html" title="Class bad_value_cast">bad_value_cast</a></code>. </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="keyword">void</span> <a name="idp291993252-bb"></a><span class="identifier">get</span><span class="special">(</span><span class="identifier">T</span> <span class="special">&amp;</span> value<span class="special">)</span> <span class="keyword">const</span><span class="special">;</span></pre>
+<p>Get a value of type <span class="emphasis"><em>T</em></span> from next column. If the column is null throws null_value_fetch(), if the column index is invalid throws <code class="computeroutput"><a class="link" href="invalid_column.html" title="Class invalid_column">invalid_column</a></code>, if the column value cannot be converted to type T (see fetch functions) it throws <code class="computeroutput"><a class="link" href="bad_value_cast.html" title="Class bad_value_cast">bad_value_cast</a></code>. </p>
+</li>
+</ol></div>
+</div>
+</div>
+</div>
+<table xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" width="100%"><tr>
+<td align="left"></td>
+<td align="right"><div class="copyright-footer">Copyright &#169; 2013 Kozlov Taras<p>
+        Distributed under the Boost Software License, Version 1.0 (see accompanying
+        file LICENSE_1_0.txt or a copy at <a href="http://www.boost.org/LICENSE_1_0.txt" target="_top">http://www.boost.org/LICENSE_1_0.txt</a>)
+      </p>
+</div></td>
+</tr></table>
+<hr>
+<div class="spirit-nav">
+<a accesskey="p" href="rowset.html"><img src="../images/prev.png" alt="Prev"></a><a accesskey="u" href="../reference.html#header.edba.rowset_hpp"><img src="../images/up.png" alt="Up"></a><a accesskey="h" href="../index.html"><img src="../images/home.png" alt="Home"></a><a accesskey="n" href="fetch_convers_idp291995588.html"><img src="../images/next.png" alt="Next"></a>
+</div>
+</body>
+</html>
