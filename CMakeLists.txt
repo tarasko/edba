@@ -1,10 +1,16 @@
 cmake_minimum_required(VERSION 2.8)
 
-option(EDBA_ENABLE_TESTS "Add targets for test building. In case of standalone build this would be done automatically" OFF)
-option(EDBA_STATIC_LIBS "Enable static versions of core and backend libraries" ON)
-option(EDBA_SHARED_LIBS "Enable shared version of core and backend libraries" ON)
+option(EDBA_ENABLE_TESTS "Add targets for test building. In case of standalone build this would be done always" OFF)
+option(EDBA_BACKEND_SQLITE3_DONT_USE_AMALGAMATION "Don`t try to use sqlite3 amalgamation shipped with edba" OFF)
 
-set(edba_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" CACHE INTERNAL "edba include dirs")
+option(EDBA_BACKEND_SHARED "Use backends as shared libraries for shared version of core library" ON)
+option(EDBA_S_BACKEND_SHARED "Use backends as shared libraries for static version of core library" OFF)
+
+option(EDBA_ENABLE "Enable shared versions of core libraries" ON)
+option(EDBA_S_ENABLE "Enable static version of core libraries" ON)
+
+# Use own helpers
+set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 
 # Figure out if we are included from another cmake
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
@@ -15,23 +21,11 @@ else()
 	set(EDBA_STANDALONE_BUILD 0)
 endif()
 
-set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
+# Find boost
+add_definitions(-DBOOST_ALL_DYN_LINK=1)
+find_package(Boost 1.48.0 COMPONENTS date_time locale thread system unit_test_framework REQUIRED)
 
-function(edba_install_targets)
-  if(EDBA_STANDALONE_BUILD)
-    install(TARGETS ${ARGV}
-      RUNTIME DESTINATION bin
-      ARCHIVE DESTINATION lib
-      LIBRARY DESTINATION lib)
-  else()
-    foreach(var ${ARGV})
-      list(FIND PROJECTS_INSTALL_LIST ${var} found)
-      if(NOT found EQUAL -1)
-        install(TARGETS ${var} RUNTIME DESTINATION .)
-      endif()
-	endforeach(var)
-  endif()
-endfunction(edba_install_targets)
+set(edba_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR};${Boost_INCLUDE_DIRS}" CACHE INTERNAL "edba include dirs")
 
 if(EDBA_STANDALONE_BUILD)
 	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/stage/bin)
@@ -39,10 +33,8 @@ if(EDBA_STANDALONE_BUILD)
 	set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/stage/lib)
 endif()
 
-add_definitions(-DBOOST_ALL_DYN_LINK=1)
+# Add some compiler definitions
 add_definitions(-DEDBA_BACKEND_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}" -DEDBA_BACKEND_LIB_SUFFIX="${CMAKE_SHARED_LIBRARY_SUFFIX}")
-
-find_package(Boost 1.48.0 COMPONENTS date_time locale thread system unit_test_framework REQUIRED)
 
 if (WIN32)
     add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS -DBOOST_ALL_NO_LIB)
@@ -54,8 +46,8 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     endif()
 endif()
 
-include_directories(${Boost_INCLUDE_DIRS})
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+# Path for self and boost headers
+include_directories(${edba_INCLUDE_DIRS})
 
 set(sources
   edba/detail/exports.hpp
@@ -99,7 +91,7 @@ set(sources
   edba/types_support/boost_posix_time_ptime.hpp
 )
 
-if(EDBA_SHARED_LIBS)
+if(EDBA_ENABLE)
     add_library(edba SHARED ${sources})
     if (WIN32)
         target_link_libraries(edba ${Boost_LIBRARIES})
@@ -109,7 +101,7 @@ if(EDBA_SHARED_LIBS)
 
 endif()
 
-if(EDBA_STATIC_LIBS)
+if(EDBA_S_ENABLE)
     add_library(edba_s STATIC ${sources})
     set_target_properties(edba_s PROPERTIES COMPILE_DEFINITIONS "edba_STATIC")
 endif()
@@ -119,6 +111,22 @@ foreach(src ${sources})
 	string(REPLACE "/" "\\" msvc_folder ${dir})
 	source_group(${msvc_folder} FILES ${src})
 endforeach(src ${sources})
+
+function(edba_install_targets)
+  if(EDBA_STANDALONE_BUILD)
+    install(TARGETS ${ARGV}
+      RUNTIME DESTINATION bin
+      ARCHIVE DESTINATION lib
+      LIBRARY DESTINATION lib)
+  else()
+    foreach(var ${ARGV})
+      list(FIND PROJECTS_INSTALL_LIST ${var} found)
+      if(NOT found EQUAL -1)
+        install(TARGETS ${var} RUNTIME DESTINATION .)
+      endif()
+	endforeach(var)
+  endif()
+endfunction(edba_install_targets)
 
 add_subdirectory(backends)
 if(EDBA_STANDALONE_BUILD OR EDBA_ENABLE_TESTS)

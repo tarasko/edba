@@ -14,20 +14,6 @@
 #
 ###############################################################################
 
-if(WIN32)
-  # TODO: Make use of OSGeo4W provider optional and available on explicit request
-  set(OSGEO4W_IMPORT_LIBRARY sqlite3_i)
-  if(DEFINED ENV{OSGEO4W_ROOT})
-    set(OSGEO4W_ROOT_DIR $ENV{OSGEO4W_ROOT})
-    message(STATUS
-      "Trying OSGeo4W using environment variable OSGEO4W_ROOT=$ENV{OSGEO4W_ROOT}")
-  else()
-    set(OSGEO4W_ROOT_DIR c:/OSGeo4W)
-    message(STATUS
-      "Trying OSGeo4W using default location OSGEO4W_ROOT=${OSGEO4W_ROOT_DIR}")
-  endif()
-endif()
-
 find_path(SQLITE3_INCLUDE_DIR
   NAMES sqlite3.h
   PATH_PREFIXES sqlite sqlite3
@@ -41,10 +27,9 @@ find_path(SQLITE3_INCLUDE_DIR
   $ENV{ProgramFiles}/SQLite/*/include
   $ENV{ProgramFiles}/SQLite3/*/include
   $ENV{SystemDrive}/SQLite/*/include
-  $ENV{SystemDrive}/SQLite3/*/include
-  ${OSGEO4W_ROOT_DIR}/include)
+  $ENV{SystemDrive}/SQLite3/*/include)
 
-set(SQLITE3_NAMES ${OSGEO4W_IMPORT_LIBRARY} sqlite3 sqlite3_s)
+set(SQLITE3_NAMES sqlite3 sqlite3_s)
 find_library(SQLITE3_LIBRARY
   NAMES ${SQLITE3_NAMES}
   PATHS
