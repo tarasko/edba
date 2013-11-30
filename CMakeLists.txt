@@ -98,7 +98,7 @@ if(EDBA_ENABLE)
     else()
         target_link_libraries(edba ${Boost_LIBRARIES} dl)
     endif()
-
+	set (edba_LIBRARIES edba)
 endif()
 
 if(EDBA_S_ENABLE)
@@ -132,5 +132,12 @@ add_subdirectory(backends)
 if(EDBA_STANDALONE_BUILD OR EDBA_ENABLE_TESTS)
 	add_subdirectory(tests)
 endif()
+
+if(EDBA_ENABLE AND EDBA_BACKEND_LIBS)
+	target_link_libraries(edba ${EDBA_BACKEND_LIBS})
+endif()
+
+set(edba_LIBRARIES edba CACHE INTERNAL "edba shared library")
+set(edba_s_LIBRARIES edba_s ${EDBA_S_BACKEND_LIBS} "all libraries required to link with edba static core")
 
 edba_install_targets(edba)

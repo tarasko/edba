@@ -1,5 +1,5 @@
 # Use it inside backend to add backend static and shared libraries into solution
-function(edba_add_backend backend_name)
+macro(edba_add_backend backend_name)
 	string(TOUPPER ${backend_name} upper_backend_name)
 	string(TOLOWER ${backend_name} lower_backend_name)
 
@@ -16,29 +16,44 @@ function(edba_add_backend backend_name)
 			add_library(edba_${lower_backend_name} SHARED ${source})
 			target_link_libraries(edba_${lower_backend_name} ${${upper_backend_name}_LIBRARIES} edba)
 			set_target_properties(edba_${lower_backend_name} PROPERTIES COMPILE_DEFINITIONS "edba_DRIVER_EXPORTS")
+			edba_install_targets(edba_${lower_backend_name})			
 		endif()
 	  
 		if(NOT EDBA_BACKEND_SHARED OR NOT EDBA_S_BACKEND_SHARED)
 			add_library(edba_${lower_backend_name}_s STATIC ${source})
 			set_target_properties(edba_${lower_backend_name}_s PROPERTIES COMPILE_DEFINITIONS "edba_STATIC;edba_DRIVER_STATIC")
+			edba_install_targets(edba_${lower_backend_name}_s)
 		endif()
 	  
-		edba_install_targets(edba_${lower_backend_name} edba_${lower_backend_name}_s)
+		
+		if(NOT EDBA_BACKEND_SHARED)
+			list(APPEND EDBA_BACKEND_LIBS edba_${lower_backend_name}_s)
+		endif()
+
+		if(NOT EDBA_S_BACKEND_SHARED)
+			list(APPEND EDBA_S_BACKEND_LIBS edba_${lower_backend_name}_s)
+		endif()
 	endif()
-endfunction(edba_add_backend)
+
+	set(EDBA_BACKEND_LIBS ${EDBA_BACKEND_LIBS} PARENT_SCOPE)
+	set(EDBA_S_BACKEND_LIBS ${EDBA_S_BACKEND_LIBS} PARENT_SCOPE)
+endmacro(edba_add_backend)
 
 # Lookup client API using find_package and if API found then add backend subdirectory
-function(edba_find_backend backend_name)
+macro(edba_find_backend backend_name)
 	find_package(${backend_name})
 
 	string(TOUPPER ${backend_name} upper_backend_name)
 	string(TOLOWER ${backend_name} lower_backend_name)
 
 	add_subdirectory(${lower_backend_name})	
-endfunction(edba_find_backend)
+endmacro(edba_find_backend)
 
 edba_find_backend(MySQL)
 edba_find_backend(PostgreSQL)
 edba_find_backend(ODBC)
 edba_find_backend(Oracle)
 edba_find_backend(SQLite3)
+
+set(EDBA_BACKEND_LIBS ${EDBA_BACKEND_LIBS} PARENT_SCOPE)
+set(EDBA_S_BACKEND_LIBS ${EDBA_S_BACKEND_LIBS} PARENT_SCOPE)
