@@ -1,6 +1,7 @@
-#include <edba/backend/bind_by_name_helper.hpp>
 #include <edba/detail/utils.hpp>
 #include <edba/detail/handle.hpp>
+#include <edba/detail/bind_by_name_helper.hpp>
+#include <edba/backend/implementation_base.hpp>
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/find_iterator.hpp>
@@ -501,7 +502,7 @@ private:
     error_checker throw_on_error_;
 };
 
-class statement : public backend::bind_by_name_helper, public boost::static_visitor<boost::shared_ptr<pair<SQLLEN, string> > >
+class statement : public backend::statement, public boost::static_visitor<boost::shared_ptr<pair<SQLLEN, string> > >
 {
     typedef pair<SQLLEN, string> holder;
     typedef boost::shared_ptr<holder> holder_sp;
@@ -521,9 +522,10 @@ public:
       , const string_ref& q
       , bool prepared
       )
-      : backend::bind_by_name_helper(stat, q, backend::question_marker())
+      : backend::statement(stat)
       , cd_(cd)
       , prepared_(prepared)
+      , bind_by_name_helper_(q, detail::question_marker())
       , throw_on_error_(cd->wide_, 0, SQL_HANDLE_STMT)
     {
         // Allocate statement handle
@@ -538,7 +540,7 @@ public:
             {
                 throw_on_error_("SQLPrepareW") = SQLPrepareW(
                         stmt.get()
-                      , (SQLWCHAR*)utf_to_utf<SQLWCHAR>(patched_query()).c_str()
+                      , (SQLWCHAR*)utf_to_utf<SQLWCHAR>(bind_by_name_helper_.patched_query()).c_str()
                       , SQL_NTS
                       );
             }
@@ -546,7 +548,7 @@ public:
             {
                 throw_on_error_("SQLPrepareA") = SQLPrepareA(
                         stmt.get()
-                      , (SQLCHAR*)patched_query().c_str()
+                      , (SQLCHAR*)bind_by_name_helper_.patched_query().c_str()
                       , SQL_NTS
                       );
             }
@@ -555,6 +557,11 @@ public:
         }
 
         stmt_ = boost::move(stmt);
+    }
+
+    virtual const std::string& patched_query() const
+    {
+        return bind_by_name_helper_.patched_query();
     }
 
     virtual void reset_bindings_impl()
@@ -578,6 +585,8 @@ public:
 
         params_.resize(0);
     }
+
+    EDBA_BIND_IMPL_BY_NAME_IMPL
 
     virtual void bind_impl(int col, bind_types_variant const& v)
     {
@@ -857,6 +866,8 @@ private:
                                         // Empty if api for SQLDescribeParam or SQLNumParams is not supported by backend.
 
     // Read write members, modified during statement life
+    detail::bind_by_name_helper 
+                  bind_by_name_helper_; // Convert statement parameters representation between edba style and odbc
 
     vector<holder_sp> params_;          // Contain data for parameters bound by SQLBindParameter. Data owned here will be referenced by
                                         // ODBC driver during SQLExecute or SQLExecuteDirect invocation

@@ -1,5 +1,6 @@
-#include <edba/backend/bind_by_name_helper.hpp>
+#include <edba/detail/bind_by_name_helper.hpp>
 #include <edba/detail/utils.hpp>
+#include <edba/backend/implementation_base.hpp>
 
 #include <edba/errors.hpp>
 
@@ -240,11 +241,12 @@ private:
     int fetch_col_;
 };
 
-class statement : public backend::bind_by_name_helper, public boost::static_visitor<>
+class statement : public backend::statement, public boost::static_visitor<>
 {
 public:
 
-    typedef enum {
+    typedef enum 
+    {
         null_param,
         text_param,
         binary_param
@@ -274,13 +276,14 @@ public:
     }
 
     statement(const common_data* data, const string_ref& src_query, unsigned long long prepared_id, session_stat* stat)
-      : backend::bind_by_name_helper(stat, src_query, backend::postgresql_style_marker())
+      : backend::statement(stat)
+      , bind_by_name_helper_(src_query, detail::postgresql_style_marker())
       , data_(data)
       , res_(0)
-      , params_values_(bindings_count())
-      , params_pvalues_(bindings_count(), 0)
-      , params_plengths_(bindings_count(), 0)
-      , params_set_(bindings_count(), null_param)
+      , params_values_(bind_by_name_helper_.bindings_count())
+      , params_pvalues_(bind_by_name_helper_.bindings_count(), 0)
+      , params_plengths_(bind_by_name_helper_.bindings_count(), 0)
+      , params_set_(bind_by_name_helper_.bindings_count(), null_param)
     {
         std::ostringstream ss;
         ss.imbue(std::locale::classic());
@@ -332,6 +335,11 @@ public:
         }
     }
 
+    virtual const std::string& patched_query() const
+    {
+        return bind_by_name_helper_.patched_query();
+    }
+
     virtual void reset_bindings_impl()
     {
         if(res_)
@@ -340,14 +348,16 @@ public:
             res_ = 0;
         }
 
-        params_values_.resize(bindings_count());
+        params_values_.resize(bind_by_name_helper_.bindings_count());
         BOOST_FOREACH(std::string& s, params_values_)
             s.clear();
 
-        params_pvalues_.assign(bindings_count(), 0);
-        params_plengths_.assign(bindings_count(), 0);
-        params_set_.assign(bindings_count(), null_param);
+        params_pvalues_.assign(bind_by_name_helper_.bindings_count(), 0);
+        params_plengths_.assign(bind_by_name_helper_.bindings_count(), 0);
+        params_set_.assign(bind_by_name_helper_.bindings_count(), null_param);
     }
+
+    EDBA_BIND_IMPL_BY_NAME_IMPL
 
     virtual void bind_impl(int col, bind_types_variant const& v)
     {
@@ -465,12 +475,12 @@ public:
         std::vector<char const *> values;
         std::vector<int> lengths;
         std::vector<int> formats;
-        if(bindings_count() > 0)
+        if(bind_by_name_helper_.bindings_count() > 0)
         {
-            values.resize(bindings_count(),0);
-            lengths.resize(bindings_count(),0);
-            formats.resize(bindings_count(),0);
-            for(unsigned i=0; i<bindings_count(); i++)
+            values.resize(bind_by_name_helper_.bindings_count(),0);
+            lengths.resize(bind_by_name_helper_.bindings_count(),0);
+            formats.resize(bind_by_name_helper_.bindings_count(),0);
+            for(unsigned i = 0; i < bind_by_name_helper_.bindings_count(); i++)
             {
                 if(params_set_[i]!=null_param)
                 {
@@ -504,7 +514,7 @@ public:
             res_ = PQexecParams(
                 data_->conn_,
                 patched_query().c_str(),
-                bindings_count(),
+                bind_by_name_helper_.bindings_count(),
                 0, // param types
                 pvalues,
                 plengths,
@@ -516,7 +526,7 @@ public:
             res_ = PQexecPrepared(
                 data_->conn_,
                 prepared_id_.c_str(),
-                bindings_count(),
+                bind_by_name_helper_.bindings_count(),
                 pvalues,
                 plengths,
                 pformats, // format - text
@@ -610,10 +620,11 @@ public:
 private:
     void check(int col)
     {
-        if(col < 1 || col > int(bindings_count()))
+        if(col < 1 || col > int(bind_by_name_helper_.bindings_count()))
             throw invalid_column(col - 1);
     }
 
+    detail::bind_by_name_helper bind_by_name_helper_;
     const common_data* data_;
     PGresult *res_;
     std::string prepared_id_;
@@ -683,11 +694,13 @@ public:
         statement::do_simple_exec(conn_, "begin");
         inside_transaction_ = true;
     }
+
     virtual void commit_impl()
     {
         statement::do_simple_exec(conn_, "commit");
         inside_transaction_ = false;
     }
+
     virtual void rollback_impl()
     {
         try {
@@ -696,14 +709,17 @@ public:
         catch(...) {}
         inside_transaction_ = false;
     }
+
     virtual backend::statement_ptr prepare_statement_impl(const string_ref& q)
     {
         return backend::statement_ptr(new statement(this,q,++prepared_id_, &stat_));
     }
+
     virtual backend::statement_ptr create_statement_impl(const string_ref& q)
     {
         return backend::statement_ptr(new statement(this,q,0, &stat_));
     }
+
     virtual void exec_batch_impl(const string_ref& q)
     {
         if (expand_conditionals_)

@@ -54,6 +54,7 @@ set(sources
   edba/detail/utils.hpp
   edba/detail/utils.cpp
   edba/detail/handle.hpp
+  edba/detail/bind_by_name_helper.hpp
   edba/conn_info.hpp
   edba/conn_info.cpp
   edba/driver_manager.hpp
@@ -69,7 +70,6 @@ set(sources
   edba/types.hpp
   edba/transaction.hpp
   edba/rowset.hpp
-  edba/backend/bind_by_name_helper.hpp
   edba/backend/interfaces.hpp
   edba/backend/implementation_base.hpp
   edba/backend/implementation_base.cpp

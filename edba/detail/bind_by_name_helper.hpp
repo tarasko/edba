@@ -1,7 +1,7 @@
-#ifndef EDBA_BACKEND_BIND_BY_NAME_HELPER_HPP
-#define EDBA_BACKEND_BIND_BY_NAME_HELPER_HPP
+#ifndef EDBA_DETAIL_BIND_BY_NAME_HELPER_HPP
+#define EDBA_DETAIL_BIND_BY_NAME_HELPER_HPP
 
-#include <edba/backend/implementation_base.hpp>
+#include <edba/types.hpp>
 
 #include <boost/function.hpp>
 #include <boost/unordered_map.hpp>
@@ -13,16 +13,28 @@
 #include <boost/typeof/typeof.hpp>
 #include <boost/foreach.hpp>
 
-namespace edba { namespace backend {
+#include <vector>
+#include <sstream>
 
-///
-/// \brief Provide implementation for binding::bind_impl(string_ref name, ...) using binding::bind_impl(int col, ...) method
+namespace edba { namespace detail {
+
+#define EDBA_BIND_IMPL_BY_NAME_IMPL \
+    virtual void bind_impl(const string_ref& name, bind_types_variant const& v) \
+    { \
+        const std::vector<int>& idx = bind_by_name_helper_.name_to_idx(name); \
+        BOOST_FOREACH(int col, idx) \
+            bind_impl(col, v); \
+    }
+
+/// \brief Provide implementation for statement::bind_impl(string_ref name, ...) using statement::bind_impl(int col, ...) method
 ///
 /// Parse sql query on construction, and extract all parameters marked as ':paramname', assign numbers for each parameter
 /// starting from 1. Use provided function to replace parameteres in the manner familiar for backend. 
 /// Prepare new query for backend.
 ///
-class bind_by_name_helper : public statement
+/// @note Note that this class intentionally has all implementation in hpp file. Because it is used only from backends and backends 
+/// should not depend on core library
+class bind_by_name_helper 
 {
     struct is_non_name_char
     {
@@ -35,13 +47,10 @@ class bind_by_name_helper : public statement
     // Map from parameter name to parameter index
     typedef std::vector< std::pair<std::string, int> > name_map_type;
 
-    using statement::bind_impl;
-
 public:
     typedef boost::function<void(std::ostream& os, int col)> print_func_type;
 
-    bind_by_name_helper(session_stat* st, const string_ref& sql, const print_func_type& print_func)
-      : statement(st)
+    bind_by_name_helper(const string_ref& sql, const print_func_type& print_func)      
     {
         std::ostringstream patched_query;
         
@@ -72,36 +81,38 @@ public:
         patched_query_ = patched_query.str();
     }
 
-    /// 
     /// \brief Return query with binding markers suitable for backend.
     ///
     /// Backend should execute this statement instead of original.
-    ///
     const std::string& patched_query() const
     {
         return patched_query_;
     }
 
-    ///
     /// \brief Return total number of bind parameters in query
-    ///
     size_t bindings_count() const
     {
         return name_map_.size();
     }
 
-private:
-    virtual void bind_impl(const string_ref& name, const bind_types_variant& v)
+    /// \brief For the given parameter name return set of indices in patched query
+    /// Throw invalid_column if parameter with specified name doesn`t exists
+    const std::vector<int>& name_to_idx(const string_ref& name)
     {
+        indices_.clear();
+
         BOOST_AUTO(iter_pair, boost::equal_range(name_map_, name, string_ref_less()));
 
         if (boost::empty(iter_pair))
-            throw invalid_column(std::string(name.begin(), name.end()));
+            throw invalid_column(to_string(name));
 
         BOOST_FOREACH(const name_map_type::value_type& entry, iter_pair)
-            bind_impl(entry.second, v);
+            indices_.push_back(entry.second);
+
+        return indices_;
     }
 
+private:
     // Return range from [next after semicolon, sql.end())
     string_ref skip_until_semicolon(const string_ref& sql, std::ostream& patched_sql)
     {
@@ -113,9 +124,12 @@ private:
     }
 
 private:
+    name_map_type name_map_;    // Name to index map
 
-    name_map_type name_map_;
-    std::string patched_query_;           //!< Sql built from original by replacing bind parameters with appropriate for backend
+    std::string patched_query_; // Sql built from original by replacing bind parameters with appropriate for backend
+
+    std::vector<int> indices_;  // Holder for indices return by name_to_idx, prevent for allocating 
+                                // memory on each name_to_idx call
 };
 
 struct question_marker
@@ -134,6 +148,6 @@ struct postgresql_style_marker
     }
 };
 
-}} // namespace edba, backend
+}} // namespace edba, detail
 
-#endif // EDBA_BACKEND_FWD_HPP
+#endif // EDBA_DETAIL_BIND_BY_NAME_HELPER_HPP

@@ -1,4 +1,5 @@
-#include <edba/backend/bind_by_name_helper.hpp>
+#include <edba/detail/bind_by_name_helper.hpp>
+#include <edba/backend/implementation_base.hpp>
 
 #include <edba/errors.hpp>
 #include <edba/detail/utils.hpp>
@@ -58,10 +59,6 @@ public:
             mysql_free_result(res_);
     }
 
-    ///
-    /// Check if the next row in the result exists. If the DB engine can't perform
-    /// this check without loosing data for current row, it should return next_row_unknown.
-    ///
     virtual next_row has_next()
     {
         if(!res_)
@@ -71,10 +68,7 @@ public:
         else
             return next_row_exists;
     }
-    ///
-    /// Move to next row. Should be called before first access to any of members. If no rows remain
-    /// return false, otherwise return true
-    ///
+
     virtual bool next()
     {
         if(!res_)
@@ -122,13 +116,7 @@ public:
         v->write(s, len);
         return true;
     }
-    ///
-    /// Fetch a date-time value for column \a col starting from 0.
-    /// Returns true if ok, returns false if the column value is NULL and the referenced object should remain unchanged
-    ///
-    /// Should throw invalid_column() \a col value is invalid. If the data can't be converted
-    /// to date-time it should throw bad_value_cast()
-    ///
+    
     bool operator()(std::tm* v)
     {
         size_t len;
@@ -139,24 +127,22 @@ public:
         *v = parse_time(tmp);
         return true;
     }
-    ///
-    /// Check if the column \a col is NULL starting from 0, should throw invalid_column() if the index out of range
-    ///
+    
     virtual bool is_null(int col)
     {
         return at(col) == 0;
     }
-    ///
-    /// Return the number of columns in the result. Should be valid even without calling next() first time.
-    ///
+
     virtual int cols()
     {
         return cols_;
     }
+
     virtual boost::uint64_t rows()
     {
         return boost::uint64_t(mysql_num_rows(res_));
     }
+
     virtual std::string column_to_name(int col)
     {
         if(col < 0 || col >=cols_)
@@ -169,6 +155,7 @@ public:
         }
         return flds[col].name;
     }
+
     virtual int name_to_column(const string_ref& name)
     {
         if(!res_)
@@ -183,14 +170,7 @@ public:
         return -1;
     }
 
-    // End of API
 private:
-    ///
-    /// Fetch an integer value for column \a col starting from 0.
-    ///
-    /// Should throw invalid_column() \a col value is invalid, should throw bad_value_cast() if the underlying data
-    /// can't be converted to integer or its range is not supported by the integer type.
-    ///
     char const *at(int col)
     {
         if(!res_)
@@ -220,11 +200,12 @@ private:
     MYSQL_ROW row_;
 };
 
-class statement : public backend::bind_by_name_helper, public boost::static_visitor<>
+class statement : public backend::statement, public boost::static_visitor<>
 {
 public:
     statement(const string_ref& q, MYSQL *conn, session_stat* stat)
-      : backend::bind_by_name_helper(stat, q, backend::question_marker())
+      : backend::statement(stat)
+      , bind_by_name_helper_(q, detail::question_marker())
       , conn_(conn)
       , params_no_(0)
     {
@@ -250,9 +231,16 @@ public:
         reset_params();
     }
 
+    virtual const std::string& patched_query() const
+    {
+        return bind_by_name_helper_.patched_query();
+    }
+
     virtual void reset_bindings_impl()
     {
     }
+
+    EDBA_BIND_IMPL_BY_NAME_IMPL
 
     virtual void bind_impl(int col, bind_types_variant const& v)
     {
@@ -385,6 +373,7 @@ private:
     std::vector<std::string> params_;
     std::vector<size_t> binders_;
 
+    detail::bind_by_name_helper bind_by_name_helper_;
     MYSQL *conn_;
     int params_no_;
     int bind_col_;
@@ -412,7 +401,10 @@ class result : public backend::result, public boost::static_visitor<bool>
     };
 
 public:
-    result(MYSQL_STMT *stmt) : stmt_(stmt), current_row_(0),meta_(0)
+    result(MYSQL_STMT *stmt) 
+      : stmt_(stmt)
+      , current_row_(0)
+      , meta_(0)
     {
         cols_ = mysql_stmt_field_count(stmt_);
         if(mysql_stmt_store_result(stmt_)) {
@@ -594,7 +586,7 @@ private:
     int fetch_col_;
 };
 
-class statement : public backend::bind_by_name_helper, public boost::static_visitor<>
+class statement : public backend::statement, public boost::static_visitor<>
 {
     struct param
     {
@@ -645,8 +637,9 @@ class statement : public backend::bind_by_name_helper, public boost::static_visi
     };
 
 public:
-    statement(const string_ref& q, MYSQL *conn, session_stat* stat) :
-        backend::bind_by_name_helper(stat, q, backend::question_marker())
+    statement(const string_ref& q, MYSQL *conn, session_stat* stat) 
+      : backend::statement(stat)
+      , bind_by_name_helper_(q, detail::question_marker())
       , stmt_(0)
       , params_count_(0)
     {
@@ -677,11 +670,18 @@ public:
         mysql_stmt_close(stmt_);
     }
 
+    virtual const std::string& patched_query() const
+    {
+        return bind_by_name_helper_.patched_query();
+    }
+
     virtual void reset_bindings_impl()
     {
         reset_data();
         mysql_stmt_reset(stmt_);
     }
+
+    EDBA_BIND_IMPL_BY_NAME_IMPL
 
     virtual void bind_impl(int col, bind_types_variant const& v)
     {
@@ -807,6 +807,8 @@ private:
     std::ostringstream fmt_;
     std::vector<param> params_;
     std::vector<MYSQL_BIND> bind_;
+
+    detail::bind_by_name_helper bind_by_name_helper_;
     MYSQL_STMT *stmt_;
     int params_count_;
     int bind_col_;
@@ -1020,9 +1022,7 @@ public:
     {
         fast_exec("COMMIT");
     }
-    ///
-    /// Rollback the transaction. MUST never throw!!!
-    ///
+    
     virtual void rollback_impl()
     {
         try {
@@ -1031,21 +1031,17 @@ public:
         catch(...) {
         }
     }
-    ///
-    /// Create a prepared statement \a q. May throw if preparation had failed.
-    /// Should never return null value.
-    ///
+    
     virtual backend::statement_ptr prepare_statement_impl(const string_ref& q)
     {
         return backend::statement_ptr(new prep::statement(q, conn_, &stat_));
     }
+
     virtual backend::statement_ptr create_statement_impl(const string_ref& q)
     {
         return backend::statement_ptr(new unprep::statement(q, conn_, &stat_));
     }
-    ///
-    /// Escape a string for inclusion in SQL query. May throw not_supported_by_backend() if not supported by backend.
-    ///
+    
     virtual std::string escape(const string_ref& str)
     {
         std::vector<char> buf(2 * str.size() + 1);
@@ -1054,17 +1050,12 @@ public:
         result.assign(&buf.front(), len);
         return result;
     }
-    ///
-    /// Get the name of the driver, for example sqlite3, odbc
-    ///
+    
     virtual const std::string& engine()
     {
         return g_backend_and_engine;
     }
-    ///
-    /// Get the name of the SQL Server, for example sqlite3, mssql, oracle, differs from driver() when
-    /// the backend supports multiple databases like odbc backend.
-    ///
+    
     virtual const std::string& backend()
     {
         return g_backend_and_engine;
@@ -1080,12 +1071,7 @@ public:
         return description_;
     }
 
-    // API
-
 private:
-    ///
-    /// Set a custom MYSQL option on the connection.
-    ///
     void mysql_set_option(mysql_option option, const void* arg)
     {
         // char can be casted to void but not the other way, support older API
