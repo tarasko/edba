@@ -14,6 +14,7 @@ target_link_libraries(edba.example.monitor edba ${Boost_LIBRARIES})
 
 add_executable(edba.tests
 	monitor.hpp
+	bind_by_name_helper_test.cpp
 	backends_smoke_test.cpp
 	types_support_test.cpp
 	session_pool_test.cpp
