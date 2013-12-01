@@ -21,6 +21,17 @@
 [def __boost_preprocessor__ [@http://www.boost.org/doc/libs/1_55_0/libs/preprocessor/doc/index.html Boost.Preprocessor]]
 [def __boost_mpl__ [@http://www.boost.org/doc/libs/1_55_0/libs/mpl/doc/index.html Boost.MPL]]
 
+[def __s__ [classref edba::session]]
+[def __s_begin__ [memberref edba::session::begin begin()]]
+[def __s_commit__ [memberref edba::session::commit commit()]]
+[def __s_rollback__ [memberref edba::session::rollback rollback()]]
+[def __s_escape__ [memberref edba::session::escape escape()]]
+
+[def __tr__ [classref edba::transaction]]
+[def __tr_commit__ [memberref edba::transaction::commit commit()]]
+[def __tr_rollback__ [memberref edba::transaction::rollback rollback()]]
+
+
 [def __s_get_specific__ [memberref edba::session::get_specific]]
 [def __s_set_specific__ [memberref edba::session::set_specific]]
 
@@ -332,13 +343,44 @@ data& dref = sess.get_specific<data&>(); // objects may be extracted by value, r
 ``
 Generally speaking, underlying connection object simply use __boost_any__ to store user data, so you may refer on behaviour 
 specific to __boost_any__.
-
 [endsect]
 
 [section Handling Transactions]
+__s__ class has __s_begin__, __s_commit__, __s_rollback__ member functions that allow you to handle transactions. However you are not expected to use them directly for RAII reasons.
+There is a transaction scope guard __tr__ that allows to wrap transactions in exception safe way. 
+In the transaction guard's constructor you specify the sess session you want to run transaction on and when operations is completed you call its 
+__tr_commit__ function to complete the transaction or __tr_rollback__
+
+If the transaction wasn't either committed or rolled back, it would be automatically rolled back during stack unwind.
+
+For example:
+``
+edba::transaction guard(sess);
+sess << "UPDATE accounts SET amount=amount+:1 WHERE user=:2" << amount << receiver << edba::exec;
+sess << "UPDATE accounts SET amount=amount-:1 WHERE user=:2" << amount << sender << edba::exec;
+guard.commit();
+``
+This would execute a transaction in exception safe way.
 [endsect]
 
 [section Escaping Strings]
+[note
+Before you read this, remember escaping strings directly and including them in sess statements is bad idea, you should use prepared statements instead. 
+However if you really know what you are doing, continue reading.]
+You can escape strings from unknown source using session's __s_escape__ functions. Also note that they do not add first and last quotation marks and you 
+are expected to do this on your own.
+
+For example:
+``
+std::string safe_data = sess.escape(data);
+sess << "INSERT INTO names(name) values('" + safe_data + "')" << cppdb::exec;
+``
+Please notice the quotes inserted in the query.
+
+But still it is better to do following:
+
+sess << "INSERT INTO names(name) values(?)" << data << cppdb::exec;
+[note ODBC backend does not support escaping strings and would throw not_supported_by_backend exception.]
 [endsect]
 
 [section:types Extending Types Support]
