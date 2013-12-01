@@ -3,4 +3,4 @@ compiler:
   - g++
 #  - clang
 # Change this to your needs
-script: ./configure && make
+script: bin/script.sh
