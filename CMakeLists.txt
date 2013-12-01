@@ -75,12 +75,6 @@ set(sources
   edba/backend/implementation_base.cpp
   edba/backend/statistics.hpp
   edba/backend/statistics.cpp
-  edba/driver/odbc.hpp
-  edba/driver/sqlite3.hpp
-  edba/driver/mysql.hpp
-  edba/driver/oracle.hpp
-  edba/driver/postgresql.hpp
-  edba/driver/all.hpp
   edba/types_support/std_shared_ptr.hpp
   edba/types_support/std_unique_ptr.hpp
   edba/types_support/std_tuple.hpp
@@ -100,12 +94,17 @@ if(EDBA_ENABLE)
     else()
         target_link_libraries(edba ${Boost_LIBRARIES} dl)
     endif()
-	set (edba_LIBRARIES edba)
+	if(EDBA_BACKEND_SHARED)
+		set_target_properties(edba PROPERTIES COMPILE_DEFINITIONS "EDBA_BACKEND_SHARED")
+	endif()
 endif()
 
 if(EDBA_S_ENABLE)
     add_library(edba_s STATIC ${sources})
     set_target_properties(edba_s PROPERTIES COMPILE_DEFINITIONS "edba_STATIC")
+	if(EDBA_S_BACKEND_SHARED)
+		set_target_properties(edba_s PROPERTIES COMPILE_DEFINITIONS "EDBA_BACKEND_SHARED")
+	endif()
 endif()
 
 foreach(src ${sources})

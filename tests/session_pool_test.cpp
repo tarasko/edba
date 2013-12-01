@@ -62,10 +62,9 @@ void thread_proc(session_pool& pool)
     }
 }
 
-template<typename Driver>
 void run_pool_test(const char* conn_str)
 {
-    session_pool pool(Driver(), conn_str, DB_POOL_SIZE);
+    session_pool pool(conn_str, DB_POOL_SIZE);
 
     total_initialized_sessions = 0;
     pool.invoke_on_connect(&init_session);
@@ -95,7 +94,7 @@ void throw_something(session sess)
 // Regression, check that deadlock doesn`t occur when user init_session function throw exception
 BOOST_AUTO_TEST_CASE(SessionPoolExceptionFromSessionInit)
 {
-    session_pool pool(driver::sqlite3(), "db=test.db", DB_POOL_SIZE);
+    session_pool pool("sqlite3:db=test.db", DB_POOL_SIZE);
 
     pool.invoke_on_connect(&throw_something);
 
@@ -108,11 +107,11 @@ BOOST_AUTO_TEST_CASE(SessionPoolExceptionFromSessionInit)
 
 BOOST_AUTO_TEST_CASE(SessionPoolSqlite3)
 {
-    run_pool_test<driver::sqlite3>("db=test.db");
+    run_pool_test("sqlite3:db=test.db");
 }
 
 BOOST_AUTO_TEST_CASE(SessionPoolODBC)
 {
-    run_pool_test<driver::odbc>("Driver={SQL Server Native Client 10.0}; Server=edba-test\\SQLEXPRESS; Database=EDBA; UID=sa;PWD=1;");
+    run_pool_test("odbc:Driver={SQL Server Native Client 10.0}; Server=edba-test\\SQLEXPRESS; Database=EDBA; UID=sa;PWD=1;");
 }
 

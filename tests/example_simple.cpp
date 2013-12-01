@@ -23,7 +23,7 @@ int main()
     try 
     {
         // Use sqlite3 driver to open database connection with provided connection string
-        session sess(driver::sqlite3(), "db=test.db");
+        session sess("sqlite3:db=test.db");
 
         // Execute query. Special once marker specify that edba should not prepare statement and cache it.
         // This is the best option for queries executed only once during application lifetime.

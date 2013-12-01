@@ -10,11 +10,6 @@
 
 namespace edba { namespace backend {
 
-///
-/// Tries to load dynamic driver and return connect function
-///
-EDBA_API connect_function_type get_connect_function(const char* path, const char* entry_func_name);
-
 struct result_iface : ref_cnt
 {
 public:

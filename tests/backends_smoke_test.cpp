@@ -368,7 +368,6 @@ void test_empty_query(session sess)
     sess << "~~" << exec;
 }
 
-template<typename Driver>
 void test(const char* conn_string)
 {
     std::string short_binary("binary");
@@ -389,7 +388,7 @@ void test(const char* conn_string)
 
         BOOST_TEST_MESSAGE("Run backend test for " << conn_string);
 
-        session sess(Driver(), conn_string);
+        session sess(conn_string);
 
         init_database(conn_info(conn_string), sess);
 
@@ -526,36 +525,36 @@ void test(const char* conn_string)
 
 BOOST_AUTO_TEST_CASE(Oracle)
 {
-    test<edba::driver::oracle>("user=system; password=1; ConnectionString=" SERVER_IP ":1521/xe");
+    test("oracle:user=system; password=1; ConnectionString=" SERVER_IP ":1521/xe");
 }
 
 BOOST_AUTO_TEST_CASE(ODBCWide)
 {
-    test<edba::driver::odbc>("Driver=" MSSQL_DRIVER "; Server=" SERVER_IP "\\SQLEXPRESS; Database=EDBA; UID=sa;PWD=1;@utf=wide");
+    test("odbc:Driver=" MSSQL_DRIVER "; Server=" SERVER_IP "\\SQLEXPRESS; Database=EDBA; UID=sa;PWD=1;@utf=wide");
 }
 
 BOOST_AUTO_TEST_CASE(ODBC)
 {
-    test<edba::driver::odbc>("Driver=" MSSQL_DRIVER "; Server=" SERVER_IP "\\SQLEXPRESS; Database=EDBA; UID=sa;PWD=1;");
+    test("odbc:Driver=" MSSQL_DRIVER "; Server=" SERVER_IP "\\SQLEXPRESS; Database=EDBA; UID=sa;PWD=1;");
 }
 
 BOOST_AUTO_TEST_CASE(MySQL)
 {
-    test<edba::driver::mysql>("host=" SERVER_IP ";database=edba;user=edba;password=1111;");
+    test("mysql:host=" SERVER_IP ";database=edba;user=edba;password=1111;");
 }
 
 BOOST_AUTO_TEST_CASE(SQLite3)
 {
-    test<edba::driver::sqlite3>("db=test.db");
+    test("sqlite3:db=test.db");
 }
 
-BOOST_AUTO_TEST_CASE(Postgres)
+BOOST_AUTO_TEST_CASE(Postgresql)
 {
-    test<edba::driver::postgresql>("user=postgres; password=1; host=" SERVER_IP "; port=5432; dbname=test;");
+    test("postgresql:user=postgres; password=1; host=" SERVER_IP "; port=5432; dbname=test;");
 }
 
-BOOST_AUTO_TEST_CASE(PostgresLo)
+BOOST_AUTO_TEST_CASE(PostgresqlLo)
 {
-    test<edba::driver::postgresql>("user=postgres; password=1; host=" SERVER_IP "; port=5432; dbname=test; @blob=lo");
+    test("postgresql:user=postgres; password=1; host=" SERVER_IP "; port=5432; dbname=test; @blob=lo");
 }
 

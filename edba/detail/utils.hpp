@@ -31,8 +31,6 @@ namespace edba {
 #  define EDBA_SNPRINTF snprintf
 #endif
 
-#define EDBA_MAKE_BACKEND_LIB_NAME(Name) EDBA_BACKEND_LIB_PREFIX BOOST_PP_STRINGIZE(Name) EDBA_BACKEND_LIB_SUFFIX
-
 inline long long atoll(const char* val)
 {
 #ifdef _WIN32

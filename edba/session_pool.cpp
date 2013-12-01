@@ -101,6 +101,15 @@ private:
     double exec_time_on_init_;
 };
 
+session_pool::session_pool(const char* conn_string, int max_pool_size, session_monitor* sm)
+    : conn_info_(conn_string)
+    , conn_left_unopened_(max_pool_size)
+    , sm_(sm)
+    , total_sec_(0.0)
+{
+    pool_.reserve(max_pool_size);
+}
+
 void session_pool::invoke_on_connect(const conn_init_callback& callback)
 {
     mutex::scoped_lock g(pool_guard_);
@@ -119,7 +128,7 @@ session session_pool::open()
     }
     else if (pool_.empty() && conn_left_unopened_) // we can create new connection
     {
-        backend::connection_ptr conn = conn_create_callback_(conn_info_, sm_);
+        backend::connection_ptr conn = driver_manager::create_conn(conn_info_, sm_);
 
         if (conn_init_callback_)
             // Don`t use proxy wrapper over connection because in case of exception in conn_init_callback_
@@ -154,7 +163,7 @@ bool session_pool::try_open(session& sess)
     }
     else if (pool_.empty() && conn_left_unopened_) // we can create new connection
     {
-        backend::connection_ptr conn = conn_create_callback_(conn_info_, sm_);
+        backend::connection_ptr conn = driver_manager::create_conn(conn_info_, sm_);
         if (conn_init_callback_)
             conn_init_callback_(session(conn));
 

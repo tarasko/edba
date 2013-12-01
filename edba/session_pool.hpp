@@ -13,14 +13,12 @@ namespace edba {
 class EDBA_API session_pool
 {
 public:
-    typedef boost::function<backend::connection_ptr(const conn_info& ci, session_monitor* sm)> conn_create_callback;
     typedef boost::function<void(session)> conn_init_callback;
 
     /// Construct pool of session with max limit.
     /// All sessions will be created using specified \a driver and \a conn_string.
     /// Constructor doesn`t create connection itself, instead they will be created lazily by \a open and \a try_open calls.
-    template<typename Driver>
-    session_pool(Driver driver, const char* conn_string, int max_pool_size, session_monitor* sm = 0);
+    session_pool(const char* conn_string, int max_pool_size, session_monitor* sm = 0);
 
     /// Invoke provided function object once on connection creation. This allow to setup all
     /// sessions in pool in uniform manner. configure call doesn`t affect already created sessions it will be applied only
@@ -50,7 +48,6 @@ private:
     session_pool(const session_pool&);
     session_pool& operator=(const session_pool&);
 
-    conn_create_callback conn_create_callback_;
     conn_info conn_info_;
     int conn_left_unopened_;
     session_monitor* sm_;
@@ -62,17 +59,6 @@ private:
     mutex pool_guard_;
     boost::condition_variable pool_max_cv_;
 };
-
-template<typename Driver>
-session_pool::session_pool(Driver driver, const char* conn_string, int max_pool_size, session_monitor* sm)
-    : conn_create_callback_(driver)
-    , conn_info_(conn_string)
-    , conn_left_unopened_(max_pool_size)
-    , sm_(sm)
-    , total_sec_(0.0)
-{
-    pool_.reserve(max_pool_size);
-}
 
 }                                                                               // namespace edba
 

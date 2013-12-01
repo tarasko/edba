@@ -51,7 +51,7 @@ void print_test_table(session sess)
 struct types_support_fixture
 {
     types_support_fixture()
-      : sess(driver::sqlite3(), "db=test.db")
+      : sess("sqlite3:db=test.db")
     {
         sess.once() << "create temp table test(id integer, dt datetime, txt text)" << exec;
         st = sess << "insert into test(id, dt, txt) values(:id, :dt, :txt)";

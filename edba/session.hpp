@@ -3,6 +3,7 @@
 
 #include <edba/statement.hpp>
 #include <edba/conn_info.hpp>
+#include <edba/driver_manager.hpp>
 
 namespace edba {
 
@@ -34,17 +35,15 @@ public:
     }
 
     /// Create a session using driver, connection string and optional session monitor
-    template<typename Driver>
-    session(Driver driver, const string_ref& conn_string, session_monitor* sm = 0)
-      : conn_(driver(conn_string, sm))
+    session(const string_ref& conn_string, session_monitor* sm = 0)
+      : conn_(driver_manager::create_conn(conn_string, sm))
     {
     }
 
     /// Open a session using driver, connection string and optional session monitor
-    template<typename Driver>
-    void open(Driver driver, const string_ref& conn_string, session_monitor* sm = 0)
+    void open(const string_ref& conn_string, session_monitor* sm = 0)
     {
-        conn_ = driver(conn_string, sm);
+        conn_ = driver_manager::create_conn(conn_string, sm);
     }
 
     /// Close current connection.

@@ -38,7 +38,9 @@ conn_info::conn_info(const string_ref& conn_string) : data_(new data)
     if (colon_iter == conn_string.end())
         throw invalid_connection_string("invalid_connection_string: " + to_string(conn_string) + " - driver name was not specified");
 
-    data_->driver_name_.assign(conn_string.begin(), colon_iter);
+    BOOST_AUTO(driver_name_rng, (make_iterator_range(conn_string.begin(), colon_iter)));
+    trim(driver_name_rng);
+    data_->driver_name_.assign(driver_name_rng.begin(), driver_name_rng.end());
 
     // Iterate over all properties in connection string
     BOOST_AUTO(props, (make_iterator_range(++colon_iter, conn_string.end())));

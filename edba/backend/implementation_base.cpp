@@ -13,65 +13,11 @@
 #include <map>
 #include <list>
 
-
-#if defined(_WIN32)
-#  include <windows.h>
-#  define RTLD_LAZY 0
-
-namespace {
-
-void *dlopen(char const *name,int /*unused*/)
-{
-    return LoadLibrary(name);
-}
-void dlclose(void *h)
-{
-    HMODULE m=(HMODULE)(h);
-    FreeLibrary(m);
-}
-void *dlsym(void *h,char const *sym)
-{
-    HMODULE m=(HMODULE)(h);
-    return (void *)GetProcAddress(m,sym);
-}
-
-}
-
-#else
-#	include <dlfcn.h>
-#endif
-
 namespace edba { namespace backend {
 
 EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE_IMPL(result_iface)
 EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE_IMPL(statement_iface)
 EDBA_ADD_INTRUSIVE_PTR_SUPPORT_FOR_TYPE_IMPL(connection_iface)
-
-connect_function_type get_connect_function(const char* path, const char* entry_func_name)
-{
-    assert("Path not null" && path);
-
-#ifdef _WIN32
-    void* module = dlopen(path, RTLD_LAZY);
-#else
-    void* module = dlopen(path, RTLD_LAZY | RTLD_GLOBAL);
-#endif
-
-    if (!module)
-        throw edba_error("edba::loadable_driver::failed to load " + std::string(path));
-
-    connect_function_type f = reinterpret_cast<connect_function_type>(
-        dlsym(module, entry_func_name)
-      );
-
-    if (!f)
-    {
-        dlclose(module);
-        throw edba_error("edba::loadable_driver::failed to get " + std::string(entry_func_name) + " address in " + std::string(path));
-    }
-
-    return f;
-}
 
 //////////////
 //statement
