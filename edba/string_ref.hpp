@@ -69,6 +69,11 @@ struct string_ref_less
     }
 };
 
+inline std::string to_string(const string_ref& sref)
+{
+    return std::string(sref.begin(), sref.end());
+}
+
 }
 
 #endif // EDBA_STRING_REF_HPP

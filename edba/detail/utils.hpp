@@ -1,5 +1,5 @@
-#ifndef EDBA_UTIL_H
-#define EDBA_UTIL_H
+#ifndef EDBA_DETAIL_UTILS_HPP
+#define EDBA_DETAIL_UTILS_HPP
 
 #include <edba/detail/exports.hpp>
 #include <edba/errors.hpp>
@@ -104,7 +104,6 @@ T* make_pointer(T* value)
     return value;
 };
 
-///
 /// \brief select statement according to engine and version from statements list
 ///
 /// For example:
@@ -125,7 +124,6 @@ T* make_pointer(T* value)
 ///                         ( id CHARACTER VARYING(36) DEFAULT '',      -- station UUID
 ///                           value TEXT DEFAULT '' )                   -- value
 ///~
-///
 string_ref select_statement(
     const string_ref& rng
     , const std::string& engine
@@ -198,4 +196,4 @@ private:
 
 }          // namespace edba
 
-#endif     // EDBA_UTIL_H
+#endif     // EDBA_DETAIL_UTILS_HPP

@@ -18,6 +18,14 @@ public:
     edba_error(std::string const &v) : std::runtime_error(v) {}
 };
 
+/// \brief Some required part in connection string was ommited
+class EDBA_API invalid_connection_string : public edba_error
+{
+public:
+    /// Create a edba_error with error message \a v
+    invalid_connection_string(std::string const &v) : edba_error(v) {}
+};
+
 /// \brief invalid data conversions
 ///
 /// It may be thrown if the data can't be converted to required format, for example trying to fetch

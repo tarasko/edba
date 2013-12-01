@@ -1,7 +1,6 @@
 #ifndef EDBA_STATEMENT_HPP
 #define EDBA_STATEMENT_HPP
 
-#include <edba/backend/interfaces.hpp>
 #include <edba/rowset.hpp>
 
 #include <boost/type_traits/is_convertible.hpp>

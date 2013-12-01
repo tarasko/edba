@@ -3,11 +3,7 @@
 
 #include <edba/backend/interfaces.hpp>
 
-#include <edba/string_ref.hpp>
-#include <edba/types.hpp>
-
 #include <boost/logic/tribool.hpp>
-#include <boost/move/move.hpp>
 
 namespace edba {
 
@@ -20,9 +16,7 @@ class row;
 template<typename Row> class rowset_iterator;
 template<typename Row> class rowset;
 
-///
-/// Represent single row in result set.
-///
+/// Represent single row in row set.
 class row
 {
     template<typename T> friend class rowset_iterator;

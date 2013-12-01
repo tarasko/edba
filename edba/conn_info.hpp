@@ -2,13 +2,14 @@
 #define EDBA_CONN_INFO_HPP
 
 #include <edba/detail/exports.hpp>
+#include <edba/errors.hpp>
 #include <edba/string_ref.hpp>
 
 #include <boost/shared_ptr.hpp>
 
 namespace edba {
 
-/// \brief Parse a connection string \a cs into driver name \a driver_name and list of properties \a props
+/// \brief Parse a connection string \a cs into driver name and list of properties
 ///
 /// The connection string format is following:
 ///
@@ -23,47 +24,37 @@ namespace edba {
 /// \verbatim   mysql:username= root;password = 'asdf''5764dg';database=test;@use_prepared=off' \endverbatim 
 ///
 /// Where driver is "mysql", username is "root", password is "asdf'5764dg", database is "test" and
-/// special value "@use_prepared" is off - internal edba option.    class conn_info 
+/// special value "@use_prepared" is off - internal edba option.
 class EDBA_API conn_info
 {
 public:
-    ///
-    /// Split connection string to key-value pairs
-    ///
+    /// Split connection string to driver name and key-value pairs
+    /// Throw invalid_connection_string exception if error occurs during connection string splitting
     conn_info(const string_ref& conn_string);
 
-    ///
     /// Return true if conn_info has specified key
-    ///
     bool has(const char* key) const;
 
-    ///
     /// Return value for specified key, if key not found return default value
-    ///
     string_ref get(const char* key, const char* def = "") const;
 
-    ///
     /// Return value for specified key, if key not found return default value
     /// Copy internal range to new string, this is helpfull for some driver that accept 
     /// only zero ended strings
-    ///
     std::string get_copy(const char* key, const char* def = "") const;
 
-    ///
     /// Return numeric value for specified key, if key not found return default value
-    ///
     int get(const char* key, int def) const;
 
-    ///
     /// Return connection string for driver without ebda specific tags
-    ///
     const std::string& conn_string() const;
 
-    ///
     /// Return connection string for postgresql driver
     /// Perform escaping and quoting according to postgresql rules 
-    ///
     std::string pgsql_conn_string() const;
+
+    /// Return driver name
+    string_ref driver_name() const;
 
 private:
     static void append_escaped(const string_ref& rng, std::string& dst);

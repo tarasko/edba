@@ -1,7 +1,6 @@
 #ifndef EDBA_SESSION_HPP
 #define EDBA_SESSION_HPP
 
-#include <edba/backend/interfaces.hpp>
 #include <edba/statement.hpp>
 #include <edba/conn_info.hpp>
 

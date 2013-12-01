@@ -17,6 +17,7 @@ add_executable(edba.tests
 	backends_smoke_test.cpp
 	types_support_test.cpp
 	session_pool_test.cpp
+	conn_info_test.cpp
 	)
 
 target_link_libraries(edba.tests edba ${Boost_LIBRARIES})

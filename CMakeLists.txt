@@ -56,6 +56,8 @@ set(sources
   edba/detail/handle.hpp
   edba/conn_info.hpp
   edba/conn_info.cpp
+  edba/driver_manager.hpp
+  edba/driver_manager.cpp
   edba/edba.hpp
   edba/errors.hpp
   edba/session.hpp
