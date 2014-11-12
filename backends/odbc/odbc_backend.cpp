@@ -268,17 +268,28 @@ public:
                 ci.name_ = (char*)name;
             }
 
+            bool is_wide_char_type = 
+                SQL_WCHAR == ci.type_ ||
+                SQL_WVARCHAR == ci.type_ ||
+                SQL_WLONGVARCHAR == ci.type_;
+
+            bool is_any_char_type = 
+                is_wide_char_type || 
+                SQL_CHAR == ci.type_ ||
+                SQL_VARCHAR == ci.type_ ||
+                SQL_LONGVARCHAR == ci.type_;
+
+            bool is_var_size_type = 
+                is_any_char_type || 
+                SQL_VARBINARY == ci.type_ ||
+                SQL_LONGVARBINARY == ci.type_;
+
             // For types like varchar(max) and varbinary(max) column_size == 0
             // Explicitly assign column size
-            if (SQL_VARCHAR == ci.type_ ||
-                SQL_WVARCHAR == ci.type_ ||
-                SQL_LONGVARCHAR == ci.type_ ||
-                SQL_VARBINARY == ci.type_ ||
-                SQL_LONGVARBINARY)
-            {
-                if (0 == column_size)
-                    column_size = MAX_READ_BUFFER_SIZE;
-            }
+            if (is_var_size_type && 0 == column_size)
+                column_size = MAX_READ_BUFFER_SIZE;
+            else if (is_wide_char_type)
+                column_size *= 2;
 
             if (column_size > max_column_size)
                 max_column_size = column_size;
@@ -286,7 +297,16 @@ public:
             columns_.push_back(ci);
         }
 
-        max_column_size = (min)(max_column_size + 1, MAX_READ_BUFFER_SIZE);
+        // Reserve one byte for null character, in case of string
+        // Figure out do we actually need this
+        max_column_size += 1;
+
+        // Align size to 2
+        // If some column will be extracted as wide char string, we will 
+        // provide size of bytes divisible by 2
+        max_column_size += (max_column_size % 2);
+
+        max_column_size = (min)(max_column_size, MAX_READ_BUFFER_SIZE);
         column_char_buf_.resize(max_column_size);
     }
 
@@ -348,8 +368,11 @@ public:
         data->tm_sec = tmp.second;
 
         // normalize and compute the remaining fields
+#ifdef _WIN32
+        _mkgmtime(data);
+#else
         mktime(data);
-
+#endif
         return true;
     }
 
