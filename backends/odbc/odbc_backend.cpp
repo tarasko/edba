@@ -771,7 +771,15 @@ public:
     virtual backend::result_ptr query_impl()
     {
         BOOST_AUTO(p, real_exec());
-        throw_on_error_(p.first) = p.second;
+        try
+        {
+            throw_on_error_(p.first) = p.second;
+        }
+        catch(...)
+        {
+            SQLFreeStmt(stmt_.get(), SQL_CLOSE);
+            throw;
+        }
         return backend::result_ptr(new result(stmt_.get(), cd_->wide_));
     }
 
@@ -780,7 +788,17 @@ public:
         BOOST_AUTO(p, real_exec());
 
         if(p.second != SQL_NO_DATA)
-            throw_on_error_(p.first) = p.second;
+        {
+            try 
+            {
+                throw_on_error_(p.first) = p.second;
+            }
+            catch(...)
+            {
+                SQLFreeStmt(stmt_.get(), SQL_CLOSE);
+                throw;
+            }
+        }
     }
 
     pair<const char*, SQLRETURN> real_exec()
