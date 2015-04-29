@@ -55,7 +55,7 @@ public:
     /// Check if the session was opened.
     bool is_open()
     {
-        return conn_;
+        return static_cast<bool>(conn_);
     }
 
     /// Try fetch statement from cache. If it doesn`t exist then create prepared statement, put it in cache and return.
