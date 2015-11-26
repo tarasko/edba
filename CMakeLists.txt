@@ -9,6 +9,12 @@ option(EDBA_S_BACKEND_SHARED "Use backends as shared libraries for static versio
 option(EDBA_ENABLE "Enable shared versions of core libraries" ON)
 option(EDBA_S_ENABLE "Enable static version of core libraries" ON)
 
+option(EDBA_CONVERT_VARCHAR_TO_LONGVARCHAR "Enable conversion of SQL_VARCHAR to SQL_LONGVARCHAR when target type param size is 0" OFF)
+
+if (EDBA_CONVERT_VARCHAR_TO_LONGVARCHAR)
+  add_definitions(-DCONVERT_SQL_VARCHAR_TO_SQL_LONGVARCHAR_WHEN_PARAM_SIZE_EQUAL_ZERO)
+endif()
+
 # Use own helpers
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 
