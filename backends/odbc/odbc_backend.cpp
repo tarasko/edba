@@ -838,10 +838,8 @@ private:
                 params_desc_.clear();
                 return;
             }
-            #ifdef CONVERT_SQL_VARCHAR_TO_SQL_LONGVARCHAR_WHEN_PARAM_SIZE_EQUAL_ZERO
             if (d.data_type_ == SQL_VARCHAR && d.param_size_ == 0)
                 d.data_type_ = SQL_LONGVARCHAR;
-            #endif
         }
     }
 
