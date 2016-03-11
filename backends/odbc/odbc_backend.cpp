@@ -838,6 +838,8 @@ private:
                 params_desc_.clear();
                 return;
             }
+            if (d.data_type_ == SQL_VARCHAR && d.param_size_ == 0)
+                d.data_type_ = SQL_LONGVARCHAR;
         }
     }
 
